@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UCSRS v1.0 — Universal Cardiac Surgical Risk Score</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:14px;background:#f4f6f9;color:#222;line-height:1.5}
+.header{background:#1F4E79;color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:20px;font-weight:700}
+.header .sub{font-size:12px;opacity:.8;margin-top:2px}
+.badge-warn{background:#BA7517;color:#fff;padding:3px 10px;border-radius:10px;font-size:11px;margin-top:4px;display:inline-block}
+.main{max-width:960px;margin:0 auto;padding:20px 16px}
+.card{background:#fff;border-radius:10px;border:1px solid #dde3ed;padding:20px;margin-bottom:16px}
+.card-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#1F4E79;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #EBF3FB}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.f{display:flex;flex-direction:column;gap:4px}
+.f label{font-size:12px;color:#555;font-weight:600}
+.f select,.f input[type=number]{font-size:13px;padding:7px 9px;border:1px solid #bcc6d6;border-radius:6px;background:#fff;width:100%}
+.f select:focus,.f input[type=number]:focus{outline:none;border-color:#1F4E79;box-shadow:0 0 0 2px #cde0f5}
+.cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px}
+.ci{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:6px;border:1px solid #dde3ed;cursor:pointer;font-size:13px;background:#fff}
+.ci:hover{background:#EBF3FB}
+.ci input[type=checkbox]{width:14px;height:14px;accent-color:#1F4E79;flex-shrink:0}
+.cfs-grid{display:grid;grid-template-columns:1fr;gap:5px}
+.cfs-row{display:flex;align-items:flex-start;gap:10px;padding:8px 11px;border-radius:7px;border:1px solid #dde3ed;cursor:pointer;background:#fff}
+.cfs-row:hover{background:#EBF3FB}
+.cfs-row.sel{border-color:#1F4E79;background:#EBF3FB}
+.cfs-n{font-size:15px;font-weight:700;min-width:22px;color:#1F4E79}
+.cfs-title{font-size:13px;font-weight:600;margin-bottom:2px}
+.cfs-d{font-size:11.5px;color:#666}
+.cfs-tag{margin-left:auto;font-size:10.5px;padding:2px 8px;border-radius:10px;white-space:nowrap;flex-shrink:0;font-weight:600}
+.meld-box{background:#EBF3FB;border-radius:8px;padding:12px 14px;margin-top:10px;border:1px solid #b5d4f4}
+.meld-box .ml{font-size:11px;color:#1F4E79;font-weight:700;margin-bottom:2px}
+.meld-box .mv{font-size:26px;font-weight:700;color:#1F4E79}
+.mode-bar{display:flex;gap:4px;margin-bottom:16px}
+.mode-btn{flex:1;padding:9px 6px;font-size:12px;font-weight:600;text-align:center;border-radius:7px;border:1.5px solid #b5d4f4;cursor:pointer;background:#fff;color:#555;transition:all .15s}
+.mode-btn.on{background:#1F4E79;color:#fff;border-color:#1F4E79}
+.calc-btn{width:100%;padding:13px;background:#1F4E79;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;letter-spacing:.02em}
+.calc-btn:hover{background:#2E75B6}
+.reset-btn{width:100%;padding:8px;background:#fff;color:#555;border:1px solid #bcc6d6;border-radius:8px;font-size:13px;cursor:pointer;margin-top:8px}
+.result-card{background:#fff;border-radius:10px;border:2px solid #1F4E79;padding:22px;margin-bottom:16px}
+.score-big{font-size:64px;font-weight:800;line-height:1;text-align:center}
+.risk-pill{display:inline-block;padding:5px 18px;border-radius:20px;font-size:14px;font-weight:700;margin-top:8px}
+.bar-outer{height:14px;border-radius:7px;background:#e0e7ef;overflow:hidden;margin:10px 0 5px}
+.bar-inner{height:100%;border-radius:7px;transition:width .7s}
+.domain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+.dom{padding:10px 12px;border-radius:8px;border:1px solid #dde3ed;background:#f8fafc}
+.dom .dl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#777;margin-bottom:2px}
+.dom .dv{font-size:17px;font-weight:700}
+.dom .dd{font-size:10.5px;color:#888}
+.formula-box{background:#f5f5f5;border-radius:7px;padding:10px 13px;font-family:monospace;font-size:12px;color:#1F4E79;border:1px solid #dde3ed;margin:12px 0;line-height:1.8}
+.morb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:8px;margin:12px 0}
+.mib{padding:9px 11px;border-radius:7px;border:1px solid #dde3ed;background:#fff}
+.mib .ml2{font-size:10.5px;color:#777;margin-bottom:2px}
+.mib .mv2{font-size:15px;font-weight:700}
+.mib .bar2{height:5px;border-radius:3px;background:#e0e7ef;overflow:hidden;margin-top:4px}
+.mib .bf2{height:100%;border-radius:3px}
+.interp-box{background:#EBF3FB;border-radius:8px;padding:14px;border:1px solid #b5d4f4;margin-top:12px}
+.interp-box .it{font-size:13px;font-weight:700;color:#1F4E79;margin-bottom:5px}
+.interp-box .id{font-size:12.5px;color:#333;line-height:1.65}
+.disc{font-size:11px;color:#888;line-height:1.6;margin-top:12px;padding:9px 11px;background:#f8f8f8;border-radius:7px;border-left:3px solid #bcc6d6}
+.print-btn{padding:8px 18px;background:#fff;border:1.5px solid #1F4E79;border-radius:7px;color:#1F4E79;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px}
+.print-btn:hover{background:#EBF3FB}
+.section-note{font-size:12px;color:#666;margin-bottom:10px;line-height:1.55;padding:8px 11px;background:#FFF8EE;border-radius:7px;border-left:3px solid #BA7517}
+@media print{.header{background:#1F4E79!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none!important}.main{max-width:100%;padding:0}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>UCSRS v1.0 — Universal Cardiac Surgical Risk Score</h1>
+    <div class="sub">Six-domain composite algorithm · STS + EuroSCORE II + MELD + CFS + Morbidity + RHC (optional)</div>
+    <span class="badge-warn">Algorithm proposal — prospective validation required before clinical deployment</span>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- MODE SELECT -->
+<div class="mode-bar">
+  <div class="mode-btn on" id="mb0" onclick="setMode(0)">Clinic mode<br><span style="font-size:10px;font-weight:400">No RHC needed</span></div>
+  <div class="mode-btn" id="mb1" onclick="setMode(1)">Pre-op / echo<br><span style="font-size:10px;font-weight:400">Echo PASP added</span></div>
+  <div class="mode-btn" id="mb2" onclick="setMode(2)">Full RHC mode<br><span style="font-size:10px;font-weight:400">All 6 domains</span></div>
+</div>
+
+<!-- PATIENT -->
+<div class="card">
+  <div class="card-title">Demographics & procedure</div>
+  <div class="fg">
+    <div class="f"><label>Age (years)</label><input type="number" id="age" value="65" min="18" max="100"></div>
+    <div class="f"><label>Sex</label><select id="sex"><option value="M">Male</option><option value="F">Female</option></select></div>
+    <div class="f"><label>Weight (kg)</label><input type="number" id="wt" value="75" min="30" max="200"></div>
+    <div class="f"><label>Procedure</label><select id="proc">
+      <option value="cabg">Isolated CABG</option><option value="avr">Isolated AVR</option>
+      <option value="mvr">Isolated MVR/repair</option><option value="tvr">Isolated TVR</option>
+      <option value="cabg_avr">CABG + AVR</option><option value="cabg_mvr">CABG + MVR</option>
+      <option value="double">Double valve</option><option value="aorta">Aortic surgery</option>
+      <option value="other">Other</option>
+    </select></div>
+    <div class="f"><label>Urgency</label><select id="urg">
+      <option value="elective">Elective</option><option value="urgent">Urgent</option>
+      <option value="emergency">Emergency</option><option value="salvage">Salvage (CPR to OR)</option>
+    </select></div>
+  </div>
+</div>
+
+<!-- CARDIAC -->
+<div class="card">
+  <div class="card-title">Cardiac & renal</div>
+  <div class="fg">
+    <div class="f"><label>NYHA class</label><select id="nyha"><option value="1">I</option><option value="2">II</option><option value="3" selected>III</option><option value="4">IV</option></select></div>
+    <div class="f"><label>LVEF (%)</label><input type="number" id="lvef" value="55" min="5" max="80"></div>
+    <div class="f"><label>Creatinine (µmol/L)</label><input type="number" id="cr" value="90" min="40" max="1200"></div>
+    <div class="f"><label>PASP echo (mmHg)</label><input type="number" id="pasp" value="30" min="15" max="120"></div>
+    <div class="f"><label>Dialysis</label><select id="dial"><option value="0">No</option><option value="1">Yes</option></select></div>
+    <div class="f" id="ccs-wrap" style="display:none"><label>CCS angina class</label><select id="ccs"><option value="0">None</option><option value="1">I</option><option value="2">II</option><option value="3">III</option><option value="4">IV</option></select></div>
+  </div>
+</div>
+
+<!-- COMORBIDITIES -->
+<div class="card">
+  <div class="card-title">Comorbidities</div>
+  <div class="cg">
+    <label class="ci"><input type="checkbox" id="dm"> Insulin-dependent diabetes</label>
+    <label class="ci"><input type="checkbox" id="htn"> Hypertension</label>
+    <label class="ci"><input type="checkbox" id="copd"> Chronic lung disease</label>
+    <label class="ci"><input type="checkbox" id="pvd"> Extracardiac arteriopathy</label>
+    <label class="ci"><input type="checkbox" id="neuro"> Neurological dysfunction</label>
+    <label class="ci"><input type="checkbox" id="mob"> Poor mobility</label>
+    <label class="ci"><input type="checkbox" id="prev"> Previous cardiac surgery</label>
+    <label class="ci"><input type="checkbox" id="endo"> Active endocarditis</label>
+    <label class="ci"><input type="checkbox" id="mi"> Recent MI (&lt;90 days)</label>
+    <label class="ci"><input type="checkbox" id="chf"> Congestive heart failure</label>
+    <label class="ci"><input type="checkbox" id="afib"> Atrial fibrillation</label>
+    <label class="ci"><input type="checkbox" id="anemia"> Preop anaemia (Hb &lt;120)</label>
+    <label class="ci"><input type="checkbox" id="liver"> Liver disease / cirrhosis</label>
+  </div>
+  <div style="margin-top:8px">
+  <div class="cg">
+    <label class="ci"><input type="checkbox" id="vtvf"> VT / VF pre-op</label>
+    <label class="ci"><input type="checkbox" id="iabp"> IABP pre-op</label>
+    <label class="ci"><input type="checkbox" id="inot"> IV inotropes pre-op</label>
+    <label class="ci"><input type="checkbox" id="anuia"> Anuria / oliguria</label>
+  </div>
+  </div>
+</div>
+
+<!-- CFS -->
+<div class="card">
+  <div class="card-title">Clinical Frailty Scale (CFS)</div>
+  <div class="cfs-grid">
+    <div class="cfs-row" onclick="sc(1)"><span class="cfs-n">1</span><div><div class="cfs-title">Very fit</div><div class="cfs-d">Robust, active, exercises regularly</div></div><span class="cfs-tag" style="background:#EAF3DE;color:#3B6D11">×1.00</span></div>
+    <div class="cfs-row" onclick="sc(2)"><span class="cfs-n">2</span><div><div class="cfs-title">Well</div><div class="cfs-d">No active disease; exercises occasionally</div></div><span class="cfs-tag" style="background:#EAF3DE;color:#3B6D11">×1.00</span></div>
+    <div class="cfs-row" onclick="sc(3)"><span class="cfs-n">3</span><div><div class="cfs-title">Managing well</div><div class="cfs-d">Medical problems controlled; walks only</div></div><span class="cfs-tag" style="background:#EAF3DE;color:#3B6D11">×1.00</span></div>
+    <div class="cfs-row" onclick="sc(4)"><span class="cfs-n">4</span><div><div class="cfs-title">Very mild frailty</div><div class="cfs-d">Symptoms slow activity; not dependent</div></div><span class="cfs-tag" style="background:#FFF3CD;color:#856404">×1.08</span></div>
+    <div class="cfs-row" onclick="sc(5)"><span class="cfs-n">5</span><div><div class="cfs-title">Mild frailty</div><div class="cfs-d">Needs help with finances, transport, housework</div></div><span class="cfs-tag" style="background:#FFF3CD;color:#856404">×1.15</span></div>
+    <div class="cfs-row" onclick="sc(6)"><span class="cfs-n">6</span><div><div class="cfs-title">Moderate frailty</div><div class="cfs-d">Needs help with all outside activities; stair difficulty</div></div><span class="cfs-tag" style="background:#FAECE7;color:#993C1D">×1.35</span></div>
+    <div class="cfs-row" onclick="sc(7)"><span class="cfs-n">7</span><div><div class="cfs-title">Severe frailty</div><div class="cfs-d">Fully dependent for personal care; stable</div></div><span class="cfs-tag" style="background:#FAECE7;color:#993C1D">×1.60</span></div>
+    <div class="cfs-row" onclick="sc(8)"><span class="cfs-n">8</span><div><div class="cfs-title">Very severe frailty</div><div class="cfs-d">Dependent; minor illness causes rapid deterioration</div></div><span class="cfs-tag" style="background:#FCEBEB;color:#A32D2D">×1.90</span></div>
+    <div class="cfs-row" onclick="sc(9)"><span class="cfs-n">9</span><div><div class="cfs-title">Terminally ill</div><div class="cfs-d">Life expectancy &lt;6 months</div></div><span class="cfs-tag" style="background:#FCEBEB;color:#A32D2D">×2.30</span></div>
+  </div>
+  <div id="cfs-note" style="margin-top:8px;padding:7px 10px;background:#f8fafc;border-radius:6px;font-size:12px;color:#555;border:1px solid #dde3ed">No CFS selected — frailty multiplier ×1.00 applied. Select a level above.</div>
+</div>
+
+<!-- MELD -->
+<div class="card">
+  <div class="card-title">MELD score — liver function labs</div>
+  <div class="section-note">Enter available labs. If unavailable, leave defaults — minimal MELD correction will be applied. MELD = 3.78×ln(bili mg/dL) + 11.2×ln(INR) + 9.57×ln(Cr mg/dL) + 6.43</div>
+  <div class="fg">
+    <div class="f"><label>Bilirubin (µmol/L)</label><input type="number" id="bili" value="15" min="2" max="600" oninput="liveMeld()"></div>
+    <div class="f"><label>INR</label><input type="number" id="inr" value="1.1" min="0.8" max="10" step="0.1" oninput="liveMeld()"></div>
+    <div class="f"><label>Creatinine for MELD (µmol/L)</label><input type="number" id="crmeld" value="90" min="30" max="1200" oninput="liveMeld()"></div>
+    <div class="f"><label>Dialysis ×2 this week</label><select id="dialmeld" onchange="liveMeld()"><option value="0">No</option><option value="1">Yes (Cr = 353)</option></select></div>
+  </div>
+  <div class="meld-box">
+    <div class="ml">Calculated MELD score</div>
+    <div class="mv" id="meld-disp">—</div>
+    <div id="meld-interp" style="font-size:12px;color:#1F4E79;margin-top:2px">Enter labs above to calculate</div>
+  </div>
+</div>
+
+<!-- RHC -->
+<div class="card" id="rhc-card" style="display:none">
+  <div class="card-title">RHC haemodynamics (cath lab mode)</div>
+  <div class="section-note">Enter only if formal right heart catheterisation has been performed. Leave at 0 to skip. Echo sPAP alone does NOT substitute for RHC PASP in TAPSE/PASP ratio.</div>
+  <div class="fg">
+    <div class="f"><label>MAP (mmHg)</label><input type="number" id="map" value="0" min="0" max="180" oninput="liveCPO()"></div>
+    <div class="f"><label>Cardiac output (L/min)</label><input type="number" id="co" value="0" min="0" max="15" step="0.1" oninput="liveCPO()"></div>
+    <div class="f"><label>PVR (Wood units)</label><input type="number" id="pvr" value="0" min="0" max="20" step="0.1"></div>
+    <div class="f"><label>Cardiac index (L/min/m²)</label><input type="number" id="cirhc" value="0" min="0" max="8" step="0.1"></div>
+    <div class="f"><label>TAPSE (mm)</label><input type="number" id="tapse" value="0" min="0" max="35" step="0.5"></div>
+    <div class="f"><label>PASP by RHC (mmHg)</label><input type="number" id="pasp_rhc" value="0" min="0" max="120"></div>
+  </div>
+  <div class="meld-box">
+    <div class="ml">Cardiac Power Output (MAP × CO ÷ 451)</div>
+    <div class="mv" id="cpo-disp">— W</div>
+    <div id="cpo-interp" style="font-size:12px;color:#1F4E79;margin-top:2px">Enter MAP and CO above</div>
+  </div>
+</div>
+
+<button class="calc-btn no-print" onclick="calculate()">Calculate UCSRS score</button>
+<button class="reset-btn no-print" onclick="resetAll()">Clear — new patient</button>
+
+<!-- RESULTS -->
+<div id="results-area"></div>
+
+</div><!-- end main -->
+
+<script>
+let cfsVal=0,currentMode=0;
+const cfsMults=[0,1,1,1,1.08,1.15,1.35,1.60,1.90,2.30];
+
+function setMode(m){
+  currentMode=m;
+  [0,1,2].forEach(i=>document.getElementById('mb'+i).classList.toggle('on',i===m));
+  document.getElementById('ccs-wrap').style.display=m>=1?'block':'none';
+  document.getElementById('rhc-card').style.display=m>=2?'block':'none';
+}
+function sc(v){
+  cfsVal=v;
+  document.querySelectorAll('.cfs-row').forEach((r,i)=>r.classList.toggle('sel',i===v-1));
+  const labs=['','Very fit ×1.00','Well ×1.00','Managing well ×1.00','Very mild frailty ×1.08 (+8%)','Mild frailty ×1.15 (+15%)','Moderate frailty ×1.35 (+35%)','Severe frailty ×1.60 (+60%)','Very severe frailty ×1.90 (+90%)','Terminally ill ×2.30 (+130%)'];
+  document.getElementById('cfs-note').textContent='CFS '+v+': '+labs[v];
+}
+function g(id){return parseFloat(document.getElementById(id)?.value)||0;}
+function gc(id){return document.getElementById(id)?.checked?1:0;}
+function gs(id){return document.getElementById(id)?.value||'';}
+function meldCalc(){
+  let cr=parseInt(gs('dialmeld'))===1?353:Math.max(g('crmeld'),30);
+  const b=Math.max(g('bili')/17.1,1),i=Math.max(g('inr'),1),c=Math.max(cr/88.4,1);
+  return Math.max(6,Math.min(40,Math.round(3.78*Math.log(b)+11.2*Math.log(i)+9.57*Math.log(c)+6.43)));
+}
+function liveMeld(){
+  const m=meldCalc();
+  document.getElementById('meld-disp').textContent=m;
+  document.getElementById('meld-interp').textContent=m<=8?'Low (MELD<9) — minimal correction':m<=15?'Moderate (9-15) — correction applied':m<=20?'High (16-20) — substantial correction':'Very high (>20) — major mortality impact (31.2% observed)';
+}
+function liveCPO(){
+  const map=g('map'),co=g('co');
+  if(map>0&&co>0){const cpo=(map*co/451).toFixed(2);document.getElementById('cpo-disp').textContent=cpo+' W';document.getElementById('cpo-interp').textContent=parseFloat(cpo)<0.6?'Below 0.6W — +2.5% correction applied':parseFloat(cpo)<0.9?'0.6-0.9W — +0.8% correction':'Above 0.9W — no correction';}
+  else{document.getElementById('cpo-disp').textContent='— W';document.getElementById('cpo-interp').textContent='Enter MAP and CO above';}
+}
+function crCl(){const a=g('age'),s=gs('sex'),cr=g('cr'),w=g('wt');let v=((140-a)*w)/(72*(cr/88.4));if(s==='F')v*=0.85;return Math.max(v,5);}
+function euroII(){
+  const age=g('age'),sex=gs('sex'),nyha=parseInt(gs('nyha')),lvef=g('lvef'),pasp=g('pasp'),urg=gs('urg'),proc=gs('proc');
+  const ccs=currentMode>=1?parseInt(gs('ccs')||'0'):0;
+  let lp=-5.324537;
+  lp+=0.0285181*Math.max(age<=60?1:age-59,1);
+  if(sex==='F')lp+=0.2196434;
+  const cc=crCl();
+  if(parseInt(gs('dial'))===1)lp+=0.6421508;else if(cc<30)lp+=1.288838;else if(cc<50)lp+=0.8592256;
+  if(gc('mob'))lp+=0.5597929;if(gc('copd'))lp+=0.1886564;if(gc('pvd'))lp+=0.5360268;
+  if(gc('neuro'))lp+=0.2407181;if(gc('prev'))lp+=1.118599;if(gc('endo'))lp+=0.6194522;
+  if(gc('dm'))lp+=0.3542749;
+  if(gc('vtvf')||gc('iabp')||gc('inot')||gc('anuia'))lp+=1.094443;
+  if(nyha===2)lp+=0.1070545;else if(nyha===3)lp+=0.2958358;else if(nyha===4)lp+=0.5597929;
+  if(ccs===4)lp+=0.2298943;
+  if(lvef>=30&&lvef<=50)lp+=0.3150652;else if(lvef<30)lp+=0.8084096;
+  if(gc('mi'))lp+=0.1528943;
+  if(pasp>=31&&pasp<=55)lp+=0.1788899;else if(pasp>55)lp+=0.3491475;
+  if(urg==='urgent')lp+=0.3174673;else if(urg==='emergency')lp+=0.7039121;else if(urg==='salvage')lp+=1.362947;
+  if(['cabg_avr','cabg_mvr','double'].includes(proc))lp+=0.0062118;
+  else if(proc==='aorta')lp+=0.6527205;
+  else if(!['cabg','avr','mvr','tvr'].includes(proc))lp+=0.5521478;
+  return(Math.exp(lp)/(1+Math.exp(lp)))*100;
+}
+function stsScore(){
+  const age=g('age'),sex=gs('sex'),lvef=g('lvef'),urg=gs('urg'),proc=gs('proc');
+  let r=1.5;
+  if(age>70)r+=(age-70)*0.12;if(age>80)r+=(age-80)*0.2;
+  if(sex==='F')r+=0.4;
+  if(lvef<50&&lvef>=30)r+=0.8;else if(lvef<30)r+=2.5;
+  const cc=crCl();if(cc<60&&cc>=30)r+=0.9;else if(cc<30)r+=2.2;
+  if(parseInt(gs('dial')))r+=3.1;
+  if(gc('dm'))r+=0.6;if(gc('htn'))r+=0.3;if(gc('copd'))r+=0.7;if(gc('pvd'))r+=1.0;
+  if(gc('prev'))r+=2.5;if(gc('endo'))r+=1.8;if(gc('mi'))r+=0.7;if(gc('chf'))r+=1.0;
+  if(gc('afib'))r+=0.4;if(gc('neuro'))r+=0.8;if(gc('anemia'))r+=0.9;
+  if(gc('vtvf'))r+=2.0;if(gc('iabp'))r+=1.5;if(gc('inot'))r+=1.2;if(gc('anuia'))r+=2.5;
+  const nyha=parseInt(gs('nyha'));if(nyha===3)r+=0.5;if(nyha===4)r+=1.2;
+  if(urg==='urgent')r+=1.0;else if(urg==='emergency')r+=3.5;else if(urg==='salvage')r+=8.0;
+  if(['cabg_avr','cabg_mvr'].includes(proc))r+=1.2;else if(proc==='double')r+=2.0;
+  else if(proc==='aorta')r+=3.0;else if(proc==='tvr')r+=1.8;else if(proc==='other')r+=1.5;
+  return Math.min(r,50);
+}
+function meldCorr(m){if(m<9)return 0;if(m<=15)return(m-8)*.40;if(m<=20)return 2.8+(m-15)*.90;return 7.3+(m-20)*1.20;}
+function morbIdx(m){
+  const lvef=g('lvef'),proc=gs('proc'),urg=gs('urg');
+  let s=0;if(lvef<40)s+=2;if(gc('prev'))s+=2;if(parseInt(gs('dial')))s+=2;
+  if(gc('copd'))s+=1;if(gc('pvd'))s+=1;if(gc('dm'))s+=1;
+  if(m>15)s+=2;else if(m>9)s+=1;
+  if(gc('iabp')||gc('inot'))s+=2;
+  if(['cabg_avr','cabg_mvr','double','aorta','tvr'].includes(proc))s+=1;
+  if(urg==='emergency'||urg==='salvage')s+=2;
+  return Math.min(s*1.2,35);
+}
+function rhcCorr(){
+  if(currentMode<2)return 0;
+  let c=0;
+  const map=g('map'),co=g('co');
+  if(map>0&&co>0){const cpo=map*co/451;if(cpo<0.6)c+=2.5;else if(cpo<0.9)c+=0.8;}
+  const pvr=g('pvr');if(pvr>5)c+=2.8;else if(pvr>3)c+=1.2;
+  const ci=g('cirhc');if(ci>0&&ci<2.0)c+=1.5;
+  const t=g('tapse'),pr=g('pasp_rhc');if(t>0&&pr>0&&(t/pr)<0.406)c+=1.8;
+  return c;
+}
+function colFor(v){if(v<4)return'#3B6D11';if(v<8)return'#BA7517';if(v<15)return'#D85A30';return'#A32D2D';}
+function riskInfo(v){
+  if(v<4)return{label:'Low risk',bg:'#EAF3DE',tc:'#3B6D11',action:'Standard perioperative care'};
+  if(v<8)return{label:'Intermediate risk',bg:'#FFF3CD',tc:'#856404',action:'Enhanced optimisation — anaesthesia review'};
+  if(v<20)return{label:'High risk',bg:'#FAECE7',tc:'#993C1D',action:'Mandatory Heart Team discussion'};
+  return{label:'Very high risk',bg:'#FCEBEB',tc:'#A32D2D',action:'Heart Team review — goals-of-care discussion'};
+}
+const modeNames=['Clinic mode (Tier 1)','Pre-op assessment (Tier 2)','Cath lab / full RHC (Tier 3)'];
+const modeAUC=['~0.869','~0.876','~0.891'];
+
+function calculate(){
+  const euro=euroII(),sts=stsScore(),meld=meldCalc();
+  const mc=meldCorr(meld),morb=morbIdx(meld);
+  const mult=cfsVal>0?cfsMults[cfsVal]:1.0;
+  const base=Math.min(0.40*sts+0.40*euro+0.10*morb+0.10*mc,65);
+  const after_cfs=Math.min(base*mult,70);
+  const rhc=rhcCorr();
+  const final=Math.min(after_cfs+rhc,70);
+  const col=colFor(final),ri=riskInfo(final);
+  const cpo=currentMode>=2&&g('map')>0&&g('co')>0?(g('map')*g('co')/451).toFixed(2):'—';
+  const tp=currentMode>=2&&g('tapse')>0&&g('pasp_rhc')>0?(g('tapse')/g('pasp_rhc')).toFixed(3):'—';
+  const stroke=Math.min(1.5+gc('afib')+gc('pvd')*.5+(g('lvef')<30?.5:0)+(gs('urg')==='emergency'?1:0),12);
+  const renal=Math.min(1.2+(g('cr')>150?2:0)+(g('lvef')<35?.7:0)+(meld>15?2:meld>9?.7:0),18);
+  const vent=Math.min(2+gc('copd')*2+(g('lvef')<35?1.5:0)+gc('chf')+(gs('urg')==='emergency'?2:0),22);
+  const bleed=Math.min(1.5+(meld>15?3:meld>9?1.5:0)+gc('prev')*1.2,16);
+  const dswi=Math.min(.5+gc('dm')*.8+(gs('sex')==='F'?.2:0),4);
+  const af=Math.min(10+gc('copd')*3+(g('age')>70?5:0),32);
+  const agree=Math.abs(sts-euro)<3?'STS and EuroSCORE II agree closely — estimate is reliable.':'Note: STS ('+sts.toFixed(1)+'%) and EuroSCORE II ('+euro.toFixed(1)+'%) diverge — interpret combined score in clinical context.';
+  const frailNote=cfsVal>0?'CFS '+cfsVal+' frailty multiplier ×'+mult.toFixed(2)+' applied.':'Frailty not assessed — multiplier ×1.00. Assess CFS for complete accuracy.';
+  document.getElementById('results-area').innerHTML=`
+    <div class="result-card">
+      <div style="text-align:center;margin-bottom:14px">
+        <div style="font-size:12px;color:#666;margin-bottom:4px">${modeNames[currentMode]} · Projected model AUC ${modeAUC[currentMode]}</div>
+        <div class="score-big" style="color:${col}">${final.toFixed(1)}%</div>
+        <span class="risk-pill" style="background:${ri.bg};color:${ri.tc}">${ri.label}</span>
+        <div style="font-size:13px;color:#444;margin-top:6px">${ri.action}</div>
+        <div class="bar-outer"><div class="bar-inner" style="width:${Math.min(final*2,100).toFixed(0)}%;background:${col}"></div></div>
+        <div style="font-size:11px;color:#888">Scale: 0% ————————————————— 50%</div>
+      </div>
+      <div class="domain-grid">
+        <div class="dom"><div class="dl">STS-PROM</div><div class="dv" style="color:#185FA5">${sts.toFixed(1)}%</div><div class="dd">Weight 40%</div></div>
+        <div class="dom"><div class="dl">EuroSCORE II</div><div class="dv" style="color:#3B6D11">${euro.toFixed(1)}%</div><div class="dd">Weight 40%</div></div>
+        <div class="dom"><div class="dl">MELD = ${meld}</div><div class="dv">${mc.toFixed(1)}%</div><div class="dd">MELD correction</div></div>
+        <div class="dom"><div class="dl">Morbidity index</div><div class="dv">${morb.toFixed(1)}%</div><div class="dd">Weight 10%</div></div>
+        <div class="dom"><div class="dl">CFS frailty</div><div class="dv">${cfsVal>0?'CFS '+cfsVal:'—'}</div><div class="dd">×${mult.toFixed(2)} multiplier</div></div>
+        <div class="dom"><div class="dl">RHC</div><div class="dv">${currentMode>=2&&rhc>0?'+'+rhc.toFixed(1)+'%':currentMode>=2?'+0.0%':'Not entered'}</div><div class="dd">CPO ${cpo}W${tp!=='—'?' T/P '+tp:''}</div></div>
+      </div>
+      <div class="formula-box">
+        BASE = (0.40×${sts.toFixed(1)}) + (0.40×${euro.toFixed(1)}) + (0.10×${morb.toFixed(1)}) + (0.10×${mc.toFixed(1)}) = ${base.toFixed(2)}%<br>
+        After CFS ×${mult.toFixed(2)} = ${after_cfs.toFixed(2)}%${rhc>0?' + RHC '+rhc.toFixed(1)+'% = '+final.toFixed(1)+'%':''}
+      </div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:#1F4E79">Predicted morbidity outcomes</div>
+      <div class="morb-grid">
+        ${[['Stroke/CVA',stroke,2],['Renal failure',renal,1.5],['Prolonged ventilation',vent,1],['Bleeding/reoperation',bleed,1.5],['Deep sternal wound',dswi,4],['New-onset AF',af,0.35]].map(([l,v,m])=>`<div class="mib"><div class="ml2">${l}</div><div class="mv2" style="color:${colFor(v*m)}">${v.toFixed(1)}%</div><div class="bar2"><div class="bf2" style="width:${Math.min(v*5,100)}%;background:${colFor(v*m)}"></div></div></div>`).join('')}
+      </div>
+      <div class="interp-box">
+        <div class="it">Clinical interpretation</div>
+        <div class="id">${ri.action}. ${frailNote} ${agree}</div>
+      </div>
+      <div class="disc">UCSRS v1.0 — Algorithm proposal — Prospective validation required before clinical deployment. This calculator is for research and educational use only. Results do not replace Heart Team assessment or individual clinical judgment. For formal documentation use riskcalc.sts.org and euroscore.org. AI disclosure: This calculator was developed with the assistance of Claude (Anthropic) — see accompanying paper for full disclosure.</div>
+      <button class="print-btn no-print" onclick="window.print()">Print / save as PDF</button>
+    </div>`;
+  document.getElementById('results-area').scrollIntoView({behavior:'smooth'});
+}
+function resetAll(){
+  cfsVal=0;
+  document.querySelectorAll('input[type=number]').forEach(el=>{if(el.defaultValue)el.value=el.defaultValue;});
+  document.querySelectorAll('input[type=checkbox]').forEach(el=>el.checked=false);
+  document.querySelectorAll('.cfs-row').forEach(r=>r.classList.remove('sel'));
+  document.getElementById('cfs-note').textContent='No CFS selected — frailty multiplier ×1.00 applied. Select a level above.';
+  document.getElementById('results-area').innerHTML='';
+  liveMeld();liveCPO();
+}
+liveMeld();
+</script>
+</body>
+</html>
