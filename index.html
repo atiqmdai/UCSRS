@@ -1,127 +1,506 @@
-UCSRS v1.0 — Universal Cardiac Surgical Risk Score
-STS-PROM (50%) + EuroSCORE II (50%) · MELD · CFS · LV dimensions · SYNTAX · RHC (optional)
-Clinic mode (Tier 1)
-No RHC needed
-Pre-op / echo (Tier 2)
-Echo PASP added
-Full RHC mode (Tier 3)
-All domains
-Layer 1 — Baseline risk (STS 50% + EuroSCORE II 50%)
-Demographics & procedure
-Age (years)
-65
-Sex
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UCSRS v1.0 — Universal Cardiac Surgical Risk Score</title>
+<style>
+ :root{
+   --ink:#1a2230; --muted:#5d6b80; --line:#d7dee8; --bg:#f4f6f9; --card:#fff;
+   --accent:#1f3864; --low:#2e7d5b; --int:#b8860b; --high:#c1440e; --proh:#8b1a1a;
+ }
+ *{box-sizing:border-box}
+ body{margin:0;background:var(--bg);color:var(--ink);
+      font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+ header{background:var(--accent);color:#fff;padding:18px 22px}
+ header h1{margin:0;font-size:19px;letter-spacing:.2px}
+ header p{margin:4px 0 0;font-size:12.5px;opacity:.85}
+ .wrap{max-width:1180px;margin:0 auto;padding:18px 22px 60px}
+ .grid{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}
+ @media(max-width:900px){.grid{grid-template-columns:1fr}}
+ .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:14px}
+ .card h2{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.7px;color:var(--accent)}
+ .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+ label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:3px}
+ input[type=number],select{width:100%;padding:7px 8px;border:1px solid var(--line);
+      border-radius:5px;font-size:14px;background:#fff;color:var(--ink)}
+ input:focus,select:focus{outline:2px solid #9db4d8;outline-offset:-1px}
+ .checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:5px 14px;margin-top:4px}
+ .checks label{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--ink);margin:0;cursor:pointer}
+ .tiers{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+ .tier{padding:6px 13px;border:1px solid var(--line);background:#fff;border-radius:20px;
+       cursor:pointer;font-size:13px;color:var(--muted)}
+ .tier.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+ .cfs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+ .cfs button{padding:7px 4px;border:1px solid var(--line);background:#fff;border-radius:5px;
+       cursor:pointer;font-size:12px;color:var(--ink);text-align:left;line-height:1.25}
+ .cfs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+ .cfs button b{display:block;font-size:13px}
+ .out{position:sticky;top:14px}
+ .score{font-size:44px;font-weight:700;line-height:1;margin:6px 0 2px}
+ .cat{font-size:13px;font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+ .brk{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;font-size:12.5px;color:var(--muted)}
+ .brk div{display:flex;justify-content:space-between;padding:2px 0}
+ .brk div span:last-child{font-variant-numeric:tabular-nums;color:var(--ink)}
+ .brk .tot{border-top:1px dashed var(--line);margin-top:5px;padding-top:5px;font-weight:600}
+ .alert{background:#fff8e6;border:1px solid #e8d9a8;border-radius:5px;padding:7px 9px;
+        font-size:12px;color:#6b5310;margin-top:7px}
+ .note{font-size:12px;color:var(--muted);margin-top:5px}
+ .req{color:#c1440e}
+ footer{max-width:1180px;margin:0 auto;padding:0 22px 40px;font-size:12px;color:var(--muted)}
+ footer a{color:var(--accent)}
+ .selftest{padding:6px 10px;border-radius:5px;font-size:12px;margin-top:10px}
+ .pass{background:#eaf6f0;border:1px solid #b5ddc9;color:#1d5c42}
+ .fail{background:#fdeceb;border:1px solid #f0b8b2;color:#8b1a1a}
+ .paste{background:#eef3fa;border:1px solid #c3d3ea}
+</style>
+</head>
+<body>
+<header>
+  <h1>UCSRS v1.0 — Universal Cardiac Surgical Risk Score</h1>
+  <p>Implements the algorithm exactly as specified in Section 3.3 of J Cardiothorac Surg 2026, DOI 10.1186/s13019-026-04433-x · research tool, not for sole clinical decision-making</p>
+</header>
 
-Male
-Weight (kg)
-75
-Procedure
+<div class="wrap">
+<div class="tiers">
+  <div class="tier on" data-tier="0" onclick="setTier(0)">Tier 1 — Clinic</div>
+  <div class="tier" data-tier="1" onclick="setTier(1)">Tier 2 — Enhanced pre-op</div>
+  <div class="tier" data-tier="2" onclick="setTier(2)">Tier 3 — Full cath lab</div>
+</div>
 
-Isolated CABG
-Urgency
+<div class="grid">
+<div>
 
-Elective
-Cardiac & renal
-NYHA class
+  <div class="card paste">
+    <h2>Layer 1a — STS-PROM <span class="req">(required)</span></h2>
+    <div class="row">
+      <div>
+        <label>STS Predicted Risk of Mortality (%)</label>
+        <input type="number" id="sts" step="0.01" min="0" max="100" placeholder="e.g. 2.80" oninput="calc()">
+      </div>
+    </div>
+    <p class="note">Enter the value returned by the STS ACSD Operative Risk Calculator
+    (<a href="https://acsdriskcalc.research.sts.org" target="_blank" rel="noopener">acsdriskcalc.research.sts.org</a>)
+    for this patient. The STS model coefficients are not published, so STS-PROM cannot be
+    computed here and is never approximated.</p>
+  </div>
 
-III
-LVEF (%)
-55
-Creatinine (µmol/L)
-90
-PASP echo (mmHg)
-30
-Dialysis
+  <div class="card">
+    <h2>Layer 1b — EuroSCORE II inputs</h2>
+    <p class="note" style="margin-top:-4px;margin-bottom:9px">Computed here from the published
+    coefficients (Nashef et al., Eur J Cardiothorac Surg 2012;41:734–45, Table 6).</p>
+    <div class="row">
+      <div><label>Age (years)</label><input type="number" id="age" min="18" max="110" oninput="calc()"></div>
+      <div><label>Sex</label><select id="sex" onchange="calc()"><option value="M">Male</option><option value="F">Female</option></select></div>
+      <div><label>Weight (kg)</label><input type="number" id="wt" min="25" max="250" oninput="calc()"></div>
+      <div><label>Creatinine (µmol/L)</label><input type="number" id="cr" min="20" max="1500" oninput="calc()"></div>
+      <div><label>LVEF (%)</label><input type="number" id="lvef" min="5" max="80" oninput="calc()"></div>
+      <div><label>PASP by echo (mmHg)</label><input type="number" id="pasp" min="10" max="140" oninput="calc()"></div>
+      <div><label>NYHA class</label><select id="nyha" onchange="calc()">
+        <option value="1">I</option><option value="2">II</option><option value="3">III</option><option value="4">IV</option></select></div>
+      <div id="ccsWrap" style="display:none"><label>CCS angina class</label><select id="ccs" onchange="calc()">
+        <option value="0">None / I–III</option><option value="4">IV</option></select></div>
+      <div><label>Dialysis</label><select id="dial" onchange="calc()"><option value="0">No</option><option value="1">Yes</option></select></div>
+      <div><label>Procedure (UCSRS category)</label><select id="proc" onchange="syncWeight();calc()">
+        <option value="cabg">Isolated CABG</option>
+        <option value="avr">Isolated AVR</option>
+        <option value="mvr">Isolated MVR / repair</option>
+        <option value="tvr">Isolated TVR / repair</option>
+        <option value="cabg_avr">CABG + AVR</option>
+        <option value="cabg_mvr">CABG + MVR</option>
+        <option value="double_valve">Double valve</option>
+        <option value="aorta">Thoracic aortic surgery</option>
+        <option value="other">Other</option></select></div>
+      <div><label>Weight of intervention</label><select id="weight" onchange="calc()">
+        <option value="cabg">Isolated CABG (reference)</option>
+        <option value="single">Single non-CABG procedure</option>
+        <option value="two">Two procedures</option>
+        <option value="three">Three or more procedures</option></select></div>
+      <div><label>Urgency</label><select id="urg" onchange="calc()">
+        <option value="elective">Elective</option><option value="urgent">Urgent</option>
+        <option value="emergency">Emergency</option><option value="salvage">Salvage</option></select></div>
+    </div>
+    <div class="checks" style="margin-top:11px">
+      <label><input type="checkbox" id="dm" onchange="calc()"> Insulin-dependent diabetes</label>
+      <label><input type="checkbox" id="copd" onchange="calc()"> Chronic pulmonary disease</label>
+      <label><input type="checkbox" id="pvd" onchange="calc()"> Extracardiac arteriopathy</label>
+      <label><input type="checkbox" id="mob" onchange="calc()"> Neuro/musculoskeletal dysfunction affecting mobility</label>
+      <label><input type="checkbox" id="prev" onchange="calc()"> Previous cardiac surgery</label>
+      <label><input type="checkbox" id="endo" onchange="calc()"> Active endocarditis</label>
+      <label><input type="checkbox" id="mi" onchange="calc()"> Recent MI (&lt;90 days)</label>
+      <label><input type="checkbox" id="crit" onchange="calc()"> Critical preoperative state</label>
+      <label><input type="checkbox" id="aorta" onchange="calc()"> Surgery on thoracic aorta</label>
+    </div>
+    <p class="note">Weight of intervention is set automatically from the procedure and can be
+    overridden — EuroSCORE II counts major procedures, with isolated CABG as the reference
+    category. Thoracic aorta is a separate additive term, not a procedure count, so it is a
+    checkbox rather than a category.<br>
+    Critical preoperative state = VT/VF or aborted sudden death, preoperative cardiac massage,
+    ventilation before theatre, inotropes, IABP or VAD, or acute renal failure (anuria/oliguria
+    &lt;10 mL/h). One variable, not several.<br>
+    Renal impairment is one four-level variable: dialysis <i>replaces</i> the creatinine-clearance
+    band rather than adding to it. Clearance by Cockcroft-Gault.</p>
+  </div>
 
-No
-Comorbidities
-Insulin-dependent diabetes
-Hypertension
-Chronic lung disease
-Extracardiac arteriopathy
-Neurological dysfunction
-Poor mobility
-Previous cardiac surgery
-Active endocarditis
-Recent MI (<90 days)
-Congestive heart failure
-Atrial fibrillation
-Preop anaemia (Hb <120)
-Liver disease / cirrhosis
-VT / VF pre-op
-IABP pre-op
-IV inotropes pre-op
-Anuria / oliguria
-Layer 2b — CFS frailty multiplier (mandatory)
-Clinical Frailty Scale (CFS)
-1
-Very fit
-Robust, active, exercises regularly
-×1.00
-2
-Well
-No active disease; exercises occasionally
-×1.00
-3
-Managing well
-Medical problems controlled; walks only
-×1.00
-4
-Very mild frailty
-Symptoms slow activity; not dependent
-×1.08
-5
-Mild frailty
-Needs help with finances, transport, housework
-×1.15
-6
-Moderate frailty
-Needs help with all outside activities; stair difficulty
-×1.35
-7
-Severe frailty
-Fully dependent for personal care; stable
-×1.60
-8
-Very severe frailty
-Dependent; minor illness causes rapid deterioration
-×1.90
-9
-Terminally ill
-Life expectancy <6 months
-×2.30
-No CFS selected — frailty multiplier ×1.00 applied. Select a level above.
-Layer 2a — MELD correction (optional — alert if absent)
-MELD score — hepatorenal function
-Enter available labs. If unavailable, leave defaults — MELD correction will not be applied and an alert will display. MELD = 3.78×ln(bili mg/dL) + 11.2×ln(INR) + 9.57×ln(Cr mg/dL) + 6.43. Not required for EuroSCORE II or STS; these inputs are additional.
-Bilirubin (µmol/L)
-e.g. 15
-Leave blank if not available
-INR
-e.g. 1.1
-Creatinine for MELD (µmol/L)
-e.g. 90
-Dialysis ×2 this week
+  <div class="card">
+    <h2>Layer 2b — Clinical Frailty Scale <span class="req">(required)</span></h2>
+    <div class="cfs" id="cfsBox"></div>
+    <p class="note">Rockwood CFS, assessed at the last pre-operative encounter.
+    Copyright Dalhousie University; free permission for research use on request.</p>
+  </div>
 
-No
-Calculated MELD score
-—
-Enter labs above to calculate
-Layer 2c — LV dimensions & SYNTAX (optional — alert if absent)
-LV dimensions & SYNTAX score
-Both parameters are from standard pre-operative investigations already in the patient chart. Neither requires additional testing. Enter values from the echocardiography report (LV dimensions) and pre-operative coronary angiography report (SYNTAX score). Leave blank if not available — alerts will be displayed.
-LV dimensions (from echocardiography report)
-LVESVI (mL/m²) — preferred
-e.g. 55 — leave blank if not reported
-LV end-systolic volume index — from echo report
-LVEDD (mm) — used if LVESVI unavailable
-e.g. 52 — leave blank if not reported
-LV end-diastolic diameter — from echo report
-Not entered — no LV correction applied. Alert will be displayed at calculation.
-SYNTAX score (from pre-operative coronary angiography report)
-SYNTAX score
-e.g. 14 — leave blank if angio not done
-Enter 0 for normal / non-obstructive coronaries confirmed at catheterisation
-Not entered — alert will be displayed at calculation.
-Calculate UCSRS score Clear — new patient
-  Update UCSRS v1.0
+  <div class="card">
+    <h2>Layer 2a — MELD (optional)</h2>
+    <div class="row">
+      <div><label>Bilirubin (µmol/L)</label><input type="number" id="bili" step="0.1" oninput="calc()"></div>
+      <div><label>INR</label><input type="number" id="inr" step="0.01" oninput="calc()"></div>
+      <div><label>Creatinine for MELD (µmol/L)</label><input type="number" id="crmeld" oninput="calc()"></div>
+      <div><label>Dialysed twice this week</label><select id="dialmeld" onchange="calc()">
+        <option value="0">No</option><option value="1">Yes</option></select></div>
+      <div><label>…or enter MELD directly</label><input type="number" id="meldDirect" min="6" max="40" oninput="calc()"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Layer 2c — LV dimensions and SYNTAX (optional)</h2>
+    <div class="row">
+      <div><label>LVESVI (mL/m²) — preferred</label><input type="number" id="lvesvi" step="0.1" min="10" max="200" oninput="calc()"></div>
+      <div><label>LVEDD (mm) — fallback only</label><input type="number" id="lvedd" min="20" max="90" oninput="calc()"></div>
+      <div><label>SYNTAX score</label><input type="number" id="syntax" min="0" max="100" oninput="calc()"></div>
+    </div>
+    <p class="note">LVESVI takes precedence; LVEDD is used only when LVESVI is unavailable.
+    Enter 0 for angiographically normal or non-obstructive coronaries.</p>
+  </div>
+
+  <div class="card" id="rhcCard" style="display:none">
+    <h2>Layer 3 — RHC haemodynamics (Tier 3 only)</h2>
+    <div class="row">
+      <div><label>MAP (mmHg)</label><input type="number" id="map" min="30" max="150" oninput="calc()"></div>
+      <div><label>Cardiac output (L/min)</label><input type="number" id="co" step="0.1" min="1" max="12" oninput="calc()"></div>
+      <div><label>PVR (Wood units)</label><input type="number" id="pvr" step="0.1" min="0.1" max="20" oninput="calc()"></div>
+      <div><label>Cardiac index (L/min/m²)</label><input type="number" id="ci" step="0.1" min="0.5" max="6" oninput="calc()"></div>
+      <div><label>TAPSE (mm)</label><input type="number" id="tapse" min="5" max="35" oninput="calc()"></div>
+      <div><label>PASP by RHC (mmHg)</label><input type="number" id="pasprhc" min="10" max="140" oninput="calc()"></div>
+    </div>
+    <p class="note">Echo sPAP does not substitute for RHC PASP in the TAPSE/PASP ratio.</p>
+  </div>
+
+</div>
+
+<div class="out">
+  <div class="card">
+    <h2>UCSRS</h2>
+    <div class="score" id="score">—</div>
+    <div class="cat" id="cat" style="color:var(--muted)">enter STS-PROM and CFS</div>
+    <div class="brk" id="brk"></div>
+    <div id="alerts"></div>
+    <div class="selftest" id="selftest"></div>
+  </div>
+</div>
+</div>
+</div>
+
+<footer>
+  UCSRS v1.0 · open source (MIT) · <a href="https://github.com/atiqmdai/UCSRS">github.com/atiqmdai/UCSRS</a><br>
+  Rehman A. Universal cardiac surgical risk score (UCSRS v1.0). <i>J Cardiothorac Surg</i> 2026.
+  DOI 10.1186/s13019-026-04433-x<br>
+  All computation occurs locally in your browser. No patient data are transmitted or stored.
+</footer>
+
+<script>
+// ===== UCSRS ENGINE START =====
+// Single source of truth. Every constant below is from Section 3.3 of the publication,
+// except the EuroSCORE II block, which is from Nashef et al. EJCTS 2012;41:734-45 Table 6.
+var UCSRS_SPEC = {
+  spec_version: "1.0.0",
+  layer1: { w_sts: 0.50, w_euro: 0.50, cap_br: 60 },
+  layer2a_meld: { cap_pre_cfs: 65 },
+  layer2b_cfs: { mult: {1:1.00,2:1.00,3:1.00,4:1.08,5:1.15,6:1.35,7:1.60,8:1.90,9:2.30}, cap: 70 },
+  layer2c: {
+    lvesvi: [{lte:60,c:0.0},{lte:100,c:0.5},{gt:100,c:2.0}],
+    lvedd:  [{lte:55,c:0.0},{lte:65,c:0.5},{gt:65,c:1.5}],
+    syntax: [{lte:22,c:0.0},{lte:32,c:1.0},{gt:32,c:2.5}]
+  },
+  layer3: { cpo_div:451, cpo:[{lt:0.6,c:2.5},{lt:0.9,c:0.8}], pvr:[{gt:5,c:2.8},{gt:3,c:1.2}],
+            ci:[{lt:2.0,c:1.5}], tapse_pasp:[{lt:0.406,c:1.8}], cap_final:70 },
+  euroscore2: {
+    constant:-5.324537, age:0.0285181, female:0.2196434,
+    cc_51_85:0.303553, cc_le50:0.8592256, dialysis:0.6421508,
+    arteriopathy:0.5360268, mobility:0.2407181, prev_cardiac:1.118599,
+    pulmonary:0.1886564, endocarditis:0.6194522, critical:1.086517, iddm:0.3542749,
+    nyha2:0.1070545, nyha3:0.2958358, nyha4:0.5597929, ccs4:0.2226147,
+    lv_moderate:0.3150652, lv_poor:0.8084096, lv_verypoor:0.9346919,
+    recent_mi:0.1528943, pasp_31_55:0.1788899, pasp_gt55:0.3491475,
+    urgent:0.3174673, emergency:0.7039121, salvage:1.362947,
+    single_non_cabg:0.0062118, two_procedures:0.5521478, three_plus:0.9724533,
+    thoracic_aorta:0.6527205
+  }
+};
+
+function band(v, rules){
+  for (var i=0;i<rules.length;i++){
+    var r=rules[i];
+    if (r.lte!==undefined && v<=r.lte) return r.c;
+    if (r.lt !==undefined && v< r.lt ) return r.c;
+    if (r.gt !==undefined && v> r.gt ) return r.c;
+  }
+  return 0;
+}
+
+function meldFromLabs(bili_umol, inr, cr_umol, dialysedTwice){
+  var cr = dialysedTwice ? 353 : Math.max(cr_umol, 30);
+  var b = Math.max(bili_umol/17.1, 1), i = Math.max(inr, 1), c = Math.max(cr/88.4, 1);
+  return Math.max(6, Math.min(40, Math.round(3.78*Math.log(b) + 11.2*Math.log(i) + 9.57*Math.log(c) + 6.43)));
+}
+
+function meldCorrection(m){
+  if (m == null || isNaN(m)) return 0;
+  if (m < 9)  return 0;
+  if (m <= 15) return (m - 8) * 0.40;
+  if (m <= 20) return 2.8 + (m - 15) * 0.90;
+  return 7.3 + (m - 20) * 1.20;
+}
+
+// Cockcroft-Gault, creatinine in umol/L
+function creatinineClearance(age, weightKg, cr_umol, female){
+  if (!age || !weightKg || !cr_umol) return null;
+  var cc = ((140 - age) * weightKg) / (0.814 * cr_umol);
+  return female ? cc * 0.85 : cc;
+}
+
+function euroscore2(p){
+  var E = UCSRS_SPEC.euroscore2, lp = E.constant;
+  lp += E.age * Math.max(p.age <= 60 ? 1 : p.age - 59, 1);
+  if (p.female) lp += E.female;
+
+  if (p.dialysis) lp += E.dialysis;
+  else {
+    var cc = creatinineClearance(p.age, p.weight, p.creatinine, p.female);
+    if (cc !== null){ if (cc <= 50) lp += E.cc_le50; else if (cc <= 85) lp += E.cc_51_85; }
+  }
+
+  if (p.arteriopathy)  lp += E.arteriopathy;
+  if (p.mobility)      lp += E.mobility;
+  if (p.prevCardiac)   lp += E.prev_cardiac;
+  if (p.pulmonary)     lp += E.pulmonary;
+  if (p.endocarditis)  lp += E.endocarditis;
+  if (p.critical)      lp += E.critical;
+  if (p.iddm)          lp += E.iddm;
+
+  if (p.nyha === 2) lp += E.nyha2; else if (p.nyha === 3) lp += E.nyha3; else if (p.nyha === 4) lp += E.nyha4;
+  if (p.ccs4) lp += E.ccs4;
+
+  if (p.lvef != null && !isNaN(p.lvef)){
+    if (p.lvef <= 20) lp += E.lv_verypoor;
+    else if (p.lvef <= 30) lp += E.lv_poor;
+    else if (p.lvef <= 50) lp += E.lv_moderate;
+  }
+  if (p.recentMI) lp += E.recent_mi;
+
+  if (p.pasp != null && !isNaN(p.pasp) && p.pasp > 0){
+    if (p.pasp > 55) lp += E.pasp_gt55; else if (p.pasp >= 31) lp += E.pasp_31_55;
+  }
+
+  if (p.urgency === 'urgent') lp += E.urgent;
+  else if (p.urgency === 'emergency') lp += E.emergency;
+  else if (p.urgency === 'salvage') lp += E.salvage;
+
+  // Weight of intervention: isolated CABG is the reference category and carries no term.
+  // NB: named interventionWeight, not weight — p.weight is body weight in kg.
+  if      (p.interventionWeight === 'single') lp += E.single_non_cabg;
+  else if (p.interventionWeight === 'two')    lp += E.two_procedures;
+  else if (p.interventionWeight === 'three')  lp += E.three_plus;
+
+  // Thoracic aorta is an independent additive term, not a procedure count.
+  if (p.thoracicAorta) lp += E.thoracic_aorta;
+
+  return (Math.exp(lp) / (1 + Math.exp(lp))) * 100;
+}
+
+// The UCSRS itself. stsPromPct is supplied by the user; euroPct may be supplied or computed.
+function ucsrs(input){
+  var S = UCSRS_SPEC;
+  var br = Math.min(S.layer1.w_sts * input.stsPromPct + S.layer1.w_euro * input.euroPct, S.layer1.cap_br);
+
+  var meldCorr = meldCorrection(input.meld);
+  var preCfs = Math.min(br + meldCorr, S.layer2a_meld.cap_pre_cfs);
+
+  var mult = S.layer2b_cfs.mult[input.cfs];
+  var base = Math.min(preCfs * mult, S.layer2b_cfs.cap);
+
+  var lv = 0, lvSource = null;
+  if (input.lvesvi != null && !isNaN(input.lvesvi)){ lv = band(input.lvesvi, S.layer2c.lvesvi); lvSource='LVESVI'; }
+  else if (input.lvedd != null && !isNaN(input.lvedd)){ lv = band(input.lvedd, S.layer2c.lvedd); lvSource='LVEDD'; }
+
+  var sx = 0, sxGiven = (input.syntax != null && !isNaN(input.syntax));
+  if (sxGiven) sx = band(input.syntax, S.layer2c.syntax);
+
+  var hemo = 0, hemoUsed = false;
+  if (input.tier >= 2){
+    if (input.map > 0 && input.co > 0){
+      var cpo = input.map * input.co / S.layer3.cpo_div;
+      hemo += band(cpo, S.layer3.cpo); hemoUsed = true;
+    }
+    if (input.pvr > 0){ hemo += band(input.pvr, S.layer3.pvr); hemoUsed = true; }
+    if (input.ci  > 0){ hemo += band(input.ci,  S.layer3.ci ); hemoUsed = true; }
+    if (input.tapse > 0 && input.pasprhc > 0){
+      hemo += band(input.tapse / input.pasprhc, S.layer3.tapse_pasp); hemoUsed = true;
+    }
+  }
+
+  var final = Math.min(base + lv + sx + hemo, S.layer3.cap_final);
+
+  return { br:br, meldCorr:meldCorr, preCfs:preCfs, mult:mult, base:base,
+           lv:lv, lvSource:lvSource, syntax:sx, syntaxGiven:sxGiven,
+           hemo:hemo, hemoUsed:hemoUsed, final:final };
+}
+
+function riskCategory(v){
+  if (v < 4)  return {label:'LOW RISK', color:'var(--low)'};
+  if (v < 8)  return {label:'INTERMEDIATE RISK', color:'var(--int)'};
+  if (v < 20) return {label:'HIGH RISK', color:'var(--high)'};
+  return {label:'PROHIBITIVE RISK', color:'var(--proh)'};
+}
+
+// Acceptance test: the paper's own worked cases. Runs on load; fails loudly.
+function selfTest(){
+  var out = [];
+  var c1 = ucsrs({stsPromPct:2.8, euroPct:3.2, cfs:7, meld:null, lvedd:52, tier:0});
+  out.push({name:'Case 1 (paper 4.8%)',  got:c1.final, want:4.80});
+  var c2 = ucsrs({stsPromPct:3.5, euroPct:2.0, cfs:2, meld:17, lvedd:50, tier:0});
+  out.push({name:'Case 2 (paper 7.4%)',  got:c2.final, want:7.35});
+  out.push({name:'Layer 1 weights are 50/50', got:UCSRS_SPEC.layer1.w_sts + UCSRS_SPEC.layer1.w_euro, want:1.00,
+            extra:(UCSRS_SPEC.layer1.w_sts===0.5 && UCSRS_SPEC.layer1.w_euro===0.5)});
+  out.push({name:'Layer 2c is active', got:UCSRS_SPEC.layer2c.syntax.length, want:3});
+  var ok = out.every(function(t){
+    return Math.abs(t.got - t.want) < 0.005 && (t.extra === undefined || t.extra === true);
+  });
+  return {ok:ok, tests:out};
+}
+// ===== UCSRS ENGINE END =====
+
+var tier = 0, cfsVal = 0;
+
+var CFS_LABELS = ['Very fit','Fit','Managing well','Living with very mild frailty',
+  'Living with mild frailty','Living with moderate frailty','Living with severe frailty',
+  'Living with very severe frailty','Terminally ill'];
+
+function buildCfs(){
+  var box = document.getElementById('cfsBox'), html = '';
+  for (var i=1;i<=9;i++){
+    html += '<button type="button" id="cfs'+i+'" onclick="setCfs('+i+')"><b>'+i+
+            '</b>'+CFS_LABELS[i-1]+'</button>';
+  }
+  box.innerHTML = html;
+}
+function setCfs(v){
+  cfsVal = v;
+  for (var i=1;i<=9;i++) document.getElementById('cfs'+i).classList.toggle('on', i===v);
+  calc();
+}
+function setTier(t){
+  tier = t;
+  var els = document.querySelectorAll('.tier');
+  for (var i=0;i<els.length;i++) els[i].classList.toggle('on', +els[i].dataset.tier === t);
+  document.getElementById('ccsWrap').style.display = t >= 1 ? 'block' : 'none';
+  document.getElementById('rhcCard').style.display = t >= 2 ? 'block' : 'none';
+  calc();
+}
+
+function num(id){ var v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; }
+function chk(id){ return document.getElementById(id).checked; }
+
+// Weight of intervention follows the procedure by default; the user can override it.
+var PROC_WEIGHT = { cabg:'cabg', avr:'single', mvr:'single', tvr:'single', other:'single',
+                    aorta:'single', cabg_avr:'two', cabg_mvr:'two', double_valve:'two' };
+function syncWeight(){
+  var pr = document.getElementById('proc').value;
+  document.getElementById('weight').value = PROC_WEIGHT[pr] || 'single';
+  document.getElementById('aorta').checked = (pr === 'aorta');
+}
+
+function calc(){
+  var sts = num('sts');
+  var scoreEl = document.getElementById('score'), catEl = document.getElementById('cat');
+  var brkEl = document.getElementById('brk'), alEl = document.getElementById('alerts');
+
+  var age = num('age');
+  var euroInput = {
+    age: age, weight: num('wt'), creatinine: num('cr'),
+    female: document.getElementById('sex').value === 'F',
+    dialysis: document.getElementById('dial').value === '1',
+    lvef: num('lvef'), pasp: num('pasp'),
+    nyha: parseInt(document.getElementById('nyha').value, 10),
+    ccs4: tier >= 1 && document.getElementById('ccs').value === '4',
+    arteriopathy: chk('pvd'), mobility: chk('mob'), prevCardiac: chk('prev'),
+    pulmonary: chk('copd'), endocarditis: chk('endo'), critical: chk('crit'),
+    iddm: chk('dm'), recentMI: chk('mi'),
+    urgency: document.getElementById('urg').value,
+    interventionWeight: document.getElementById('weight').value,
+    thoracicAorta: chk('aorta')
+  };
+  var euro = age ? euroscore2(euroInput) : null;
+
+  var meld = num('meldDirect');
+  if (meld === null){
+    var b = num('bili'), i = num('inr'), c = num('crmeld');
+    if (b !== null && i !== null && c !== null)
+      meld = meldFromLabs(b, i, c, document.getElementById('dialmeld').value === '1');
+  }
+
+  if (sts === null || cfsVal === 0 || euro === null){
+    scoreEl.textContent = '—';
+    catEl.textContent = 'enter STS-PROM, age and CFS';
+    catEl.style.color = 'var(--muted)';
+    brkEl.innerHTML = ''; alEl.innerHTML = '';
+    return;
+  }
+
+  var r = ucsrs({
+    stsPromPct: sts, euroPct: euro, cfs: cfsVal, meld: meld,
+    lvesvi: num('lvesvi'), lvedd: num('lvedd'), syntax: num('syntax'),
+    tier: tier, map: num('map'), co: num('co'), pvr: num('pvr'),
+    ci: num('ci'), tapse: num('tapse'), pasprhc: num('pasprhc')
+  });
+
+  var cat = riskCategory(r.final);
+  scoreEl.textContent = r.final.toFixed(2) + '%';
+  scoreEl.style.color = cat.color;
+  catEl.textContent = cat.label;
+  catEl.style.color = cat.color;
+
+  function line(l, v, cls){ return '<div class="'+(cls||'')+'"><span>'+l+'</span><span>'+v+'</span></div>'; }
+  brkEl.innerHTML =
+    line('STS-PROM (entered)', sts.toFixed(2)+'%') +
+    line('EuroSCORE II (computed)', euro.toFixed(2)+'%') +
+    line('Layer 1 baseline (50/50)', r.br.toFixed(2)+'%') +
+    line('Layer 2a MELD' + (meld ? ' (MELD '+meld+')' : ''), '+'+r.meldCorr.toFixed(2)) +
+    line('Layer 2b CFS '+cfsVal, '×'+r.mult.toFixed(2)) +
+    line('Layer 2c LV'+(r.lvSource ? ' ('+r.lvSource+')' : ''), '+'+r.lv.toFixed(2)) +
+    line('Layer 2c SYNTAX', '+'+r.syntax.toFixed(2)) +
+    line('Layer 3 haemodynamic', '+'+r.hemo.toFixed(2)) +
+    line('UCSRS', r.final.toFixed(2)+'%', 'tot');
+
+  // Alert wording is verbatim from Section 3.3 of the publication.
+  var alerts = [];
+  if (meld === null) alerts.push('MELD not calculated. If liver disease is clinically present, the score may underestimate risk.');
+  if (r.lvSource === null) alerts.push('LV dimensions not entered. Score may underestimate risk in patients with LV enlargement (LVESVI &gt;100 mL/m² or LVEDD &gt;65 mm). Enter from echo report if available.');
+  if (!r.syntaxGiven) alerts.push('SYNTAX score not entered. Pre-operative coronary angiography is standard workup for all cardiac surgery patients ≥40 years (ACC/AHA and ESC/EACTS guidelines). SYNTAX score can be calculated from the existing catheterization report. Enter if available.');
+  if (!r.hemoUsed) alerts.push('RHC data not entered. Layer 3 hemodynamic corrections not applied.');
+  alEl.innerHTML = alerts.map(function(a){ return '<div class="alert">'+a+'</div>'; }).join('');
+}
+
+(function(){
+  buildCfs();
+  syncWeight();
+  var t = selfTest(), el = document.getElementById('selftest');
+  el.className = 'selftest ' + (t.ok ? 'pass' : 'fail');
+  el.innerHTML = t.ok
+    ? '✓ Self-test passed — reproduces the published worked cases (4.80%, 7.35%)'
+    : '✗ SELF-TEST FAILED — ' + t.tests.filter(function(x){ return Math.abs(x.got-x.want)>=0.005; })
+        .map(function(x){ return x.name+': got '+x.got.toFixed(2)+', expected '+x.want.toFixed(2); }).join('; ');
+  calc();
+})();
+</script>
+</body>
+</html>
