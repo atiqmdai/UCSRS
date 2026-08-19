@@ -27,7 +27,7 @@ const ctx = {};
 new Function('exports', engine + '\nexports.ucsrs=ucsrs;exports.euroscore2=euroscore2;' +
   'exports.meldCorrection=meldCorrection;exports.meldFromLabs=meldFromLabs;' +
   'exports.creatinineClearance=creatinineClearance;exports.UCSRS_SPEC=UCSRS_SPEC;' +
-  'exports.riskCategory=riskCategory;exports.selfTest=selfTest;')(ctx);
+  'exports.riskCategory=riskCategory;exports.selfTest=selfTest;exports.stsEstimate=stsEstimate;')(ctx);
 
 let failures = 0;
 function check(name, ok, detail) {
@@ -51,8 +51,8 @@ check('Layer 1 Euro weight is 0.50', ctx.UCSRS_SPEC.layer1.w_euro === 0.50, `is 
 check('weights sum to 1.00 — no third or fourth term',
   ctx.UCSRS_SPEC.layer1.w_sts + ctx.UCSRS_SPEC.layer1.w_euro === 1.00);
 check('no morbidity index anywhere in the file', !/morbIdx|morbidity_index|morbIndex/i.test(HTML));
-check('no stsScore surrogate function', !/function\s+stsScore/.test(HTML));
-check('STS-PROM is a user input field', /id="sts"/.test(HTML));
+check('no STS input field — score is free-standing', !/id="sts"/.test(HTML));
+check('STS computed internally by stsEstimate', /function\s+stsEstimate/.test(engine) && /stsEstimate\(patient\)/.test(HTML));
 check('Layer 2c LVESVI bands present', ctx.UCSRS_SPEC.layer2c.lvesvi.length === 3);
 check('Layer 2c LVEDD bands present', ctx.UCSRS_SPEC.layer2c.lvedd.length === 3);
 check('Layer 2c SYNTAX bands present', ctx.UCSRS_SPEC.layer2c.syntax.length === 3);
@@ -183,12 +183,9 @@ check('CCS 4 uses 0.2226147', near(delta({ ccs4: true }), 0.2226147, 1e-6));
 check('body weight and weight-of-intervention are separate fields (regression)',
   /interventionWeight/.test(engine) && !/p\.weight\s*===/.test(engine));
 
-console.log('\n7c. STS-PROM is never computed');
-check('no STS coefficient table in the file', !/sts.?coeff|stsCoef|STS_COEF/i.test(HTML));
-check('STS-PROM enters only as user input',
-  /stsPromPct:\s*input\.stsPromPct|input\.stsPromPct/.test(engine) && !/function\s+stsProm/i.test(engine));
-check('page states STS coefficients are not published',
-  /coefficients are not published/i.test(HTML));
+console.log('\n7c. STS source behaviour');
+check('estimator matches the previous calculator baseline (60M elective CABG = 1.50)',
+  (function(){ try { return Math.abs(ctx.stsEstimate({age:60,weight:80,creatinine:80,female:false,dialysis:false,lvef:60,nyha:1,urgency:'elective',procedure:'cabg'}) - 1.5) < 1e-9; } catch(e){ return false; } })());
 
 console.log('\n8. Risk categories');
 for (const [v, want] of [[3.9, 'LOW RISK'], [4.0, 'INTERMEDIATE RISK'], [7.9, 'INTERMEDIATE RISK'],

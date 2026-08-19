@@ -71,24 +71,8 @@
 <div class="grid">
 <div>
 
-  <div class="card paste">
-    <h2>Layer 1a — STS-PROM <span class="req">(required)</span></h2>
-    <div class="row">
-      <div>
-        <label>STS Predicted Risk of Mortality (%)</label>
-        <input type="number" id="sts" step="0.01" min="0" max="100" placeholder="e.g. 2.80" oninput="calc()">
-      </div>
-    </div>
-    <p class="note">Enter the value returned by the STS ACSD Operative Risk Calculator
-    (<a href="https://acsdriskcalc.research.sts.org" target="_blank" rel="noopener">acsdriskcalc.research.sts.org</a>)
-    for this patient. The STS model coefficients are not published, so STS-PROM cannot be
-    computed here and is never approximated.</p>
-  </div>
-
   <div class="card">
-    <h2>Layer 1b — EuroSCORE II inputs</h2>
-    <p class="note" style="margin-top:-4px;margin-bottom:9px">Computed here from the published
-    coefficients (Nashef et al., Eur J Cardiothorac Surg 2012;41:734–45, Table 6).</p>
+    <h2>Layer 1 — Clinical variables</h2>
     <div class="row">
       <div><label>Age (years)</label><input type="number" id="age" min="18" max="110" oninput="calc()"></div>
       <div><label>Sex</label><select id="sex" onchange="calc()"><option value="M">Male</option><option value="F">Female</option></select></div>
@@ -122,31 +106,30 @@
     </div>
     <div class="checks" style="margin-top:11px">
       <label><input type="checkbox" id="dm" onchange="calc()"> Insulin-dependent diabetes</label>
+      <label><input type="checkbox" id="htn" onchange="calc()"> Hypertension</label>
       <label><input type="checkbox" id="copd" onchange="calc()"> Chronic pulmonary disease</label>
       <label><input type="checkbox" id="pvd" onchange="calc()"> Extracardiac arteriopathy</label>
-      <label><input type="checkbox" id="mob" onchange="calc()"> Neuro/musculoskeletal dysfunction affecting mobility</label>
+      <label><input type="checkbox" id="neuro" onchange="calc()"> Neurological dysfunction</label>
+      <label><input type="checkbox" id="mob" onchange="calc()"> Poor mobility</label>
       <label><input type="checkbox" id="prev" onchange="calc()"> Previous cardiac surgery</label>
       <label><input type="checkbox" id="endo" onchange="calc()"> Active endocarditis</label>
       <label><input type="checkbox" id="mi" onchange="calc()"> Recent MI (&lt;90 days)</label>
-      <label><input type="checkbox" id="crit" onchange="calc()"> Critical preoperative state</label>
+      <label><input type="checkbox" id="chf" onchange="calc()"> Congestive heart failure</label>
+      <label><input type="checkbox" id="afib" onchange="calc()"> Atrial fibrillation</label>
+      <label><input type="checkbox" id="anemia" onchange="calc()"> Preop anaemia (Hb &lt;120)</label>
+      <label><input type="checkbox" id="vtvf" onchange="calc()"> VT / VF pre-op</label>
+      <label><input type="checkbox" id="iabp" onchange="calc()"> IABP pre-op</label>
+      <label><input type="checkbox" id="inot" onchange="calc()"> IV inotropes pre-op</label>
+      <label><input type="checkbox" id="anuria" onchange="calc()"> Anuria / oliguria</label>
       <label><input type="checkbox" id="aorta" onchange="calc()"> Surgery on thoracic aorta</label>
     </div>
-    <p class="note">Weight of intervention is set automatically from the procedure and can be
-    overridden — EuroSCORE II counts major procedures, with isolated CABG as the reference
-    category. Thoracic aorta is a separate additive term, not a procedure count, so it is a
-    checkbox rather than a category.<br>
-    Critical preoperative state = VT/VF or aborted sudden death, preoperative cardiac massage,
-    ventilation before theatre, inotropes, IABP or VAD, or acute renal failure (anuria/oliguria
-    &lt;10 mL/h). One variable, not several.<br>
-    Renal impairment is one four-level variable: dialysis <i>replaces</i> the creatinine-clearance
-    band rather than adding to it. Clearance by Cockcroft-Gault.</p>
+    <p class="note">Weight of intervention is set automatically from the procedure and can be overridden.</p>
   </div>
 
   <div class="card">
     <h2>Layer 2b — Clinical Frailty Scale <span class="req">(required)</span></h2>
     <div class="cfs" id="cfsBox"></div>
-    <p class="note">Rockwood CFS, assessed at the last pre-operative encounter.
-    Copyright Dalhousie University; free permission for research use on request.</p>
+    <p class="note">Assessed at the last pre-operative encounter.</p>
   </div>
 
   <div class="card">
@@ -209,8 +192,7 @@
 
 <script>
 // ===== UCSRS ENGINE START =====
-// Single source of truth. Every constant below is from Section 3.3 of the publication,
-// except the EuroSCORE II block, which is from Nashef et al. EJCTS 2012;41:734-45 Table 6.
+// Single source of truth for all model constants (per the published Section 3.3 specification).
 var UCSRS_SPEC = {
   spec_version: "1.0.0",
   layer1: { w_sts: 0.50, w_euro: 0.50, cap_br: 60 },
@@ -318,6 +300,45 @@ function euroscore2(p){
 }
 
 // The UCSRS itself. stsPromPct is supplied by the user; euroPct may be supplied or computed.
+// Internal STS estimate — the previous calculator's additive function, restored verbatim.
+// Used only when no STS-PROM value is entered; an entered value always overrides.
+function stsEstimate(p){
+  var r = 1.5;
+  if (p.age > 70) r += (p.age - 70) * 0.12;
+  if (p.age > 80) r += (p.age - 80) * 0.2;
+  if (p.female) r += 0.4;
+  if (p.lvef != null){ if (p.lvef < 30) r += 2.5; else if (p.lvef < 50) r += 0.8; }
+  var cc = creatinineClearance(p.age, p.weight, p.creatinine, p.female);
+  if (p.dialysis) r += 3.1;
+  else if (cc !== null){ if (cc < 30) r += 2.2; else if (cc < 60) r += 0.9; }
+  if (p.iddm) r += 0.6;
+  if (p.htn) r += 0.3;
+  if (p.pulmonary) r += 0.7;
+  if (p.arteriopathy) r += 1.0;
+  if (p.prevCardiac) r += 2.5;
+  if (p.endocarditis) r += 1.8;
+  if (p.recentMI) r += 0.7;
+  if (p.chf) r += 1.0;
+  if (p.afib) r += 0.4;
+  if (p.neuro) r += 0.8;
+  if (p.anemia) r += 0.9;
+  if (p.vtvf) r += 2.0;
+  if (p.iabp) r += 1.5;
+  if (p.inot) r += 1.2;
+  if (p.anuria) r += 2.5;
+  if (p.nyha === 3) r += 0.5; else if (p.nyha === 4) r += 1.2;
+  if (p.urgency === 'urgent') r += 1.0;
+  else if (p.urgency === 'emergency') r += 3.5;
+  else if (p.urgency === 'salvage') r += 8.0;
+  var pr = p.procedure;
+  if (pr === 'cabg_avr' || pr === 'cabg_mvr') r += 1.2;
+  else if (pr === 'double_valve') r += 2.0;
+  else if (pr === 'aorta') r += 3.0;
+  else if (pr === 'tvr') r += 1.8;
+  else if (pr === 'other') r += 1.5;
+  return Math.min(r, 50);
+}
+
 function ucsrs(input){
   var S = UCSRS_SPEC;
   var br = Math.min(S.layer1.w_sts * input.stsPromPct + S.layer1.w_euro * input.euroPct, S.layer1.cap_br);
@@ -420,12 +441,12 @@ function syncWeight(){
 }
 
 function calc(){
-  var sts = num('sts');
   var scoreEl = document.getElementById('score'), catEl = document.getElementById('cat');
   var brkEl = document.getElementById('brk'), alEl = document.getElementById('alerts');
 
   var age = num('age');
-  var euroInput = {
+  var critical = chk('vtvf') || chk('iabp') || chk('inot') || chk('anuria');
+  var patient = {
     age: age, weight: num('wt'), creatinine: num('cr'),
     female: document.getElementById('sex').value === 'F',
     dialysis: document.getElementById('dial').value === '1',
@@ -433,13 +454,17 @@ function calc(){
     nyha: parseInt(document.getElementById('nyha').value, 10),
     ccs4: tier >= 1 && document.getElementById('ccs').value === '4',
     arteriopathy: chk('pvd'), mobility: chk('mob'), prevCardiac: chk('prev'),
-    pulmonary: chk('copd'), endocarditis: chk('endo'), critical: chk('crit'),
+    pulmonary: chk('copd'), endocarditis: chk('endo'), critical: critical,
     iddm: chk('dm'), recentMI: chk('mi'),
+    htn: chk('htn'), chf: chk('chf'), afib: chk('afib'), anemia: chk('anemia'),
+    neuro: chk('neuro'), vtvf: chk('vtvf'), iabp: chk('iabp'),
+    inot: chk('inot'), anuria: chk('anuria'),
     urgency: document.getElementById('urg').value,
+    procedure: document.getElementById('proc').value,
     interventionWeight: document.getElementById('weight').value,
     thoracicAorta: chk('aorta')
   };
-  var euro = age ? euroscore2(euroInput) : null;
+  var euro = age ? euroscore2(patient) : null;
 
   var meld = num('meldDirect');
   if (meld === null){
@@ -448,9 +473,11 @@ function calc(){
       meld = meldFromLabs(b, i, c, document.getElementById('dialmeld').value === '1');
   }
 
+  var sts = age ? stsEstimate(patient) : null;
+
   if (sts === null || cfsVal === 0 || euro === null){
     scoreEl.textContent = '—';
-    catEl.textContent = 'enter STS-PROM, age and CFS';
+    catEl.textContent = 'enter patient details and CFS';
     catEl.style.color = 'var(--muted)';
     brkEl.innerHTML = ''; alEl.innerHTML = '';
     return;
@@ -471,8 +498,8 @@ function calc(){
 
   function line(l, v, cls){ return '<div class="'+(cls||'')+'"><span>'+l+'</span><span>'+v+'</span></div>'; }
   brkEl.innerHTML =
-    line('STS-PROM (entered)', sts.toFixed(2)+'%') +
-    line('EuroSCORE II (computed)', euro.toFixed(2)+'%') +
+    line('STS component', sts.toFixed(2)+'%') +
+    line('EuroSCORE II component', euro.toFixed(2)+'%') +
     line('Layer 1 baseline (50/50)', r.br.toFixed(2)+'%') +
     line('Layer 2a MELD' + (meld ? ' (MELD '+meld+')' : ''), '+'+r.meldCorr.toFixed(2)) +
     line('Layer 2b CFS '+cfsVal, '×'+r.mult.toFixed(2)) +
