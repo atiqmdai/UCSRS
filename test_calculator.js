@@ -250,7 +250,33 @@ check('dialysed twice a week scores creatinine as 4.0 mg/dL',
   ctx.meldFromLabs(1.0, 1.0, 1.0, true) === ctx.meldFromLabs(1.0, 1.0, 4.0, false));
 check('creatinine capped at 4.0 mg/dL',
   ctx.meldFromLabs(1.0, 1.0, 9.0, false) === ctx.meldFromLabs(1.0, 1.0, 4.0, false));
-check('no umol/L units remain on the page', !/µmol|umol/i.test(HTML));
+check('umol/L appears only in the unit toggle and its conversion code, never as a default label',
+  !/Creatinine \(µmol\/L\)/.test(HTML) && !/Bilirubin \(µmol\/L\)/.test(HTML));
+check('unit toggle present (mg/dL and umol/L chips)',
+  /data-unit="us"/.test(HTML) && /data-unit="si"/.test(HTML) && /function setUnits/.test(HTML));
+check('lab fields read through labNum so SI entries convert',
+  /function labNum/.test(HTML) && /creatinine: labNum\('cr'\)/.test(HTML) &&
+  /labNum\('bili'\)/.test(HTML) && /labNum\('crmeld'\)/.test(HTML));
+check('conversion factors are correct (88.4 creatinine, 17.1 bilirubin, 10 protein)',
+  /CR_F\s*=\s*88\.4/.test(HTML) && /BILI_F\s*=\s*17\.1/.test(HTML) && /PROT_F\s*=\s*10/.test(HTML));
+check('toggle covers every lab on the page — creatinine, bilirubin, hemoglobin, albumin',
+  /convertField\('bili'/.test(HTML) && /\['cr','crmeld'\]/.test(HTML) && /\['hgb','alb'\]/.test(HTML));
+check('EFT labs read through labNum (so SI g/L entries score correctly)',
+  /hgb: labNum\('hgb'\)/.test(HTML) && /albumin: labNum\('alb'\)/.test(HTML) &&
+  /labNum\('hgb'\) === null \|\| labNum\('alb'\) === null/.test(HTML));
+check('SI labels and thresholds relabel (g/L, anemia <120 g/L)',
+  /g\/L/.test(HTML) && /anemiaLbl/.test(HTML) && /120 g\/L/.test(HTML));
+// unit-independence of EFT scoring: 115 g/L and 11.5 g/dL are the same patient
+check('Hgb 115 g/L scores identically to 11.5 g/dL for a woman',
+  ctx.eftScore({ chairUnable:false, chairSec:9, cogImpaired:false, hgb: 115/10, albumin: 32/10, female:true }).points ===
+  ctx.eftScore({ chairUnable:false, chairSec:9, cogImpaired:false, hgb: 11.5,   albumin: 3.2,   female:true }).points);
+check('engine itself stays in mg/dL (Cockcroft-Gault /72)',
+  /72\s*\*\s*cr_mgdl/.test(engine));
+// unit-independence of the underlying math: SI value converted by hand must give
+// the same clearance as the mg/dL value
+check('110 umol/L converts to the same clearance as 1.244 mg/dL',
+  near(ctx.creatinineClearance(72, 70, 110 / 88.4, true),
+       ctx.creatinineClearance(72, 70, 1.2443, true), 0.05));
 check('creatinine and bilirubin labelled mg/dL',
   /Creatinine \(mg\/dL\)/.test(HTML) && /Bilirubin \(mg\/dL\)/.test(HTML));
 check('American spellings (hemoglobin, anemia, hemodynamic)',

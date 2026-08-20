@@ -31,6 +31,7 @@
  .tier{padding:6px 13px;border:1px solid var(--line);background:#fff;border-radius:20px;
        cursor:pointer;font-size:13px;color:var(--muted)}
  .tier.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+ .tier.unit{font-size:12px;padding:5px 11px}
  .eftbadge{display:inline-block;margin-top:7px;padding:3px 10px;border-radius:12px;
        font-size:12px;background:#eef3fa;border:1px solid #c3d3ea;color:var(--accent)}
  .out{position:sticky;top:14px}
@@ -63,6 +64,9 @@
   <div class="tier on" data-tier="0" onclick="setTier(0)">Tier 1 — Clinic</div>
   <div class="tier" data-tier="1" onclick="setTier(1)">Tier 2 — Enhanced pre-op</div>
   <div class="tier" data-tier="2" onclick="setTier(2)">Tier 3 — Full cath lab</div>
+  <div style="flex:1"></div>
+  <div class="tier unit on" data-unit="us" onclick="setUnits('us')">Conventional (mg/dL, g/dL)</div>
+  <div class="tier unit" data-unit="si" onclick="setUnits('si')">SI (µmol/L, g/L)</div>
 </div>
 
 <div class="grid">
@@ -74,7 +78,7 @@
       <div><label>Age (years)</label><input type="number" id="age" min="18" max="110" oninput="calc()"></div>
       <div><label>Sex</label><select id="sex" onchange="calc()"><option value="M">Male</option><option value="F">Female</option></select></div>
       <div><label>Weight (kg)</label><input type="number" id="wt" min="25" max="250" oninput="calc()"></div>
-      <div><label>Creatinine (mg/dL)</label><input type="number" id="cr" step="0.01" min="0.2" max="20" oninput="calc()"></div>
+      <div><label id="crLbl">Creatinine (mg/dL)</label><input type="number" id="cr" step="0.01" min="0.2" max="20" oninput="calc()"></div>
       <div><label>LVEF (%)</label><input type="number" id="lvef" min="5" max="80" oninput="calc()"></div>
       <div><label>PASP by echo (mmHg)</label><input type="number" id="pasp" min="10" max="140" oninput="calc()"></div>
       <div><label>NYHA class</label><select id="nyha" onchange="calc()">
@@ -114,7 +118,7 @@
       <label><input type="checkbox" id="mi" onchange="calc()"> Recent MI (&lt;90 days)</label>
       <label><input type="checkbox" id="chf" onchange="calc()"> Congestive heart failure</label>
       <label><input type="checkbox" id="afib" onchange="calc()"> Atrial fibrillation</label>
-      <label><input type="checkbox" id="anemia" onchange="calc()"> Preop anemia (Hgb &lt;12 g/dL)</label>
+      <label><input type="checkbox" id="anemia" onchange="calc()"> <span id="anemiaLbl">Preop anemia (Hgb &lt;12 g/dL)</span></label>
       <label><input type="checkbox" id="vtvf" onchange="calc()"> VT / VF pre-op</label>
       <label><input type="checkbox" id="iabp" onchange="calc()"> IABP pre-op</label>
       <label><input type="checkbox" id="inot" onchange="calc()"> IV inotropes pre-op</label>
@@ -134,8 +138,8 @@
         <option value="">Not assessed</option>
         <option value="0">Normal</option>
         <option value="1">Impaired (Mini-Cog ≤2 or MMSE &lt;24)</option></select></div>
-      <div><label>Hemoglobin (g/dL) <span class="req">*</span></label><input type="number" id="hgb" step="0.1" min="4" max="22" oninput="calc()"></div>
-      <div><label>Albumin (g/dL) <span class="req">*</span></label><input type="number" id="alb" step="0.1" min="1" max="6" oninput="calc()"></div>
+      <div><label id="hgbLbl">Hemoglobin (g/dL) <span class="req">*</span></label><input type="number" id="hgb" step="0.1" min="4" max="22" oninput="calc()"></div>
+      <div><label id="albLbl">Albumin (g/dL) <span class="req">*</span></label><input type="number" id="alb" step="0.1" min="1" max="6" oninput="calc()"></div>
     </div>
     <div class="eftbadge" id="eftBadge">EFT —</div>
     <p class="note">EFT will calculate as long as hemoglobin and albumin are available.</p>
@@ -144,9 +148,9 @@
   <div class="card">
     <h2>Layer 2a — MELD (optional)</h2>
     <div class="row">
-      <div><label>Bilirubin (mg/dL)</label><input type="number" id="bili" step="0.1" min="0.1" max="60" oninput="calc()"></div>
+      <div><label id="biliLbl">Bilirubin (mg/dL)</label><input type="number" id="bili" step="0.1" min="0.1" max="60" oninput="calc()"></div>
       <div><label>INR</label><input type="number" id="inr" step="0.01" oninput="calc()"></div>
-      <div><label>Creatinine for MELD (mg/dL)</label><input type="number" id="crmeld" step="0.01" min="0.2" max="20" oninput="calc()"></div>
+      <div><label id="crmeldLbl">Creatinine for MELD (mg/dL)</label><input type="number" id="crmeld" step="0.01" min="0.2" max="20" oninput="calc()"></div>
       <div><label>Dialysed twice this week</label><select id="dialmeld" onchange="calc()">
         <option value="0">No</option><option value="1">Yes</option></select></div>
       <div><label>…or enter MELD directly</label><input type="number" id="meldDirect" min="6" max="40" oninput="calc()"></div>
@@ -510,6 +514,55 @@ function selfTest(){
 
 var tier = 0;
 
+// Unit system for creatinine and bilirubin. Internally the engine always works in
+// mg/dL; SI entries are converted on read. Switching units converts any value
+// already typed, so the score never changes when the display units change.
+var units = 'us';
+var CR_F = 88.4, BILI_F = 17.1;   // umol/L per mg/dL
+var PROT_F = 10;                  // g/L per g/dL (hemoglobin, albumin)
+
+function setUnits(u){
+  if (u === units) return;
+  var els = document.querySelectorAll('.tier.unit');
+  for (var i=0;i<els.length;i++) els[i].classList.toggle('on', els[i].dataset.unit === u);
+
+  // convert values already entered
+  ['cr','crmeld'].forEach(function(id){ convertField(id, u === 'si' ? CR_F : 1/CR_F, u === 'si' ? 0 : 2); });
+  convertField('bili', u === 'si' ? BILI_F : 1/BILI_F, u === 'si' ? 0 : 1);
+  ['hgb','alb'].forEach(function(id){ convertField(id, u === 'si' ? PROT_F : 1/PROT_F, u === 'si' ? 0 : 1); });
+
+  units = u;
+  var si = (u === 'si');
+  document.getElementById('crLbl').textContent     = 'Creatinine (' + (si ? 'µmol/L' : 'mg/dL') + ')';
+  document.getElementById('crmeldLbl').textContent = 'Creatinine for MELD (' + (si ? 'µmol/L' : 'mg/dL') + ')';
+  document.getElementById('biliLbl').textContent   = 'Bilirubin (' + (si ? 'µmol/L' : 'mg/dL') + ')';
+  ['cr','crmeld'].forEach(function(id){ setLimits(id, si ? [18,1800,1] : [0.2,20,0.01]); });
+  setLimits('bili', si ? [2,1000,1] : [0.1,60,0.1]);
+  document.getElementById('hgbLbl').innerHTML = 'Hemoglobin (' + (si ? 'g/L' : 'g/dL') + ') <span class="req">*</span>';
+  document.getElementById('albLbl').innerHTML = 'Albumin (' + (si ? 'g/L' : 'g/dL') + ') <span class="req">*</span>';
+  document.getElementById('anemiaLbl').innerHTML = 'Preop anemia (Hgb &lt;' + (si ? '120 g/L' : '12 g/dL') + ')';
+  setLimits('hgb', si ? [40,220,1] : [4,22,0.1]);
+  setLimits('alb', si ? [10,60,1] : [1,6,0.1]);
+  calc();
+}
+function convertField(id, factor, dp){
+  var el = document.getElementById(id), v = parseFloat(el.value);
+  if (!isNaN(v)) el.value = (v * factor).toFixed(dp);
+}
+function setLimits(id, mmS){
+  var el = document.getElementById(id);
+  el.min = mmS[0]; el.max = mmS[1]; el.step = mmS[2];
+}
+// Read a lab field in the engine's own units (mg/dL), whatever is displayed.
+function labNum(id){
+  var v = num(id);
+  if (v === null) return null;
+  if (units !== 'si') return v;
+  if (id === 'bili') return v / BILI_F;
+  if (id === 'hgb' || id === 'alb') return v / PROT_F;
+  return v / CR_F;
+}
+
 function setTier(t){
   tier = t;
   var els = document.querySelectorAll('.tier');
@@ -539,7 +592,7 @@ function calc(){
   var age = num('age');
   var critical = chk('vtvf') || chk('iabp') || chk('inot') || chk('anuria');
   var patient = {
-    age: age, weight: num('wt'), creatinine: num('cr'),
+    age: age, weight: num('wt'), creatinine: labNum('cr'),
     female: document.getElementById('sex').value === 'F',
     dialysis: document.getElementById('dial').value === '1',
     lvef: num('lvef'), pasp: num('pasp'),
@@ -560,7 +613,7 @@ function calc(){
 
   var meld = num('meldDirect');
   if (meld === null){
-    var b = num('bili'), i = num('inr'), c = num('crmeld');
+    var b = labNum('bili'), i = num('inr'), c = labNum('crmeld');
     if (b !== null && i !== null && c !== null)
       meld = meldFromLabs(b, i, c, document.getElementById('dialmeld').value === '1');
   }
@@ -572,13 +625,13 @@ function calc(){
     chairSec: num('chair'),
     chairUnable: document.getElementById('chairun').value === '1',
     cogImpaired: cogSel === '' ? null : cogSel === '1',
-    hgb: num('hgb'), albumin: num('alb'), female: patient.female
+    hgb: labNum('hgb'), albumin: labNum('alb'), female: patient.female
   });
   var badge = document.getElementById('eftBadge');
   badge.textContent = eft.none ? 'EFT —'
     : 'EFT ' + eft.points + ' / 5' + (eft.partial ? ' (partial)' : '');
 
-  var labsMissing = (num('hgb') === null || num('alb') === null);
+  var labsMissing = (labNum('hgb') === null || labNum('alb') === null);
   if (sts === null || euro === null || labsMissing){
     scoreEl.textContent = '—';
     catEl.textContent = 'enter patient details to calculate';
