@@ -1,6 +1,6 @@
 # UCSRS — Universal Cardiac Surgical Risk Score
 
-Free-standing implementation of UCSRS v1.0, as specified in Section 3.3 of:
+Reference implementation of UCSRS, based on the architecture specified in Section 3.3 of:
 
 > Rehman A. Universal cardiac surgical risk score (UCSRS v1.0): a unified physiology-informed
 > risk architecture for operative mortality prediction across all adult cardiac surgical
@@ -8,31 +8,40 @@ Free-standing implementation of UCSRS v1.0, as specified in Section 3.3 of:
 
 **Calculator:** https://ucsrs-calculator.netlify.app · Open source (MIT)
 
+The deployed calculator implements **UCSRS v1.1**: identical to the published v1.0
+architecture except that the Layer 2b frailty instrument is the Essential Frailty
+Toolset (EFT, 0–5) in place of the Clinical Frailty Scale. The published multiplier
+ladder (×1.00–×2.30) is retained verbatim; only the instrument mapping changed. The
+modification was made before first enrolment of the ATLAS validation study, at the
+request of participating sites, for objectivity and inter-rater reliability.
+
 ## Files
 
 | File | Purpose |
 |---|---|
-| `index.html` | The calculator. Self-contained and free-standing: all inputs on one page, all computation in the browser, no data transmitted. |
-| `test_calculator.js` | Acceptance test. Run `node test_calculator.js` — checks the full model against the published specification, including the paper's worked cases. |
+| `index.html` | The calculator. Self-contained; all computation in the browser; no data transmitted. |
+| `test_calculator.js` | Acceptance test. Run `node test_calculator.js` — 90+ checks against the specification, including the paper's worked cases, the EFT scoring rules, and every EuroSCORE II coefficient (Nashef et al., EJCTS 2012, Table 6). |
 | `sw.js`, `manifest.json`, icons | Progressive-web-app shell for offline use. |
 
-## Model structure (per the published Section 3.3 specification)
+## Model notes
 
-- **Layer 1** — baseline risk: mean of two component scores computed internally from the
-  entered clinical variables (50/50), capped at 60%.
-- **Layer 2a** — MELD correction (optional): additive percentage points, banded, capped at 65%.
-- **Layer 2b** — Clinical Frailty Scale (mandatory): multiplicative, ×1.00–×2.30, capped at 70%.
-- **Layer 2c** — LV dimensions and SYNTAX (optional): additive after the frailty multiplier.
-- **Layer 3** — RHC haemodynamic corrections (optional, Tier 3): additive; final result capped at 70%.
-
-Absent optional domains contribute 0.0% and display an informational alert. The score
-calculates at every level of data completeness.
+- Layer 1 is the mean of an internally estimated STS component and EuroSCORE II (50/50), capped at 60%.
+- EuroSCORE II is computed from the published coefficients (Nashef et al. 2012, Table 6).
+- Layer 2a: MELD, additive at full weight (optional).
+- Layer 2b: Essential Frailty Toolset, multiplicative, **mandatory** (labs required; chair rise
+  and cognition may be deferred in urgent cases → partial-EFT alert). EFT 0–5 maps to
+  ×1.00 / ×1.15 / ×1.35 / ×1.60 / ×1.90 / ×2.30.
+- Layer 2c: LV dimensions (LVESVI preferred, LVEDD fallback) and SYNTAX, additive (optional).
+- Layer 3: RHC haemodynamic corrections, additive (Tier 3 only). Final cap 70%.
 
 ## Version history
 
-- **v1.1.0** (Aug 2026) — free-standing release: all components computed internally from the
-  entered clinical variables; single calculator file; in-page self-test on load.
-- **v1.0.1** (Aug 2026) — implementation aligned with the published Section 3.3 specification
-  (50/50 baseline, MELD applied additively at full weight, LV/SYNTAX corrections active);
-  acceptance test added.
+- **v2.0.0** (Aug 2026) — implements UCSRS v1.1: Layer 2b frailty instrument changed from
+  the Clinical Frailty Scale to the Essential Frailty Toolset (0–5), multiplier ladder
+  unchanged. Pre-enrolment modification for the ATLAS validation study. Acceptance test
+  extended with EFT scoring checks.
+- **v1.1.0** (Aug 2026) — free-standing score: STS component computed internally; no external
+  score entry required. Implementation aligned with the published Section 3.3 specification:
+  50/50 baseline, MELD applied additively at full weight, LV/SYNTAX corrections active,
+  EuroSCORE II coefficients verified against the source publication. Acceptance test added.
 - **v1.0** (Jul 2026) — initial release.
