@@ -80,12 +80,21 @@
       <div><label>Weight (kg)</label><input type="number" id="wt" min="25" max="250" oninput="calc()"></div>
       <div><label id="crLbl">Creatinine (mg/dL)</label><input type="number" id="cr" step="0.01" min="0.2" max="20" oninput="calc()"></div>
       <div><label>LVEF (%)</label><input type="number" id="lvef" min="5" max="80" oninput="calc()"></div>
-      <div><label>PASP by echo (mmHg)</label><input type="number" id="pasp" min="10" max="140" oninput="calc()"></div>
+      <div><label>PASP / RV systolic pressure (mmHg)</label><input type="number" id="pasp" min="10" max="140" oninput="calc()"></div>
       <div><label>NYHA class</label><select id="nyha" onchange="calc()">
         <option value="1">I</option><option value="2">II</option><option value="3">III</option><option value="4">IV</option></select></div>
       <div id="ccsWrap" style="display:none"><label>CCS angina class</label><select id="ccs" onchange="calc()">
         <option value="0">None / I–III</option><option value="4">IV</option></select></div>
       <div><label>Dialysis</label><select id="dial" onchange="calc()"><option value="0">No</option><option value="1">Yes</option></select></div>
+      <div><label>Diabetes</label><select id="dm" onchange="calc()">
+        <option value="none">None</option>
+        <option value="oral">Diet or oral agents</option>
+        <option value="insulin">Insulin-treated</option></select></div>
+      <div><label>Pulmonary disease</label><select id="copd" onchange="calc()">
+        <option value="none">None</option>
+        <option value="acute">Acute (e.g. pneumonia)</option>
+        <option value="chronic">Chronic</option>
+        <option value="chronic_o2">Chronic, on home oxygen</option></select></div>
       <div><label>Procedure (UCSRS category)</label><select id="proc" onchange="syncWeight();calc()">
         <option value="cabg">Isolated CABG</option>
         <option value="avr">Isolated AVR</option>
@@ -106,9 +115,7 @@
         <option value="emergency">Emergency</option><option value="salvage">Salvage</option></select></div>
     </div>
     <div class="checks" style="margin-top:11px">
-      <label><input type="checkbox" id="dm" onchange="calc()"> Insulin-dependent diabetes</label>
       <label><input type="checkbox" id="htn" onchange="calc()"> Hypertension</label>
-      <label><input type="checkbox" id="copd" onchange="calc()"> Chronic pulmonary disease</label>
       <label><input type="checkbox" id="smoker" onchange="calc()"> Current / recent smoker</label>
       <label><input type="checkbox" id="pvd" onchange="calc()"> Extracardiac arteriopathy</label>
       <label><input type="checkbox" id="neuro" onchange="calc()"> Neurological dysfunction</label>
@@ -119,6 +126,9 @@
       <label><input type="checkbox" id="chf" onchange="calc()"> Congestive heart failure</label>
       <label><input type="checkbox" id="afib" onchange="calc()"> Atrial fibrillation</label>
       <label><input type="checkbox" id="anemia" onchange="calc()"> <span id="anemiaLbl">Preop anemia (Hgb &lt;12 g/dL)</span></label>
+      <label><input type="checkbox" id="radiation" onchange="calc()"> Prior mediastinal radiation</label>
+      <label><input type="checkbox" id="immuno" onchange="calc()"> Immunocompromised</label>
+      <label><input type="checkbox" id="shock" onchange="calc()"> Cardiogenic shock</label>
       <label><input type="checkbox" id="vtvf" onchange="calc()"> VT / VF pre-op</label>
       <label><input type="checkbox" id="iabp" onchange="calc()"> IABP pre-op</label>
       <label><input type="checkbox" id="inot" onchange="calc()"> IV inotropes pre-op</label>
@@ -151,10 +161,8 @@
       <div><label id="biliLbl">Bilirubin (mg/dL)</label><input type="number" id="bili" step="0.1" min="0.1" max="60" oninput="calc()"></div>
       <div><label>INR</label><input type="number" id="inr" step="0.01" oninput="calc()"></div>
       <div><label id="crmeldLbl">Creatinine for MELD (mg/dL)</label><input type="number" id="crmeld" step="0.01" min="0.2" max="20" oninput="calc()"></div>
-      <div><label>Dialysed twice this week</label><select id="dialmeld" onchange="calc()">
-        <option value="0">No</option><option value="1">Yes</option></select></div>
-      <div><label>…or enter MELD directly</label><input type="number" id="meldDirect" min="6" max="40" oninput="calc()"></div>
     </div>
+    <p class="note">MELD is computed from these three values. Dialysis is taken from the Dialysis field above.</p>
   </div>
 
   <div class="card">
@@ -178,7 +186,7 @@
       <div><label>TAPSE (mm)</label><input type="number" id="tapse" min="5" max="35" oninput="calc()"></div>
       <div><label>PASP by RHC (mmHg)</label><input type="number" id="pasprhc" min="10" max="140" oninput="calc()"></div>
     </div>
-    <p class="note">Echo sPAP does not substitute for RHC PASP in the TAPSE/PASP ratio.</p>
+    <p class="note">Echo-derived pressure does not substitute for RHC PASP in the TAPSE/PASP ratio.</p>
   </div>
 
 </div>
@@ -224,8 +232,11 @@ var UCSRS_SPEC = {
   // then is weighted by its own related pathologies via endpoint-specific log-odds
   // modifiers. Provisional until recalibrated on prospective data.
   outcomes: {
-    anchor_mort:2.5, slope:0.75,
-    anchors:{ vent:9.5, renal:2.8, stroke:1.3 },
+    anchor_mort:2.5,
+    // Each endpoint tracks mortality risk sub-proportionally on the log-odds scale, and
+    // to a different degree: reoperation is the least mortality-linked, ventilation the most.
+    slopes:{ vent:0.60, renal:0.65, stroke:0.55, reop:0.45 },
+    anchors:{ vent:9.5, renal:2.8, stroke:1.3, reop:5.5 },
     // Modifier sizes are residual effects beyond what the mortality risk already
     // carries (the shared component is in the damped base slope), so they are
     // deliberately smaller than the raw literature odds ratios.
@@ -235,7 +246,9 @@ var UCSRS_SPEC = {
       renal:  { cc_lt30:0.50, cc_30_60:0.25, iddm:0.15, age_gt75:0.15,
                 critical:0.20, emergency:0.20, salvage:0.35 },
       stroke: { arteriopathy:0.30, neuro:0.25, afib:0.20, age_gt75:0.18,
-                aorta:0.25, endocarditis:0.20, emergency:0.15 }
+                aorta:0.25, endocarditis:0.20, emergency:0.15, radiation:0.20 },
+      reop:   { prev_cardiac:0.20, radiation:0.20, immuno:0.15, critical:0.20,
+                emergency:0.20, salvage:0.35, aorta:0.15, endocarditis:0.20 }
     }
   },
   euroscore2: {
@@ -353,7 +366,7 @@ function eftScore(f){
 }
 
 // The UCSRS itself. stsPromPct is supplied by the user; euroPct may be supplied or computed.
-// Internal STS component — additive estimate from the entered clinical variables.
+// Internal additive component — estimated from the entered clinical variables.
 function stsEstimate(p){
   var r = 1.5;
   if (p.age > 70) r += (p.age - 70) * 0.12;
@@ -365,7 +378,7 @@ function stsEstimate(p){
   else if (cc !== null){ if (cc < 30) r += 2.2; else if (cc < 60) r += 0.9; }
   if (p.iddm) r += 0.6;
   if (p.htn) r += 0.3;
-  if (p.pulmonary) r += 0.7;
+  if (p.lungAny !== undefined ? p.lungAny : p.pulmonary) r += 0.7;
   if (p.arteriopathy) r += 1.0;
   if (p.prevCardiac) r += 2.5;
   if (p.endocarditis) r += 1.8;
@@ -444,12 +457,12 @@ function ucsrsOutcomes(mortPct, f){
   var inv = function(x){ return 1 / (1 + Math.exp(-x)); };
   var p = Math.min(Math.max(mortPct / 100, 0.0001), 0.9999);
 
-  var mods = { vent:0, renal:0, stroke:0 };
+  var mods = { vent:0, renal:0, stroke:0, reop:0 };
   if (f.lvef != null && !isNaN(f.lvef)){
     if (f.lvef < 30) mods.vent += M.vent.lvef_lt30;
     else if (f.lvef <= 50) mods.vent += M.vent.lvef_30_50;
   }
-  if (f.copd)   mods.vent += M.vent.copd;
+  if (f.copd)   mods.vent += M.vent.copd;   // any significant lung disease
   if (f.smoker) mods.vent += M.vent.smoker;
   if (f.nyha === 4) mods.vent += M.vent.nyha4;
   if (f.critical){ mods.vent += M.vent.critical; mods.renal += M.renal.critical; }
@@ -464,19 +477,26 @@ function ucsrsOutcomes(mortPct, f){
   if (f.iddm) mods.renal += M.renal.iddm;
   if (f.age != null && f.age > 75){ mods.renal += M.renal.age_gt75; mods.stroke += M.stroke.age_gt75; }
 
+  if (f.prevCardiac)  mods.reop += M.reop.prev_cardiac;
+  if (f.radiation){ mods.reop += M.reop.radiation; mods.stroke += M.stroke.radiation; }
+  if (f.immuno)      mods.reop += M.reop.immuno;
+  if (f.critical)     mods.reop += M.reop.critical;
+  if (f.urgency === 'emergency') mods.reop += M.reop.emergency;
+  else if (f.urgency === 'salvage') mods.reop += M.reop.salvage;
   if (f.arteriopathy) mods.stroke += M.stroke.arteriopathy;
   if (f.neuro)        mods.stroke += M.stroke.neuro;
   if (f.afib)         mods.stroke += M.stroke.afib;
-  if (f.aorta)        mods.stroke += M.stroke.aorta;
-  if (f.endocarditis) mods.stroke += M.stroke.endocarditis;
+  if (f.aorta){ mods.stroke += M.stroke.aorta; mods.reop += M.reop.aorta; }
+  if (f.endocarditis){ mods.stroke += M.stroke.endocarditis; mods.reop += M.reop.endocarditis; }
 
   var out = {};
   for (var k in O.anchors){
     // Damped slope: morbidity risk tracks mortality risk sub-proportionally on the
     // log-odds scale; the intercept anchors each endpoint at its typical rate for a
     // factor-free patient at typical mortality.
-    var intercept = logit(O.anchors[k] / 100) - O.slope * logit(O.anchor_mort / 100);
-    out[k] = inv(O.slope * logit(p) + intercept + mods[k]) * 100;
+    var sl = O.slopes[k];
+    var intercept = logit(O.anchors[k] / 100) - sl * logit(O.anchor_mort / 100);
+    out[k] = inv(sl * logit(p) + intercept + mods[k]) * 100;
   }
   // A patient already on dialysis cannot develop new post-operative renal failure
   // in the STS sense; the estimate is not applicable.
@@ -512,7 +532,8 @@ function selfTest(){
 }
 // ===== UCSRS ENGINE END =====
 
-var tier = 0;
+var tier = 0, showDetail = false;
+function toggleDetail(){ showDetail = !showDetail; calc(); }
 
 // Unit system for creatinine and bilirubin. Internally the engine always works in
 // mg/dL; SI entries are converted on read. Switching units converts any value
@@ -590,7 +611,11 @@ function calc(){
   var outcEl = document.getElementById('outc');
 
   var age = num('age');
-  var critical = chk('vtvf') || chk('iabp') || chk('inot') || chk('anuria');
+  var dmVal = document.getElementById('dm').value;
+  var pulmVal = document.getElementById('copd').value;
+  // Cardiogenic shock is scored through the critical pre-operative state composite,
+  // exactly as the parent model treats it — it adds no separate weight.
+  var critical = chk('shock') || chk('vtvf') || chk('iabp') || chk('inot') || chk('anuria');
   var patient = {
     age: age, weight: num('wt'), creatinine: labNum('cr'),
     female: document.getElementById('sex').value === 'F',
@@ -599,8 +624,13 @@ function calc(){
     nyha: parseInt(document.getElementById('nyha').value, 10),
     ccs4: tier >= 1 && document.getElementById('ccs').value === '4',
     arteriopathy: chk('pvd'), mobility: chk('mob'), prevCardiac: chk('prev'),
-    pulmonary: chk('copd'), endocarditis: chk('endo'), critical: critical,
-    iddm: chk('dm'), recentMI: chk('mi'),
+    endocarditis: chk('endo'), critical: critical,
+    iddm: dmVal === 'insulin',            // published term applies to insulin treatment only
+    dmOral: dmVal === 'oral',             // captured; carries no weight in this version
+    pulmonary: pulmVal === 'chronic' || pulmVal === 'chronic_o2',  // chronic dysfunction term
+    lungAny: pulmVal !== 'none',          // any significant lung disease, incl. acute
+    homeOxygen: pulmVal === 'chronic_o2', // captured; no separate weight in this version
+    recentMI: chk('mi'),
     htn: chk('htn'), chf: chk('chf'), afib: chk('afib'), anemia: chk('anemia'),
     neuro: chk('neuro'), vtvf: chk('vtvf'), iabp: chk('iabp'),
     inot: chk('inot'), anuria: chk('anuria'),
@@ -611,12 +641,12 @@ function calc(){
   };
   var euro = age ? euroscore2(patient) : null;
 
-  var meld = num('meldDirect');
-  if (meld === null){
-    var b = labNum('bili'), i = num('inr'), c = labNum('crmeld');
-    if (b !== null && i !== null && c !== null)
-      meld = meldFromLabs(b, i, c, document.getElementById('dialmeld').value === '1');
-  }
+  // MELD is computed internally from bilirubin, INR and creatinine.
+  // Dialysis is read from the Layer 1 field, so it is never asked twice.
+  var meld = null;
+  var b = labNum('bili'), i = num('inr'), c = labNum('crmeld');
+  if (b !== null && i !== null && c !== null)
+    meld = meldFromLabs(b, i, c, patient.dialysis);
 
   var sts = age ? stsEstimate(patient) : null;
 
@@ -655,31 +685,36 @@ function calc(){
 
   function line(l, v, cls){ return '<div class="'+(cls||'')+'"><span>'+l+'</span><span>'+v+'</span></div>'; }
   brkEl.innerHTML =
-    line('STS component', sts.toFixed(2)+'%') +
-    line('EuroSCORE II component', euro.toFixed(2)+'%') +
-    line('Layer 1 baseline (50/50)', r.br.toFixed(2)+'%') +
+    '<div id="detailWrap" style="display:' + (showDetail ? 'block' : 'none') + '">' +
+    line('Layer 1 calculated score', r.br.toFixed(2)+'%') +
     line('Layer 2a MELD' + (meld ? ' (MELD '+meld+')' : ''), '+'+r.meldCorr.toFixed(2)) +
     line('Layer 2b EFT '+eft.points+(eft.partial ? ' (partial)' : ''), '×'+r.mult.toFixed(2)) +
     line('Layer 2c LV'+(r.lvSource ? ' ('+r.lvSource+')' : ''), '+'+r.lv.toFixed(2)) +
     line('Layer 2c SYNTAX', '+'+r.syntax.toFixed(2)) +
     line('Layer 3 hemodynamic', '+'+r.hemo.toFixed(2)) +
-    line('UCSRS', r.final.toFixed(2)+'%', 'tot');
+    line('UCSRS', r.final.toFixed(2)+'%', 'tot') +
+    '</div>' +
+    '<div style="padding-top:4px"><a href="#" onclick="toggleDetail();return false" ' +
+    'style="font-size:12px;color:var(--accent);text-decoration:none">' +
+    (showDetail ? '− hide calculation detail' : '+ show calculation detail') + '</a></div>';
 
   var oc = ucsrsOutcomes(r.final, {
-    lvef: patient.lvef, copd: patient.pulmonary, smoker: chk('smoker'),
+    lvef: patient.lvef, copd: patient.lungAny, smoker: chk('smoker'),
     nyha: patient.nyha, critical: patient.critical, urgency: patient.urgency,
     cc: creatinineClearance(patient.age, patient.weight, patient.creatinine, patient.female),
     dialysis: patient.dialysis, iddm: patient.iddm, age: patient.age,
     arteriopathy: patient.arteriopathy, neuro: patient.neuro, afib: patient.afib,
-    aorta: patient.thoracicAorta, endocarditis: patient.endocarditis
+    aorta: patient.thoracicAorta, endocarditis: patient.endocarditis,
+    prevCardiac: patient.prevCardiac, radiation: chk('radiation'), immuno: chk('immuno')
   });
   outcEl.innerHTML =
-    '<div style="font-weight:600;color:var(--accent);text-transform:uppercase;font-size:11.5px;letter-spacing:.6px;padding:2px 0 4px">30-day outcome estimates</div>' +
-    line('Mortality (UCSRS)', r.final.toFixed(1)+'%') +
-    line('Prolonged ventilation &gt;24 h', oc.vent.toFixed(1)+'%') +
-    line('Renal failure', oc.renal === null ? 'n/a — on dialysis' : oc.renal.toFixed(1)+'%') +
+    '<div style="font-weight:600;color:var(--accent);text-transform:uppercase;font-size:11.5px;letter-spacing:.6px;padding:2px 0 4px">30-day risk estimates</div>' +
+    line('Mortality', r.final.toFixed(1)+'%') +
     line('Permanent stroke', oc.stroke.toFixed(1)+'%') +
-    '<div class="note" style="padding-top:3px">Each estimate is weighted by its own related factors — ventilation by EF, lung disease, smoking and urgency; renal failure by renal function, diabetes and age; stroke by arteriopathy, prior neurological disease, AF and age. Provisional until prospectively validated.</div>';
+    line('Renal failure', oc.renal === null ? 'n/a — on dialysis' : oc.renal.toFixed(1)+'%') +
+    line('Prolonged ventilation &gt;24 h', oc.vent.toFixed(1)+'%') +
+    line('Reoperation', oc.reop.toFixed(1)+'%') +
+    '<div class="note" style="padding-top:3px">Each estimate is weighted by its own related factors. Estimates other than mortality are provisional until prospectively validated.</div>';
 
   // Missing-data alerts.
   var alerts = [];

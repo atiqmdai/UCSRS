@@ -250,6 +250,9 @@ check('dialysed twice a week scores creatinine as 4.0 mg/dL',
   ctx.meldFromLabs(1.0, 1.0, 1.0, true) === ctx.meldFromLabs(1.0, 1.0, 4.0, false));
 check('creatinine capped at 4.0 mg/dL',
   ctx.meldFromLabs(1.0, 1.0, 9.0, false) === ctx.meldFromLabs(1.0, 1.0, 4.0, false));
+check('breakdown shows a single calculated score — no component score names displayed',
+  /line\('Layer 1 calculated score'/.test(HTML) &&
+  !/line\('STS component'/.test(HTML) && !/line\('EuroSCORE II component'/.test(HTML));
 check('umol/L appears only in the unit toggle and its conversion code, never as a default label',
   !/Creatinine \(µmol\/L\)/.test(HTML) && !/Bilirubin \(µmol\/L\)/.test(HTML));
 check('unit toggle present (mg/dL and umol/L chips)',
@@ -281,6 +284,26 @@ check('creatinine and bilirubin labelled mg/dL',
   /Creatinine \(mg\/dL\)/.test(HTML) && /Bilirubin \(mg\/dL\)/.test(HTML));
 check('American spellings (hemoglobin, anemia, hemodynamic)',
   !/[Hh]aemoglobin|anaemia|haemodynamic/.test(HTML) && /Hemoglobin \(g\/dL\)/.test(HTML));
+
+console.log('\n7h. Diabetes, pulmonary and shock fields');
+check('diabetes is a three-level control-method field, not a checkbox',
+  /id="dm"[^>]*>/.test(HTML) && /value="oral"/.test(HTML) && /value="insulin"/.test(HTML) &&
+  !/type="checkbox" id="dm"/.test(HTML));
+check('published insulin term applies to insulin treatment only',
+  /iddm: dmVal === 'insulin'/.test(HTML));
+check('non-insulin diabetes is captured but carries no weight',
+  /dmOral: dmVal === 'oral'/.test(HTML) && !/dmOral/.test(engine));
+check('pulmonary disease is a four-level field (none/acute/chronic/home O2)',
+  /value="acute"/.test(HTML) && /value="chronic"/.test(HTML) && /value="chronic_o2"/.test(HTML));
+check('chronic-dysfunction term applies to chronic disease only, not acute',
+  /pulmonary: pulmVal === 'chronic' \|\| pulmVal === 'chronic_o2'/.test(HTML));
+check('any significant lung disease feeds the internal component and the ventilation estimate',
+  /lungAny: pulmVal !== 'none'/.test(HTML) && /copd: patient\.lungAny/.test(HTML));
+check('cardiogenic shock feeds the critical-state composite, adding no separate weight',
+  /chk\('shock'\) \|\| chk\('vtvf'\)/.test(HTML) && !/shock/.test(engine));
+check('critical state remains ONE variable — shock plus inotropes does not double count',
+  near(ctx.euroscore2(Object.assign({}, BASE, { critical: true })),
+       ctx.euroscore2(Object.assign({}, BASE, { critical: true })), 1e-12));
 
 console.log('\n8. Risk categories');
 for (const [v, want] of [[3.9, 'LOW RISK'], [4.0, 'INTERMEDIATE RISK'], [7.9, 'INTERMEDIATE RISK'],
