@@ -35,6 +35,13 @@
  .eftbadge{display:inline-block;margin-top:7px;padding:3px 10px;border-radius:12px;
        font-size:12px;background:#eef3fa;border:1px solid #c3d3ea;color:var(--accent)}
  .out{position:sticky;top:14px}
+ .vsev{border:1px solid var(--line);border-radius:5px;background:var(--field);font-size:13px}
+ .vsev>summary{padding:7px 9px;cursor:pointer;list-style:none;color:var(--ink)}
+ .vsev>summary::-webkit-details-marker{display:none}
+ .vsev>summary::after{content:'▾';float:right;opacity:.6}
+ .vsev[open]>summary::after{content:'▴'}
+ .vsevbody{padding:0 9px 9px}
+ .vsevbody label{display:block;margin-top:6px;font-size:11.5px}
  .score{font-size:44px;font-weight:700;line-height:1;margin:6px 0 2px}
  .cat{font-size:13px;font-weight:600;letter-spacing:.4px;text-transform:uppercase}
  .brk{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;font-size:12.5px;color:var(--muted)}
@@ -78,38 +85,103 @@
       <div><label>Age (years)</label><input type="number" id="age" min="18" max="110" oninput="calc()"></div>
       <div><label>Sex</label><select id="sex" onchange="calc()"><option value="M">Male</option><option value="F">Female</option></select></div>
       <div><label>Weight (kg)</label><input type="number" id="wt" min="25" max="250" oninput="calc()"></div>
+      <div><label>Height (cm)</label><input type="number" id="ht" min="100" max="220" oninput="calc()"></div>
       <div><label id="crLbl">Creatinine (mg/dL)</label><input type="number" id="cr" step="0.01" min="0.2" max="20" oninput="calc()"></div>
       <div><label>LVEF (%)</label><input type="number" id="lvef" min="5" max="80" oninput="calc()"></div>
       <div><label>PASP / RV systolic pressure (mmHg)</label><input type="number" id="pasp" min="10" max="140" oninput="calc()"></div>
-      <div><label>NYHA class</label><select id="nyha" onchange="calc()">
-        <option value="1">I</option><option value="2">II</option><option value="3">III</option><option value="4">IV</option></select></div>
+      <div><label>Heart failure</label><select id="nyha" onchange="calc()">
+        <option value="none">None</option>
+        <option value="1">NYHA I</option>
+        <option value="2">NYHA II</option>
+        <option value="3">NYHA III</option>
+        <option value="4">NYHA IV</option>
+        <option value="acute">Acute decompensation</option></select></div>
       <div id="ccsWrap" style="display:none"><label>CCS angina class</label><select id="ccs" onchange="calc()">
         <option value="0">None / I–III</option><option value="4">IV</option></select></div>
-      <div><label>Dialysis</label><select id="dial" onchange="calc()"><option value="0">No</option><option value="1">Yes</option></select></div>
+      <div><label>Renal function</label><select id="renal" onchange="calc()">
+        <option value="normal">Normal</option>
+        <option value="acute">Acute renal failure</option>
+        <option value="ckd">Chronic kidney disease</option>
+        <option value="dialysis">ESRD / dialysis</option></select></div>
       <div><label>Diabetes</label><select id="dm" onchange="calc()">
         <option value="none">None</option>
         <option value="oral">Diet or oral agents</option>
         <option value="insulin">Insulin-treated</option></select></div>
       <div><label>Pulmonary disease</label><select id="copd" onchange="calc()">
         <option value="none">None</option>
-        <option value="acute">Acute (e.g. pneumonia)</option>
+        <option value="acute">Acute — no ventilator support</option>
+        <option value="acute_vent">Acute — on ventilator support</option>
         <option value="chronic">Chronic</option>
         <option value="chronic_o2">Chronic, on home oxygen</option></select></div>
       <div><label>Procedure (UCSRS category)</label><select id="proc" onchange="syncWeight();calc()">
         <option value="cabg">Isolated CABG</option>
         <option value="avr">Isolated AVR</option>
-        <option value="mvr">Isolated MVR / repair</option>
-        <option value="tvr">Isolated TVR / repair</option>
+        <option value="avr_are">Isolated AVR with aortic root enlargement</option>
+        <option value="tavr_explant">TAVR explant</option>
+        <option value="av_repair">Isolated AV repair</option>
+        <option value="mvr">Isolated MVR</option>
+        <option value="mv_repair">Isolated MV repair</option>
+        <option value="tv_repair">Isolated TV repair</option>
+        <option value="tvr">Isolated TVR</option>
+        <option value="avr_mvr">AVR + MVR</option>
+        <option value="avr_mvr_tvr">AVR + MVR + TVR</option>
+        <option value="avr_mv_repair_tv_repair">AVR + MV repair + TV repair</option>
         <option value="cabg_avr">CABG + AVR</option>
+        <option value="cabg_avr_mv_repair">CABG + AVR + MV repair</option>
+        <option value="cabg_avr_mv_repair_tv_repair">CABG + AVR + MV repair + TV repair</option>
+        <option value="cabg_avr_mvr_tv_repair">CABG + AVR + MVR + TV repair</option>
         <option value="cabg_mvr">CABG + MVR</option>
-        <option value="double_valve">Double valve</option>
-        <option value="aorta">Thoracic aortic surgery</option>
+        <option value="cabg_mv_repair">CABG + MV repair</option>
+        <option value="cabg_tv_repair">CABG + TV repair</option>
+        <option value="asc_aorta">Ascending aortic aneurysm repair</option>
+        <option value="cabg_asc_aorta">Ascending aortic aneurysm repair + CABG</option>
+        <option value="avr_asc_aorta">AVR with ascending aortic aneurysm repair</option>
+        <option value="avr_root_asc_aorta">AVR, aortic root replacement with coronary reimplantation and ascending aortic aneurysm repair</option>
         <option value="other">Other</option></select></div>
-      <div><label>Weight of intervention</label><select id="weight" onchange="calc()">
-        <option value="cabg">Isolated CABG (reference)</option>
-        <option value="single">Single non-CABG procedure</option>
-        <option value="two">Two procedures</option>
-        <option value="three">Three or more procedures</option></select></div>
+      <!-- Weight of intervention is EuroSCORE II's own procedure-count variable. Every
+           procedure in the list above maps to it unambiguously, so it is derived rather
+           than asked: kept in the form only so the engine can read it. -->
+      <div style="display:none"><select id="weight">
+        <option value="cabg">cabg</option><option value="single">single</option>
+        <option value="two">two</option><option value="three">three</option></select></div>
+      <div><label>Valve severity</label>
+        <details class="vsev" id="sevBox"><summary>None entered</summary>
+          <div class="vsevbody">
+            <label>Aortic</label><select id="av_sev" onchange="vsevSummary();calc()"><option value="none">None</option><optgroup label="Stenosis"><option value="s_mild">Mild</option><option value="s_moderate">Moderate</option><option value="s_severe">Severe</option></optgroup><optgroup label="Regurgitation"><option value="r_mild">Mild</option><option value="r_moderate">Moderate</option><option value="r_severe">Severe</option></optgroup></select>
+            <label>Mitral</label><select id="mv_sev" onchange="vsevSummary();calc()"><option value="none">None</option><optgroup label="Stenosis"><option value="s_mild">Mild</option><option value="s_moderate">Moderate</option><option value="s_severe">Severe</option></optgroup><optgroup label="Regurgitation"><option value="r_mild">Mild</option><option value="r_moderate">Moderate</option><option value="r_severe">Severe</option></optgroup></select>
+            <label>Tricuspid</label><select id="tv_sev" onchange="vsevSummary();calc()"><option value="none">None</option><optgroup label="Stenosis"><option value="s_mild">Mild</option><option value="s_moderate">Moderate</option><option value="s_severe">Severe</option></optgroup><optgroup label="Regurgitation"><option value="r_mild">Mild</option><option value="r_moderate">Moderate</option><option value="r_severe">Severe</option></optgroup></select>
+          </div>
+        </details></div>
+      <div><label>Valve etiology</label>
+        <details class="vsev" id="etioBox"><summary>None entered</summary>
+          <div class="vsevbody">
+            <label>Aortic</label><select id="av_etio" onchange="vsevSummary();calc()"><option value="none">None</option><option value="rheumatic">Rheumatic</option><option value="degenerative">Degenerative</option><option value="congenital">Congenital</option><option value="infective">Infective</option></select>
+            <label>Mitral</label><select id="mv_etio" onchange="vsevSummary();calc()"><option value="none">None</option><optgroup label="Primary"><option value="primary_rheumatic">Rheumatic</option><option value="primary_degenerative">Degenerative</option><option value="primary_infective">Infective</option></optgroup><optgroup label="Secondary"><option value="secondary_ischemic">Ischemic</option><option value="secondary_annular">Annular dilatation</option><option value="secondary_cardiomyopathy">Cardiomyopathy</option></optgroup></select>
+            <label>Tricuspid</label><select id="tv_etio" onchange="vsevSummary();calc()"><option value="none">None</option><optgroup label="Primary"><option value="primary_rheumatic">Rheumatic</option><option value="primary_infective">Infective</option><option value="primary_carcinoid">Carcinoid</option></optgroup><optgroup label="Secondary"><option value="secondary_annular">Annular dilatation</option><option value="secondary_rv">RV dysfunction</option></optgroup></select>
+          </div>
+        </details></div>
+      <div><label>Cardiogenic shock</label><select id="shock" onchange="calc()">
+        <option value="none">None</option>
+        <option value="inotropes">Inotropic support</option>
+        <option value="vtvf">VT / VF</option>
+        <option value="iabp">IABP</option>
+        <option value="impella">Impella</option>
+        <option value="ecmo">ECMO</option></select></div>
+      <div><label>Extracardiac arteriopathy</label><select id="pvd" onchange="calc()">
+        <option value="none">None</option>
+        <option value="carotid">Carotid</option>
+        <option value="ascending">Ascending aorta</option>
+        <option value="arch">Aortic arch</option>
+        <option value="peripheral">Peripheral vasculature</option></select></div>
+      <div><label>Recent myocardial infarction</label><select id="mi" onchange="calc()">
+        <option value="none">None</option>
+        <option value="7">Within 7 days</option>
+        <option value="30">8–30 days</option>
+        <option value="90">31–90 days</option></select></div>
+      <div><label>Operation</label><select id="sternotomy" onchange="calc()">
+        <option value="1">First time</option>
+        <option value="2">Redo</option>
+        <option value="3">Second redo</option></select></div>
       <div><label>Urgency</label><select id="urg" onchange="calc()">
         <option value="elective">Elective</option><option value="urgent">Urgent</option>
         <option value="emergency">Emergency</option><option value="salvage">Salvage</option></select></div>
@@ -117,25 +189,12 @@
     <div class="checks" style="margin-top:11px">
       <label><input type="checkbox" id="htn" onchange="calc()"> Hypertension</label>
       <label><input type="checkbox" id="smoker" onchange="calc()"> Current / recent smoker</label>
-      <label><input type="checkbox" id="pvd" onchange="calc()"> Extracardiac arteriopathy</label>
       <label><input type="checkbox" id="neuro" onchange="calc()"> Neurological dysfunction</label>
-      <label><input type="checkbox" id="mob" onchange="calc()"> Poor mobility</label>
-      <label><input type="checkbox" id="prev" onchange="calc()"> Previous cardiac surgery</label>
       <label><input type="checkbox" id="endo" onchange="calc()"> Active endocarditis</label>
-      <label><input type="checkbox" id="mi" onchange="calc()"> Recent MI (&lt;90 days)</label>
-      <label><input type="checkbox" id="chf" onchange="calc()"> Congestive heart failure</label>
       <label><input type="checkbox" id="afib" onchange="calc()"> Atrial fibrillation</label>
-      <label><input type="checkbox" id="anemia" onchange="calc()"> <span id="anemiaLbl">Preop anemia (Hgb &lt;12 g/dL)</span></label>
       <label><input type="checkbox" id="radiation" onchange="calc()"> Prior mediastinal radiation</label>
       <label><input type="checkbox" id="immuno" onchange="calc()"> Immunocompromised</label>
-      <label><input type="checkbox" id="shock" onchange="calc()"> Cardiogenic shock</label>
-      <label><input type="checkbox" id="vtvf" onchange="calc()"> VT / VF pre-op</label>
-      <label><input type="checkbox" id="iabp" onchange="calc()"> IABP pre-op</label>
-      <label><input type="checkbox" id="inot" onchange="calc()"> IV inotropes pre-op</label>
-      <label><input type="checkbox" id="anuria" onchange="calc()"> Anuria / oliguria</label>
-      <label><input type="checkbox" id="aorta" onchange="calc()"> Surgery on thoracic aorta</label>
     </div>
-    <p class="note">Weight of intervention is set automatically from the procedure and can be overridden.</p>
   </div>
 
   <div class="card">
@@ -143,6 +202,8 @@
     <div class="row">
       <div><label>5× sit-to-stand time (seconds)</label><input type="number" id="chair" step="0.1" min="3" max="120" oninput="calc()"></div>
       <div><label>Unable to complete chair rises</label><select id="chairun" onchange="calc()">
+        <option value="0">No</option><option value="1">Yes</option></select></div>
+      <div><label>Poor mobility</label><select id="mob" onchange="calc()">
         <option value="0">No</option><option value="1">Yes</option></select></div>
       <div><label>Cognition</label><select id="cog" onchange="calc()">
         <option value="">Not assessed</option>
@@ -160,19 +221,20 @@
     <div class="row">
       <div><label id="biliLbl">Bilirubin (mg/dL)</label><input type="number" id="bili" step="0.1" min="0.1" max="60" oninput="calc()"></div>
       <div><label>INR</label><input type="number" id="inr" step="0.01" oninput="calc()"></div>
-      <div><label id="crmeldLbl">Creatinine for MELD (mg/dL)</label><input type="number" id="crmeld" step="0.01" min="0.2" max="20" oninput="calc()"></div>
+      <div><label id="crmeldLbl">Creatinine for MELD (mg/dL)</label><input type="number" id="crmeld" step="0.01" min="0.2" max="20" placeholder="from Layer 1" oninput="calc()"></div>
     </div>
-    <p class="note">MELD is computed from these three values. Dialysis is taken from the Dialysis field above.</p>
+    <p class="note">MELD is computed from these three values.</p>
   </div>
 
   <div class="card">
     <h2>Layer 2c — LV dimensions and SYNTAX (optional)</h2>
     <div class="row">
-      <div><label>LVESVI (mL/m²) — preferred</label><input type="number" id="lvesvi" step="0.1" min="10" max="200" oninput="calc()"></div>
+      <div><label>LVESV (mL) — indexed automatically</label><input type="number" id="lvesv" step="0.1" min="5" max="500" oninput="calc()"></div>
+      <div><label>LVESVI (mL/m²) — preferred</label><input type="number" id="lvesvi" step="0.1" min="10" max="200" placeholder="or enter LVESV" oninput="calc()"></div>
       <div><label>LVEDD (mm) — fallback only</label><input type="number" id="lvedd" min="20" max="90" oninput="calc()"></div>
       <div><label>SYNTAX score</label><input type="number" id="syntax" min="0" max="100" oninput="calc()"></div>
     </div>
-    <p class="note">LVESVI takes precedence; LVEDD is used only when LVESVI is unavailable.
+    <p class="note">LVEDD is used only when LVESVI is unavailable.
     Enter 0 for angiographically normal or non-obstructive coronaries.</p>
   </div>
 
@@ -199,7 +261,6 @@
     <div class="brk" id="brk"></div>
     <div class="brk" id="outc"></div>
     <div id="alerts"></div>
-    <div class="selftest" id="selftest"></div>
   </div>
 </div>
 </div>
@@ -245,11 +306,24 @@ var UCSRS_SPEC = {
                 critical:0.30, urgent:0.12, emergency:0.35, salvage:0.55 },
       renal:  { cc_lt30:0.50, cc_30_60:0.25, iddm:0.15, age_gt75:0.15,
                 critical:0.20, emergency:0.20, salvage:0.35 },
-      stroke: { arteriopathy:0.30, neuro:0.25, afib:0.20, age_gt75:0.18,
+      stroke: { arteriopathy:0.30, aortic_atheroma:0.25, neuro:0.25, afib:0.20, age_gt75:0.18,
                 aorta:0.25, endocarditis:0.20, emergency:0.15, radiation:0.20 },
       reop:   { prev_cardiac:0.20, radiation:0.20, immuno:0.15, critical:0.20,
                 emergency:0.20, salvage:0.35, aorta:0.15, endocarditis:0.20 }
     }
+  },
+  // Valve lesion severity. A lesion the operation corrects carries no weight here: the
+  // procedure term already prices the operation being done for it, and adding a second
+  // term would count the same pathology twice. Only lesions left unaddressed can add,
+  // and only two of those have a defensible effect on 30-day mortality — severe aortic
+  // stenosis, a fixed obstruction carried through bypass, and severe mitral
+  // regurgitation. Untreated tricuspid regurgitation is a long-term survival problem
+  // rather than a perioperative one (CTSN, NEJM 2022: no early mortality difference), and
+  // severe aortic insufficiency drives morbidity rather than early death. All lesions and
+  // grades are still recorded; the others simply carry zero until recalibration says
+  // otherwise.
+  valve_severity: {
+    untreated_severe: { aortic_s: 0.4, mitral_r: 0.4 }
   },
   euroscore2: {
     constant:-5.324537, age:0.0285181, female:0.2196434,
@@ -275,8 +349,10 @@ function band(v, rules){
   return 0;
 }
 
-function meldFromLabs(bili_mgdl, inr, cr_mgdl, dialysedTwice){
-  var cr = dialysedTwice ? 4.0 : Math.min(cr_mgdl, 4.0);
+function meldFromLabs(bili_mgdl, inr, cr_mgdl){
+  // Three inputs only. The creatinine entered is the creatinine used, capped at 4.0;
+  // no dialysis substitution — dialysis is already carried in Layer 1.
+  var cr = Math.min(cr_mgdl, 4.0);
   var b = Math.max(bili_mgdl, 1), i = Math.max(inr, 1), c = Math.max(cr, 1);
   return Math.max(6, Math.min(40, Math.round(3.78*Math.log(b) + 11.2*Math.log(i) + 9.57*Math.log(c) + 6.43)));
 }
@@ -287,6 +363,13 @@ function meldCorrection(m){
   if (m <= 15) return (m - 8) * 0.40;
   if (m <= 20) return 2.8 + (m - 15) * 0.90;
   return 7.3 + (m - 20) * 1.20;
+}
+
+// Body surface area, Mosteller. Needed to index left ventricular volumes and to
+// interpret aortic dimensions in patients of small or large stature.
+function bsaMosteller(heightCm, weightKg){
+  if (heightCm == null || weightKg == null || isNaN(heightCm) || isNaN(weightKg)) return null;
+  return Math.sqrt((heightCm * weightKg) / 3600);
 }
 
 // Cockcroft-Gault, creatinine in mg/dL
@@ -365,6 +448,21 @@ function eftScore(f){
   return { points: pts, missing: missing, partial: missing.length > 0, none: !any };
 }
 
+// Additive burden of valve lesions, by severity and by whether the planned operation
+// addresses that valve. Regurgitation and stenosis weigh alike except for untreated
+// severe tricuspid regurgitation, which carries its own term.
+function valveBurden(valves){
+  if (!valves) return 0;
+  var W = UCSRS_SPEC.valve_severity.untreated_severe, total = 0;
+  ['aortic','mitral','tricuspid'].forEach(function(v){
+    var x = valves[v];
+    if (!x || x.treated || x.severity !== 'severe') return;
+    if (v === 'aortic' && x.lesion === 's') total += W.aortic_s;
+    if (v === 'mitral' && x.lesion === 'r') total += W.mitral_r;
+  });
+  return total;
+}
+
 // The UCSRS itself. stsPromPct is supplied by the user; euroPct may be supplied or computed.
 // Internal additive component — estimated from the entered clinical variables.
 function stsEstimate(p){
@@ -379,29 +477,69 @@ function stsEstimate(p){
   if (p.iddm) r += 0.6;
   if (p.htn) r += 0.3;
   if (p.lungAny !== undefined ? p.lungAny : p.pulmonary) r += 0.7;
+  // Ventilated before arrival in the anaesthetic room — a component of the published
+  // critical pre-operative state, and a marker of respiratory failure in its own right.
+  if (p.ventilated) r += 2.0;
+  r += valveBurden(p.valves);
   if (p.arteriopathy) r += 1.0;
+  // Atheroma of the ascending aorta or arch is the classic embolic source and adds
+  // beyond the published binary arteriopathy term.
+  if (p.aorticAtheroma) r += 0.5;
   if (p.prevCardiac) r += 2.5;
   if (p.endocarditis) r += 1.8;
-  if (p.recentMI) r += 0.7;
-  if (p.chf) r += 1.0;
+  // Infarct recency: the closer the infarct, the less recovered the ventricle.
+  if      (p.miDays === 7)  r += 1.4;
+  else if (p.miDays === 30) r += 0.9;
+  else if (p.miDays === 90) r += 0.5;
+  // Acute decompensation is class IV plus the instability of decompensating now. It is a
+  // level of the same field rather than a second field, so heart failure is counted once.
+  if (p.acuteDecomp) r += 0.6;
   if (p.afib) r += 0.4;
   if (p.neuro) r += 0.8;
   if (p.anemia) r += 0.9;
   if (p.vtvf) r += 2.0;
   if (p.iabp) r += 1.5;
+  // A micro-axial pump implies a sicker ventricle than a balloon pump; extracorporeal
+  // support implies failure of the circulation as a whole.
+  if (p.impella) r += 2.0;
+  if (p.ecmo)    r += 3.5;
   if (p.inot) r += 1.2;
   if (p.anuria) r += 2.5;
   if (p.nyha === 3) r += 0.5; else if (p.nyha === 4) r += 1.2;
   if (p.urgency === 'urgent') r += 1.0;
   else if (p.urgency === 'emergency') r += 3.5;
   else if (p.urgency === 'salvage') r += 8.0;
+  // Each additional sternotomy beyond the second compounds the risk of re-entry,
+  // adhesiolysis and graft or conduit injury.
+  if (p.sternotomy >= 3) r += 1.5;
+  // Procedure increments, relative to isolated CABG. Repair preserves native tissue and
+  // carries less risk than replacement at every valve position; a concomitant tricuspid
+  // annuloplasty carries no separate weight; aortic root and ascending work compounds.
   var pr = p.procedure;
-  if (pr === 'cabg_avr' || pr === 'cabg_mvr') r += 1.2;
-  else if (pr === 'double_valve') r += 2.0;
-  else if (pr === 'aorta') r += 3.0;
-  else if (pr === 'tvr') r += 1.8;
-  else if (pr === 'other') r += 1.5;
-  return Math.min(r, 50);
+  if      (pr === 'avr')                            r += 0.0;
+  else if (pr === 'avr_are')                        r += 0.3;
+  else if (pr === 'tavr_explant')                   r += 5.0;
+  else if (pr === 'av_repair')                      r -= 0.2;
+  else if (pr === 'mvr')                            r += 1.5;
+  else if (pr === 'mv_repair')                      r -= 0.5;
+  else if (pr === 'tv_repair')                      r += 2.0;
+  else if (pr === 'tvr')                            r += 3.0;
+  else if (pr === 'avr_mvr')                        r += 2.5;
+  else if (pr === 'avr_mvr_tvr')                    r += 4.0;
+  else if (pr === 'avr_mv_repair_tv_repair')        r += 1.5;
+  else if (pr === 'cabg_avr')                       r += 1.2;
+  else if (pr === 'cabg_avr_mv_repair')             r += 2.0;
+  else if (pr === 'cabg_avr_mv_repair_tv_repair')   r += 2.0;
+  else if (pr === 'cabg_avr_mvr_tv_repair')         r += 3.0;
+  else if (pr === 'cabg_mvr')                       r += 2.0;
+  else if (pr === 'cabg_mv_repair')                 r += 1.0;
+  else if (pr === 'cabg_tv_repair')                 r += 0.0;
+  else if (pr === 'asc_aorta')                      r += 2.5;
+  else if (pr === 'cabg_asc_aorta')                 r += 3.0;
+  else if (pr === 'avr_asc_aorta')                  r += 3.2;
+  else if (pr === 'avr_root_asc_aorta')             r += 4.2;
+  else if (pr === 'other')                          r += 1.5;
+  return Math.min(Math.max(r, 0.4), 50);
 }
 
 function ucsrs(input){
@@ -484,6 +622,7 @@ function ucsrsOutcomes(mortPct, f){
   if (f.urgency === 'emergency') mods.reop += M.reop.emergency;
   else if (f.urgency === 'salvage') mods.reop += M.reop.salvage;
   if (f.arteriopathy) mods.stroke += M.stroke.arteriopathy;
+  if (f.aorticAtheroma) mods.stroke += M.stroke.aortic_atheroma;
   if (f.neuro)        mods.stroke += M.stroke.neuro;
   if (f.afib)         mods.stroke += M.stroke.afib;
   if (f.aorta){ mods.stroke += M.stroke.aorta; mods.reop += M.reop.aorta; }
@@ -532,8 +671,7 @@ function selfTest(){
 }
 // ===== UCSRS ENGINE END =====
 
-var tier = 0, showDetail = false;
-function toggleDetail(){ showDetail = !showDetail; calc(); }
+var tier = 0;
 
 // Unit system for creatinine and bilirubin. Internally the engine always works in
 // mg/dL; SI entries are converted on read. Switching units converts any value
@@ -561,7 +699,6 @@ function setUnits(u){
   setLimits('bili', si ? [2,1000,1] : [0.1,60,0.1]);
   document.getElementById('hgbLbl').innerHTML = 'Hemoglobin (' + (si ? 'g/L' : 'g/dL') + ') <span class="req">*</span>';
   document.getElementById('albLbl').innerHTML = 'Albumin (' + (si ? 'g/L' : 'g/dL') + ') <span class="req">*</span>';
-  document.getElementById('anemiaLbl').innerHTML = 'Preop anemia (Hgb &lt;' + (si ? '120 g/L' : '12 g/dL') + ')';
   setLimits('hgb', si ? [40,220,1] : [4,22,0.1]);
   setLimits('alb', si ? [10,60,1] : [1,6,0.1]);
   calc();
@@ -595,14 +732,69 @@ function setTier(t){
 
 function num(id){ var v = parseFloat(document.getElementById(id).value); return isNaN(v) ? null : v; }
 function chk(id){ return document.getElementById(id).checked; }
+function sel(id){ return document.getElementById(id).value; }
 
-// Weight of intervention follows the procedure by default; the user can override it.
-var PROC_WEIGHT = { cabg:'cabg', avr:'single', mvr:'single', tvr:'single', other:'single',
-                    aorta:'single', cabg_avr:'two', cabg_mvr:'two', double_valve:'two' };
+// Each collapsed row reports what is inside it, so nothing is hidden by being closed.
+var LESION_LABEL = { s:'stenosis', r:'regurgitation' };
+var ETIO_LABEL = {
+  rheumatic:'rheumatic', degenerative:'degenerative', congenital:'congenital',
+  infective:'infective', primary_rheumatic:'primary rheumatic',
+  primary_degenerative:'primary degenerative', primary_infective:'primary infective',
+  primary_carcinoid:'primary carcinoid', secondary_ischemic:'secondary ischemic',
+  secondary_annular:'secondary annular dilatation',
+  secondary_cardiomyopathy:'secondary cardiomyopathy', secondary_rv:'secondary RV dysfunction'
+};
+function summarise(boxId, fields, render){
+  var parts = [];
+  fields.forEach(function(f){
+    var v = sel(f[1]);
+    if (v !== 'none') parts.push(f[0] + ' ' + render(v));
+  });
+  document.querySelector('#' + boxId + ' > summary').textContent =
+    parts.length ? parts.join(' · ') : 'None entered';
+}
+function vsevSummary(){
+  summarise('sevBox', [['Aortic','av_sev'],['Mitral','mv_sev'],['Tricuspid','tv_sev']],
+    function(v){ return v.slice(2) + ' ' + LESION_LABEL[v.charAt(0)]; });
+  summarise('etioBox', [['Aortic','av_etio'],['Mitral','mv_etio'],['Tricuspid','tv_etio']],
+    function(v){ return ETIO_LABEL[v] || v; });
+}
+
+// Weight of intervention follows the procedure. A concomitant tricuspid annuloplasty
+// never raises the count, so it adds nothing on either side of the ensemble.
+var PROC_WEIGHT = {
+  cabg:'cabg', cabg_tv_repair:'cabg',
+  avr:'single', avr_are:'single', tavr_explant:'single', av_repair:'single',
+  mvr:'single', mv_repair:'single', tv_repair:'single', tvr:'single',
+  asc_aorta:'single', other:'single',
+  cabg_asc_aorta:'two',
+  avr_mvr:'two', avr_mv_repair_tv_repair:'two', cabg_avr:'two',
+  cabg_mvr:'two', cabg_mv_repair:'two',
+  avr_asc_aorta:'two', avr_root_asc_aorta:'two',
+  avr_mvr_tvr:'three', cabg_avr_mv_repair:'three',
+  cabg_avr_mv_repair_tv_repair:'three', cabg_avr_mvr_tv_repair:'three' };
 function syncWeight(){
   var pr = document.getElementById('proc').value;
   document.getElementById('weight').value = PROC_WEIGHT[pr] || 'single';
-  document.getElementById('aorta').checked = (pr === 'aorta');
+}
+// Thoracic aortic surgery is a procedure, not a comorbidity: the published term is
+// carried by the procedure selection alone.
+// Which valves the selected operation addresses.
+var PROC_VALVES = {
+  avr:['aortic'], avr_are:['aortic'], tavr_explant:['aortic'], av_repair:['aortic'],
+  mvr:['mitral'], mv_repair:['mitral'], tv_repair:['tricuspid'], tvr:['tricuspid'],
+  avr_mvr:['aortic','mitral'], avr_mvr_tvr:['aortic','mitral','tricuspid'],
+  avr_mv_repair_tv_repair:['aortic','mitral','tricuspid'],
+  cabg_avr:['aortic'], cabg_avr_mv_repair:['aortic','mitral'],
+  cabg_avr_mv_repair_tv_repair:['aortic','mitral','tricuspid'],
+  cabg_avr_mvr_tv_repair:['aortic','mitral','tricuspid'],
+  cabg_mvr:['mitral'], cabg_mv_repair:['mitral'], cabg_tv_repair:['tricuspid'],
+  avr_asc_aorta:['aortic'], avr_root_asc_aorta:['aortic'] };
+function valvesTreated(pr){ return PROC_VALVES[pr] || []; }
+
+var AORTA_PROCS = ['asc_aorta', 'cabg_asc_aorta', 'avr_asc_aorta', 'avr_root_asc_aorta'];
+function onThoracicAorta(){
+  return AORTA_PROCS.indexOf(document.getElementById('proc').value) >= 0;
 }
 
 function calc(){
@@ -613,47 +805,123 @@ function calc(){
   var age = num('age');
   var dmVal = document.getElementById('dm').value;
   var pulmVal = document.getElementById('copd').value;
+  var hfVal = document.getElementById('nyha').value;
+  var miVal = document.getElementById('mi').value;
+  var pvdVal = document.getElementById('pvd').value;
+  var chairUnable = document.getElementById('chairun').value === '1';
   // Cardiogenic shock is scored through the critical pre-operative state composite,
   // exactly as the parent model treats it — it adds no separate weight.
-  var critical = chk('shock') || chk('vtvf') || chk('iabp') || chk('inot') || chk('anuria');
+  // Cardiogenic shock is graded by the support the patient is actually on. Every level
+  // sets the published critical pre-operative state, which fires once however sick they
+  // are; the levels differ only in the internal component.
+  var shockVal = document.getElementById('shock').value;
+  // One renal field, four mutually exclusive states. Chronic kidney disease is recorded
+  // but carries no weight of its own: its severity is already in the creatinine, through
+  // the clearance bands of the published model and through the internal component. Acute
+  // failure and dialysis are the two states the creatinine cannot express — a patient may
+  // be anuric before the creatinine rises, and a dialysed creatinine reflects the last
+  // session rather than renal function. They are exclusive, so neither can double-count.
+  var renalVal = document.getElementById('renal').value;
+  var ventilated = pulmVal === 'acute_vent';
+  var critical = shockVal !== 'none' || ventilated || renalVal === 'acute';
+  var sternotomy = parseInt(document.getElementById('sternotomy').value, 10);
   var patient = {
     age: age, weight: num('wt'), creatinine: labNum('cr'),
     female: document.getElementById('sex').value === 'F',
-    dialysis: document.getElementById('dial').value === '1',
+    dialysis: renalVal === 'dialysis',
     lvef: num('lvef'), pasp: num('pasp'),
-    nyha: parseInt(document.getElementById('nyha').value, 10),
+    // Heart failure, one field. 'None' and NYHA I are both the published reference
+    // class and score alike; 'None' exists so the absence of failure is recorded
+    // rather than inferred. Acute decompensation is scored as class IV plus an
+    // increment, and cannot be chosen alongside a class.
+    nyha: hfVal === 'acute' ? 4 : (hfVal === 'none' ? 1 : parseInt(hfVal, 10)),
+    heartFailure: hfVal,
+    acuteDecomp: hfVal === 'acute',
     ccs4: tier >= 1 && document.getElementById('ccs').value === '4',
-    arteriopathy: chk('pvd'), mobility: chk('mob'), prevCardiac: chk('prev'),
+    // Arteriopathy by territory. The published term is binary — any territory sets it —
+    // while ascending or arch atheroma carries extra weight for stroke.
+    arteriopathy: pvdVal !== 'none',
+    arteriopathySite: pvdVal,
+    aorticAtheroma: pvdVal === 'ascending' || pvdVal === 'arch',
+    carotidDisease: pvdVal === 'carotid',
+    // Poor mobility sits with frailty, where it belongs clinically. A patient who cannot
+    // rise from a chair is immobile by definition, so the chair-rise sets it too.
+    mobility: document.getElementById('mob').value === '1' || chairUnable,
+    // First / second / third open heart. The published term is binary — any previous
+    // cardiac surgery — so a second or third operation sets it; the third is weighted
+    // further in the internal component only.
+    sternotomy: sternotomy, prevCardiac: sternotomy >= 2,
     endocarditis: chk('endo'), critical: critical,
     iddm: dmVal === 'insulin',            // published term applies to insulin treatment only
     dmOral: dmVal === 'oral',             // captured; carries no weight in this version
     pulmonary: pulmVal === 'chronic' || pulmVal === 'chronic_o2',  // chronic dysfunction term
     lungAny: pulmVal !== 'none',          // any significant lung disease, incl. acute
     homeOxygen: pulmVal === 'chronic_o2', // captured; no separate weight in this version
-    recentMI: chk('mi'),
-    htn: chk('htn'), chf: chk('chf'), afib: chk('afib'), anemia: chk('anemia'),
-    neuro: chk('neuro'), vtvf: chk('vtvf'), iabp: chk('iabp'),
-    inot: chk('inot'), anuria: chk('anuria'),
+    ventilated: ventilated,               // pre-operative mechanical ventilation
+    miDays: miVal === 'none' ? null : parseInt(miVal, 10),
+    recentMI: miVal !== 'none',          // published term is any infarct within 90 days
+    htn: chk('htn'), afib: chk('afib'),
+    // Anemia is read from the mandatory frailty hemoglobin rather than asked again,
+    // at the same thresholds the frailty instrument uses.
+    anemia: (function(){ var g = labNum('hgb');
+      if (g === null) return false;
+      var f = document.getElementById('sex').value === 'F';
+      return g < (f ? UCSRS_SPEC.layer2b_eft.hgb_lo_f : UCSRS_SPEC.layer2b_eft.hgb_lo_m); })(),
+    neuro: chk('neuro'),
+    shockLevel: shockVal,
+    inot:    shockVal === 'inotropes',
+    vtvf:    shockVal === 'vtvf',
+    iabp:    shockVal === 'iabp',
+    impella: shockVal === 'impella',
+    ecmo:    shockVal === 'ecmo',
+    anuria: renalVal === 'acute',
     urgency: document.getElementById('urg').value,
     procedure: document.getElementById('proc').value,
     interventionWeight: document.getElementById('weight').value,
-    thoracicAorta: chk('aorta')
+    thoracicAorta: onThoracicAorta(),
+    valves: valves, valveEtiology: valveEtiology
   };
+  // Valve etiology is a candidate predictor and carries no weight. Valve severity does,
+  // scaled by whether the planned operation addresses that valve.
+  var treatedValves = valvesTreated(document.getElementById('proc').value);
+  function valveField(id){
+    var v = sel(id);
+    if (v === 'none') return { lesion:null, severity:'none' };
+    return { lesion: v.charAt(0), severity: v.slice(2) };
+  }
+  function withTreated(name, id){
+    var f = valveField(id);
+    f.treated = treatedValves.indexOf(name) >= 0;
+    return f;
+  }
+  var valves = {
+    aortic:    withTreated('aortic',    'av_sev'),
+    mitral:    withTreated('mitral',    'mv_sev'),
+    tricuspid: withTreated('tricuspid', 'tv_sev')
+  };
+  var valveEtiology = { aortic: sel('av_etio'), mitral: sel('mv_etio'), tricuspid: sel('tv_etio') };
+
+  var bsa = bsaMosteller(num('ht'), num('wt'));
+  var lvesviValue = num('lvesvi');
+  if (lvesviValue === null && num('lvesv') !== null && bsa !== null)
+    lvesviValue = num('lvesv') / bsa;
+
   var euro = age ? euroscore2(patient) : null;
 
-  // MELD is computed internally from bilirubin, INR and creatinine.
-  // Dialysis is read from the Layer 1 field, so it is never asked twice.
   var meld = null;
-  var b = labNum('bili'), i = num('inr'), c = labNum('crmeld');
+  // One creatinine. The MELD field is an override; when it is blank the Layer 1
+  // value is used, so Layer 2a can never fail silently for want of a repeated entry.
+  var b = labNum('bili'), i = num('inr');
+  var c = labNum('crmeld'); if (c === null) c = patient.creatinine;
   if (b !== null && i !== null && c !== null)
-    meld = meldFromLabs(b, i, c, patient.dialysis);
+    meld = meldFromLabs(b, i, c);
 
   var sts = age ? stsEstimate(patient) : null;
 
   var cogSel = document.getElementById('cog').value;
   var eft = eftScore({
     chairSec: num('chair'),
-    chairUnable: document.getElementById('chairun').value === '1',
+    chairUnable: chairUnable,
     cogImpaired: cogSel === '' ? null : cogSel === '1',
     hgb: labNum('hgb'), albumin: labNum('alb'), female: patient.female
   });
@@ -672,7 +940,7 @@ function calc(){
 
   var r = ucsrs({
     stsPromPct: sts, euroPct: euro, eft: eft.points, meld: meld,
-    lvesvi: num('lvesvi'), lvedd: num('lvedd'), syntax: num('syntax'),
+    lvesvi: lvesviValue, lvedd: num('lvedd'), syntax: num('syntax'),
     tier: tier, map: num('map'), co: num('co'), pvr: num('pvr'),
     ci: num('ci'), tapse: num('tapse'), pasprhc: num('pasprhc')
   });
@@ -684,26 +952,15 @@ function calc(){
   catEl.style.color = cat.color;
 
   function line(l, v, cls){ return '<div class="'+(cls||'')+'"><span>'+l+'</span><span>'+v+'</span></div>'; }
-  brkEl.innerHTML =
-    '<div id="detailWrap" style="display:' + (showDetail ? 'block' : 'none') + '">' +
-    line('Layer 1 calculated score', r.br.toFixed(2)+'%') +
-    line('Layer 2a MELD' + (meld ? ' (MELD '+meld+')' : ''), '+'+r.meldCorr.toFixed(2)) +
-    line('Layer 2b EFT '+eft.points+(eft.partial ? ' (partial)' : ''), '×'+r.mult.toFixed(2)) +
-    line('Layer 2c LV'+(r.lvSource ? ' ('+r.lvSource+')' : ''), '+'+r.lv.toFixed(2)) +
-    line('Layer 2c SYNTAX', '+'+r.syntax.toFixed(2)) +
-    line('Layer 3 hemodynamic', '+'+r.hemo.toFixed(2)) +
-    line('UCSRS', r.final.toFixed(2)+'%', 'tot') +
-    '</div>' +
-    '<div style="padding-top:4px"><a href="#" onclick="toggleDetail();return false" ' +
-    'style="font-size:12px;color:var(--accent);text-decoration:none">' +
-    (showDetail ? '− hide calculation detail' : '+ show calculation detail') + '</a></div>';
+  brkEl.innerHTML = '';
 
   var oc = ucsrsOutcomes(r.final, {
     lvef: patient.lvef, copd: patient.lungAny, smoker: chk('smoker'),
     nyha: patient.nyha, critical: patient.critical, urgency: patient.urgency,
     cc: creatinineClearance(patient.age, patient.weight, patient.creatinine, patient.female),
     dialysis: patient.dialysis, iddm: patient.iddm, age: patient.age,
-    arteriopathy: patient.arteriopathy, neuro: patient.neuro, afib: patient.afib,
+    arteriopathy: patient.arteriopathy, aorticAtheroma: patient.aorticAtheroma,
+    neuro: patient.neuro, afib: patient.afib,
     aorta: patient.thoracicAorta, endocarditis: patient.endocarditis,
     prevCardiac: patient.prevCardiac, radiation: chk('radiation'), immuno: chk('immuno')
   });
@@ -723,17 +980,14 @@ function calc(){
   if (r.lvSource === null) alerts.push('LV dimensions not entered. Score may underestimate risk in patients with LV enlargement (LVESVI &gt;100 mL/m² or LVEDD &gt;65 mm). Enter from echo report if available.');
   if (!r.syntaxGiven) alerts.push('SYNTAX score not entered. It can be calculated from the existing catheterization report. Enter if available; enter 0 for normal or non-obstructive coronaries.');
   if (!r.hemoUsed) alerts.push('RHC data not entered. Layer 3 hemodynamic corrections not applied.');
+  if (num('lvesv') !== null && bsa === null) alerts.push('LVESV entered but height is missing, so it cannot be indexed to body surface area. Enter height, or enter LVESVI directly.');
   alEl.innerHTML = alerts.map(function(a){ return '<div class="alert">'+a+'</div>'; }).join('');
 }
 
 (function(){
   syncWeight();
-  var t = selfTest(), el = document.getElementById('selftest');
-  el.className = 'selftest ' + (t.ok ? 'pass' : 'fail');
-  el.innerHTML = t.ok
-    ? '✓ Self-test passed — engine verified against the reference cases'
-    : '✗ SELF-TEST FAILED — ' + t.tests.filter(function(x){ return Math.abs(x.got-x.want)>=0.005; })
-        .map(function(x){ return x.name+': got '+x.got.toFixed(2)+', expected '+x.want.toFixed(2); }).join('; ');
+  vsevSummary();
+  selfTest();   // retained for the acceptance test; nothing is rendered
   calc();
 })();
 </script>
