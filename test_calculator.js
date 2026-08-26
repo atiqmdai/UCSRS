@@ -396,6 +396,19 @@ check('the three valve selects sit inside one collapsible field',
     return new RegExp('<select id="' + id + '" onchange="vsevSummary\\(\\);calc\\(\\)"').test(HTML); }));
 check('the collapsed row reports its contents',
   /parts.length \? parts.join\(' · '\) : 'None entered'/.test(HTML));
+// Wiring guards. The engine tests above call stsEstimate directly with a valves object,
+// which cannot catch a form that never builds one. These check the page's own plumbing.
+check('every variable the patient object reads is declared before it',
+  (function(){
+    const p = HTML.indexOf('var patient = {');
+    return ['var valves = {', 'var treatedValves', 'var valveEtiology', 'var critical =',
+            'var renalVal', 'var shockVal', 'var hfVal', 'var miVal', 'var pvdVal',
+            'var ventilated', 'var sternotomy', 'var chairUnable']
+      .every(function(decl){ const d = HTML.indexOf(decl); return d > -1 && d < p; });
+  })());
+check('the valve object is built before the patient object consumes it',
+  HTML.indexOf('var valves = {') < HTML.indexOf('var patient = {') &&
+  HTML.indexOf('var patient = {') < HTML.indexOf('valves: valves'));
 check('treated status is read from the procedure, not asked',
   /f.treated = treatedValves.indexOf\(name\) >= 0/.test(HTML) &&
   /var treatedValves = valvesTreated\(document.getElementById\('proc'\).value\)/.test(HTML));

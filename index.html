@@ -825,6 +825,26 @@ function calc(){
   var ventilated = pulmVal === 'acute_vent';
   var critical = shockVal !== 'none' || ventilated || renalVal === 'acute';
   var sternotomy = parseInt(document.getElementById('sternotomy').value, 10);
+  // Valve etiology is a candidate predictor and carries no weight. Valve severity does,
+  // scaled by whether the planned operation addresses that valve.
+  var treatedValves = valvesTreated(document.getElementById('proc').value);
+  function valveField(id){
+    var v = sel(id);
+    if (v === 'none') return { lesion:null, severity:'none' };
+    return { lesion: v.charAt(0), severity: v.slice(2) };
+  }
+  function withTreated(name, id){
+    var f = valveField(id);
+    f.treated = treatedValves.indexOf(name) >= 0;
+    return f;
+  }
+  var valves = {
+    aortic:    withTreated('aortic',    'av_sev'),
+    mitral:    withTreated('mitral',    'mv_sev'),
+    tricuspid: withTreated('tricuspid', 'tv_sev')
+  };
+  var valveEtiology = { aortic: sel('av_etio'), mitral: sel('mv_etio'), tricuspid: sel('tv_etio') };
+
   var patient = {
     age: age, weight: num('wt'), creatinine: labNum('cr'),
     female: document.getElementById('sex').value === 'F',
@@ -881,26 +901,6 @@ function calc(){
     thoracicAorta: onThoracicAorta(),
     valves: valves, valveEtiology: valveEtiology
   };
-  // Valve etiology is a candidate predictor and carries no weight. Valve severity does,
-  // scaled by whether the planned operation addresses that valve.
-  var treatedValves = valvesTreated(document.getElementById('proc').value);
-  function valveField(id){
-    var v = sel(id);
-    if (v === 'none') return { lesion:null, severity:'none' };
-    return { lesion: v.charAt(0), severity: v.slice(2) };
-  }
-  function withTreated(name, id){
-    var f = valveField(id);
-    f.treated = treatedValves.indexOf(name) >= 0;
-    return f;
-  }
-  var valves = {
-    aortic:    withTreated('aortic',    'av_sev'),
-    mitral:    withTreated('mitral',    'mv_sev'),
-    tricuspid: withTreated('tricuspid', 'tv_sev')
-  };
-  var valveEtiology = { aortic: sel('av_etio'), mitral: sel('mv_etio'), tricuspid: sel('tv_etio') };
-
   var bsa = bsaMosteller(num('ht'), num('wt'));
   var lvesviValue = num('lvesvi');
   if (lvesviValue === null && num('lvesv') !== null && bsa !== null)
