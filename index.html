@@ -200,15 +200,17 @@
   <div class="card">
     <h2>Layer 2b — Essential Frailty Toolset <span class="req">(required)</span></h2>
     <div class="row">
-      <div><label>5× sit-to-stand time (seconds)</label><input type="number" id="chair" step="0.1" min="3" max="120" oninput="calc()"></div>
-      <div><label>Unable to complete chair rises</label><select id="chairun" onchange="calc()">
-        <option value="0">No</option><option value="1">Yes</option></select></div>
+      <div><label>5× sit-to-stand</label><select id="chair" onchange="calc()">
+        <option value="">Not assessed</option>
+        <option value="fast">Under 15 seconds</option>
+        <option value="slow">15 seconds or more</option>
+        <option value="unable">Unable</option></select></div>
       <div><label>Poor mobility</label><select id="mob" onchange="calc()">
         <option value="0">No</option><option value="1">Yes</option></select></div>
       <div><label>Cognition</label><select id="cog" onchange="calc()">
         <option value="">Not assessed</option>
         <option value="0">Normal</option>
-        <option value="1">Impaired (Mini-Cog ≤2 or MMSE &lt;24)</option></select></div>
+        <option value="1">Impaired</option></select></div>
       <div><label id="hgbLbl">Hemoglobin (g/dL) <span class="req">*</span></label><input type="number" id="hgb" step="0.1" min="4" max="22" oninput="calc()"></div>
       <div><label id="albLbl">Albumin (g/dL) <span class="req">*</span></label><input type="number" id="alb" step="0.1" min="1" max="6" oninput="calc()"></div>
     </div>
@@ -435,8 +437,11 @@ function euroscore2(p){
 function eftScore(f){
   var S = UCSRS_SPEC.layer2b_eft;
   var pts = 0, missing = [], any = false;
-  if (f.chairUnable){ pts += 2; any = true; }
-  else if (f.chairSec != null && !isNaN(f.chairSec)){ if (f.chairSec >= S.chair_slow_s) pts += 1; any = true; }
+  // Chair rise scores in three states, not on a continuum: normal, slow (1 point) and
+  // unable (2 points). Unable is a worse state than slow rather than a slower time.
+  if      (f.chair === 'unable'){ pts += 2; any = true; }
+  else if (f.chair === 'slow')  { pts += 1; any = true; }
+  else if (f.chair === 'fast')  {           any = true; }
   else missing.push('chair rise');
   if (f.cogImpaired === true){ pts += 1; any = true; }
   else if (f.cogImpaired === false){ any = true; }
@@ -659,7 +664,7 @@ function selfTest(){
   out.push({name:'Case 1 (4.80%)',  got:c1.final, want:4.80});
   var c2 = ucsrs({stsPromPct:3.5, euroPct:2.0, eft:0, meld:17, lvedd:50, tier:0});
   out.push({name:'Case 2 (7.35%)',  got:c2.final, want:7.35});
-  var e = eftScore({chairUnable:false, chairSec:18, cogImpaired:true, hgb:11.2, albumin:3.1, female:false});
+  var e = eftScore({chair:'slow', cogImpaired:true, hgb:11.2, albumin:3.1, female:false});
   out.push({name:'EFT scoring (1+1+1+1)', got:e.points, want:4});
   out.push({name:'Layer 1 weights are 50/50', got:UCSRS_SPEC.layer1.w_sts + UCSRS_SPEC.layer1.w_euro, want:1.00,
             extra:(UCSRS_SPEC.layer1.w_sts===0.5 && UCSRS_SPEC.layer1.w_euro===0.5)});
@@ -808,7 +813,7 @@ function calc(){
   var hfVal = document.getElementById('nyha').value;
   var miVal = document.getElementById('mi').value;
   var pvdVal = document.getElementById('pvd').value;
-  var chairUnable = document.getElementById('chairun').value === '1';
+  var chairVal = document.getElementById('chair').value;
   // Cardiogenic shock is scored through the critical pre-operative state composite,
   // exactly as the parent model treats it — it adds no separate weight.
   // Cardiogenic shock is graded by the support the patient is actually on. Every level
@@ -866,7 +871,7 @@ function calc(){
     carotidDisease: pvdVal === 'carotid',
     // Poor mobility sits with frailty, where it belongs clinically. A patient who cannot
     // rise from a chair is immobile by definition, so the chair-rise sets it too.
-    mobility: document.getElementById('mob').value === '1' || chairUnable,
+    mobility: document.getElementById('mob').value === '1' || chairVal === 'unable',
     // First / second / third open heart. The published term is binary — any previous
     // cardiac surgery — so a second or third operation sets it; the third is weighted
     // further in the internal component only.
@@ -920,8 +925,7 @@ function calc(){
 
   var cogSel = document.getElementById('cog').value;
   var eft = eftScore({
-    chairSec: num('chair'),
-    chairUnable: chairUnable,
+    chair: chairVal,
     cogImpaired: cogSel === '' ? null : cogSel === '1',
     hgb: labNum('hgb'), albumin: labNum('alb'), female: patient.female
   });

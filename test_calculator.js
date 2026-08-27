@@ -193,18 +193,18 @@ check('multiplier ladder retained from published v1.0 (1.00/1.15/1.35/1.60/1.90/
   M[0] === 1.00 && M[1] === 1.15 && M[2] === 1.35 && M[3] === 1.60 && M[4] === 1.90 && M[5] === 2.30,
   JSON.stringify(M));
 check('EFT is 0-5 (six multiplier levels)', Object.keys(M).length === 6);
-const efts = (f) => ctx.eftScore(Object.assign({ chairUnable: false, chairSec: 9, cogImpaired: false, hgb: 14, albumin: 4.0, female: false }, f));
+const efts = (f) => ctx.eftScore(Object.assign({ chair: 'fast', cogImpaired: false, hgb: 14, albumin: 4.0, female: false }, f));
 check('robust patient → EFT 0', efts({}).points === 0);
-check('chair rise >=15 s → 1 point', efts({ chairSec: 15 }).points === 1);
-check('unable to rise → 2 points', efts({ chairUnable: true }).points === 2);
+check('chair rise 15 s or more → 1 point', efts({ chair: 'slow' }).points === 1);
+check('unable to rise → 2 points', efts({ chair: 'unable' }).points === 2);
 check('cognitive impairment → 1 point', efts({ cogImpaired: true }).points === 1);
 check('Hgb 12.5 scores in men, not women',
   efts({ hgb: 12.5 }).points === 1 && efts({ hgb: 12.5, female: true }).points === 0);
 check('Hgb threshold: women <12', efts({ hgb: 11.9, female: true }).points === 1);
 check('albumin <3.5 → 1 point', efts({ albumin: 3.4 }).points === 1);
-check('worst case → EFT 5', efts({ chairUnable: true, cogImpaired: true, hgb: 10, albumin: 3.0 }).points === 5);
+check('worst case → EFT 5', efts({ chair: 'unable', cogImpaired: true, hgb: 10, albumin: 3.0 }).points === 5);
 check('missing chair + cognition → partial from labs',
-  (function(){ const e = ctx.eftScore({ chairUnable: false, chairSec: null, cogImpaired: null, hgb: 11, albumin: 3.2, female: false });
+  (function(){ const e = ctx.eftScore({ chair: '', cogImpaired: null, hgb: 11, albumin: 3.2, female: false });
     return e.partial === true && e.points === 2 && e.missing.length === 2; })());
 check('no CFS button grid remains', !/setCfs|cfsBox|CFS_LABELS/.test(HTML));
 check('EFT input fields present', /id="chair"/.test(HTML) && /id="cog"/.test(HTML) && /id="hgb"/.test(HTML) && /id="alb"/.test(HTML));
@@ -366,6 +366,22 @@ check('any arteriopathy territory sets the published binary term',
   /arteriopathy: pvdVal !== 'none'/.test(HTML));
 check('renal status is one field, not a dialysis select plus an anuria checkbox',
   /<select id="renal"/.test(HTML) && !/id="dial"/.test(HTML) && !/id="anuria"/.test(HTML));
+check('chair rise is one three-state field, not a time plus a yes/no',
+  /<select id="chair"/.test(HTML) && !/id="chairun"/.test(HTML) &&
+  ['fast','slow','unable'].every(function(v){ return new RegExp('<option value="'+v+'"').test(HTML); }));
+check('chair rise scores 0 / 1 / 2 and unable outranks slow',
+  ctx.eftScore({chair:'fast',  cogImpaired:false, hgb:14, albumin:4}).points === 0 &&
+  ctx.eftScore({chair:'slow',  cogImpaired:false, hgb:14, albumin:4}).points === 1 &&
+  ctx.eftScore({chair:'unable',cogImpaired:false, hgb:14, albumin:4}).points === 2);
+check('an unassessed chair rise still yields a partial EFT',
+  ctx.eftScore({chair:'', cogImpaired:false, hgb:14, albumin:4}).partial === true);
+check('unable to rise also sets poor mobility',
+  /chairVal === 'unable'/.test(HTML));
+check('cognition is not assessed / normal / impaired, with no instrument names on screen',
+  /<select id="cog"/.test(HTML) && /<option value="1">Impaired<\/option>/.test(HTML) &&
+  !/Mini-Cog/.test(HTML) && !/MMSE/.test(HTML));
+check('an unassessed cognition still yields a partial EFT',
+  ctx.eftScore({chair:'fast', cogImpaired:null, hgb:14, albumin:4}).partial === true);
 check('valve etiology sits beside valve severity, three valves in one field',
   /<details class="vsev" id="etioBox">/.test(HTML) &&
   ['av_etio','mv_etio','tv_etio'].every(function(id){
@@ -403,7 +419,7 @@ check('every variable the patient object reads is declared before it',
     const p = HTML.indexOf('var patient = {');
     return ['var valves = {', 'var treatedValves', 'var valveEtiology', 'var critical =',
             'var renalVal', 'var shockVal', 'var hfVal', 'var miVal', 'var pvdVal',
-            'var ventilated', 'var sternotomy', 'var chairUnable']
+            'var ventilated', 'var sternotomy', 'var chairVal']
       .every(function(decl){ const d = HTML.indexOf(decl); return d > -1 && d < p; });
   })());
 check('the valve object is built before the patient object consumes it',
@@ -516,7 +532,7 @@ check('ventilation does not fire the chronic pulmonary term',
   /pulmonary: pulmVal === 'chronic' \|\| pulmVal === 'chronic_o2'/.test(HTML));
 check('poor mobility lives in the frailty card and follows the chair rise',
   /<select id="mob"/.test(HTML) &&
-  /mobility: document\.getElementById\('mob'\)\.value === '1' \|\| chairUnable/.test(HTML));
+  /mobility: document\.getElementById\('mob'\)\.value === '1' \|\| chairVal === 'unable'/.test(HTML));
 check('the published mobility term still fires',
   ctx.euroscore2(Object.assign({}, BASE, { mobility:true })) >
   ctx.euroscore2(Object.assign({}, BASE, { mobility:false })));
@@ -604,8 +620,8 @@ check('SI relabelling still covers hemoglobin and albumin',
   /setLimits\('hgb', si \? \[40,220,1\]/.test(HTML));
 // unit-independence of EFT scoring: 115 g/L and 11.5 g/dL are the same patient
 check('Hgb 115 g/L scores identically to 11.5 g/dL for a woman',
-  ctx.eftScore({ chairUnable:false, chairSec:9, cogImpaired:false, hgb: 115/10, albumin: 32/10, female:true }).points ===
-  ctx.eftScore({ chairUnable:false, chairSec:9, cogImpaired:false, hgb: 11.5,   albumin: 3.2,   female:true }).points);
+  ctx.eftScore({ chair:'fast', cogImpaired:false, hgb: 115/10, albumin: 32/10, female:true }).points ===
+  ctx.eftScore({ chair:'fast', cogImpaired:false, hgb: 11.5,   albumin: 3.2,   female:true }).points);
 check('engine itself stays in mg/dL (Cockcroft-Gault /72)',
   /72\s*\*\s*cr_mgdl/.test(engine));
 // unit-independence of the underlying math: SI value converted by hand must give
