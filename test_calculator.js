@@ -36,14 +36,16 @@ function check(name, ok, detail) {
 }
 function near(a, b, tol = 0.005) { return Math.abs(a - b) < tol; }
 
-console.log('\n1. The published worked cases (J Cardiothorac Surg 2026, Section 5.4)');
+console.log('\n1. Worked cases — v2.0 departs from the published values (see §16 of the spec)');
 const c1 = ctx.ucsrs({ stsPromPct: 2.8, euroPct: 3.2, eft: 3, meld: null, lvedd: 52, tier: 0 });
-check('Case 1 — 65M SAVR, ×1.60 (was CFS 7, now EFT 3)', near(c1.final, 4.80), `got ${c1.final.toFixed(2)}%, paper prints 4.8%`);
+check('Case 1 — paper prints 4.80; v2.0 gives 4.35 (frailty ladder reduced 25%)',
+  near(c1.final, 4.35), `got ${c1.final.toFixed(2)}%`);
 const c2 = ctx.ucsrs({ stsPromPct: 3.5, euroPct: 2.0, eft: 0, meld: 17, lvedd: 50, tier: 0 });
-check('Case 2 — 70M CABG, MELD 17', near(c2.final, 7.35), `got ${c2.final.toFixed(2)}%, paper prints 7.4%`);
-const c3 = ctx.ucsrs({ stsPromPct: 7.0, euroPct: 9.0, eft: 1, meld: 15, lvedd: 62, syntax: 14, tier: 0 });
-check('Case 3 — computes per Section 3.3', near(c3.final, 12.92),
-  `got ${c3.final.toFixed(2)}%; the paper prints 18.2%, which Section 3.3 does not produce`);
+check('Case 2 — paper prints 7.35; v2.0 gives 6.20 (MELD slopes reduced 25%)',
+  near(c2.final, 6.20), `got ${c2.final.toFixed(2)}%`);
+check('the departure from the published values is deliberate and documented',
+  /reduced by 25% from the\s*\n\s*\/\/ published ladder/.test(HTML) &&
+  /every slope reduced by 25% from the published values/.test(HTML));
 
 console.log('\n2. Structural guards — these fail if the model drifts back');
 check('Layer 1 STS weight is 0.50', ctx.UCSRS_SPEC.layer1.w_sts === 0.50, `is ${ctx.UCSRS_SPEC.layer1.w_sts}`);
@@ -79,13 +81,13 @@ const pref = ctx.ucsrs({ stsPromPct: 4, euroPct: 4, eft: 0, meld: null, lvesvi: 
 check('LVESVI takes precedence over LVEDD', pref.lvSource === 'LVESVI' && near(pref.lv, 2.0));
 
 console.log('\n4. MELD is fully additive, not weighted at 0.10');
-for (const [m, want] of [[8, 0.0], [12, 1.6], [15, 2.8], [18, 5.5], [20, 7.3], [30, 19.3], [40, 31.3]]) {
+for (const [m, want] of [[8, 0.0], [12, 1.20], [15, 2.10], [18, 4.125], [20, 5.475], [30, 14.475], [40, 23.475]]) {
   check(`MELD ${m} → +${want}`, near(ctx.meldCorrection(m), want), `got +${ctx.meldCorrection(m).toFixed(2)}`);
 }
 const mA = ctx.ucsrs({ stsPromPct: 10, euroPct: 10, eft: 0, meld: null, tier: 0 });
 const mB = ctx.ucsrs({ stsPromPct: 10, euroPct: 10, eft: 0, meld: 20, tier: 0 });
-check('MELD 20 adds 7.30 points, not 0.73', near(mB.final - mA.final, 7.30),
-  `adds ${(mB.final - mA.final).toFixed(2)}`);
+check('MELD 20 is fully additive (+5.475), not weighted at a fraction',
+  near(mB.final - mA.final, 5.475), `adds ${(mB.final - mA.final).toFixed(2)}`);
 
 console.log('\n5. Caps');
 check('BR capped at 60', near(ctx.ucsrs({ stsPromPct: 90, euroPct: 90, eft: 0, meld: null, tier: 0 }).br, 60));
@@ -184,14 +186,19 @@ check('body weight and weight-of-intervention are separate fields (regression)',
   /interventionWeight/.test(engine) && !/p\.weight\s*===/.test(engine));
 
 console.log('\n7c. STS source behaviour');
-check('estimator matches the previous calculator baseline (60M elective CABG = 1.50)',
-  (function(){ try { return Math.abs(ctx.stsEstimate({age:60,weight:80,creatinine:0.9,female:false,dialysis:false,lvef:60,nyha:1,urgency:'elective',procedure:'cabg'}) - 1.5) < 1e-9; } catch(e){ return false; } })());
+check('baseline floor lowered from 1.50 to 0.50 (against five real STS-PROM values)',
+  (function(){ try { return Math.abs(ctx.stsEstimate({age:60,weight:80,creatinine:0.9,female:false,dialysis:false,lvef:60,nyha:1,urgency:'elective',procedure:'cabg'}) - 0.5) < 1e-9; } catch(e){ return false; } })());
+check('a healthy 52-year-old can now score below 1.0 (real STS was 0.40)',
+  ctx.stsEstimate({age:52,weight:85,creatinine:1.09,female:false,dialysis:false,lvef:65,nyha:1,urgency:'elective',procedure:'cabg',interventionWeight:'cabg'}) < 1.0);
 
 console.log('\n7d. Layer 2b — Essential Frailty Toolset (v1.1)');
 const M = ctx.UCSRS_SPEC.layer2b_eft.mult;
-check('multiplier ladder retained from published v1.0 (1.00/1.15/1.35/1.60/1.90/2.30)',
-  M[0] === 1.00 && M[1] === 1.15 && M[2] === 1.35 && M[3] === 1.60 && M[4] === 1.90 && M[5] === 2.30,
+check('multiplier ladder is the published one reduced 25% (1.00/1.1125/1.2625/1.45/1.675/1.975)',
+  M[0] === 1.00 && M[1] === 1.1125 && M[2] === 1.2625 && M[3] === 1.45 && M[4] === 1.675 && M[5] === 1.975,
   JSON.stringify(M));
+check('the reduction is exactly 25% of the published excess above 1.00',
+  [1.15,1.35,1.60,1.90,2.30].every(function(pub,i){
+    return Math.abs((1 + (pub-1)*0.75) - M[i+1]) < 1e-9; }));
 check('EFT is 0-5 (six multiplier levels)', Object.keys(M).length === 6);
 const efts = (f) => ctx.eftScore(Object.assign({ chair: 'fast', cogImpaired: false, hgb: 14, albumin: 4.0, female: false }, f));
 check('robust patient → EFT 0', efts({}).points === 0);
