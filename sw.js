@@ -1,5 +1,5 @@
 // UCSRS v1.1.0 Service Worker — cache bumped so prior visitors get the EFT edition
-const CACHE_NAME = 'ucsrs-v1.1.3';
+const CACHE_NAME = 'ucsrs-v1.1.4';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192x192.png', '/icon-512x512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));

@@ -265,8 +265,18 @@ check('MELD takes no dialysis argument — creatinine entered is creatinine used
   ctx.meldFromLabs(1.0, 1.0, 1.0) < ctx.meldFromLabs(1.0, 1.0, 4.0));
 check('no self-test banner is rendered on the page',
   !/id="selftest"/.test(HTML) && !/Self-test passed/.test(HTML));
-check('the note under Layer 2c is the short form only',
-  !/indexes it to BSA/.test(HTML) && !/LVESVI takes precedence;/.test(HTML));
+check('weight and height are marked and gated as required fields',
+  /Weight \(kg\) <span class="req">\*<\/span>/.test(HTML) &&
+  /Height \(cm\) <span class="req">\*<\/span>/.test(HTML) &&
+  /num\('wt'\) === null \|\| num\('ht'\) === null/.test(HTML));
+check('Layer 2c fields are named in words, not abbreviations',
+  /LV end-systolic volume \(mL\)/.test(HTML) &&
+  /or LV end-systolic volume index \(mL\/m²\)/.test(HTML) &&
+  /LV end-diastolic diameter \(mm\) — used only if no volume entered/.test(HTML) &&
+  !/— indexed automatically/.test(HTML) && !/— preferred/.test(HTML) && !/— fallback only/.test(HTML));
+check('the volume path still indexes to BSA and still takes precedence',
+  /lvesviValue = num\('lvesv'\) \/ bsa/.test(HTML) &&
+  ctx.ucsrs({stsPromPct:4,euroPct:4,eft:0,meld:null,lvesvi:120,lvedd:50,tier:0}).lvSource === 'LVESVI');
 check('the weight-of-intervention note is gone',
   !/set automatically from the procedure/.test(HTML));
 check('the MELD note is the short form only',
