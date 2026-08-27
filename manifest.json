@@ -1,7 +1,7 @@
 {
-  "name": "UCSRS v1.0 — Universal Cardiac Surgical Risk Score",
+  "name": "UCSRS v2.0 — Universal Cardiac Surgical Risk Score",
   "short_name": "UCSRS",
-  "description": "Six-domain cardiac surgical risk calculator combining STS-PROM, EuroSCORE II, MELD, Clinical Frailty Scale, Morbidity Index, and optional RHC haemodynamics.",
+  "description": "Physiology-informed cardiac surgical risk calculator: an independent baseline blended with EuroSCORE II, plus MELD, the Essential Frailty Toolset, LV dimensions, SYNTAX and optional right-heart haemodynamics. Research tool; all computation runs locally in the browser.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1F4E79",
