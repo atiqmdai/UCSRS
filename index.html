@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UCSRS v2.0 — Universal Cardiac Surgical Risk Score</title>
+<title>UCSRS v2.1 — Universal Cardiac Surgical Risk Score</title>
 <style>
  :root{
    --ink:#1a2230; --muted:#5d6b80; --line:#d7dee8; --bg:#f4f6f9; --card:#fff;
@@ -62,7 +62,7 @@
 </head>
 <body>
 <header>
-  <h1>UCSRS v2.0 — Universal Cardiac Surgical Risk Score</h1>
+  <h1>UCSRS v2.1 — Universal Cardiac Surgical Risk Score</h1>
   <p>Research tool — not for sole clinical decision-making · all computation occurs locally in your browser</p>
 </header>
 
@@ -187,7 +187,7 @@
         <option value="emergency">Emergency</option><option value="salvage">Salvage</option></select></div>
     </div>
     <div class="checks" style="margin-top:11px">
-      <label><input type="checkbox" id="htn" onchange="calc()"> Hypertension</label>
+      <label title="Collected for description. From v2.1 hypertension carries no mortality weight: neither parent model weights it for operative mortality."><input type="checkbox" id="htn" onchange="calc()"> Hypertension</label>
       <label><input type="checkbox" id="smoker" onchange="calc()"> Current / recent smoker</label>
       <label><input type="checkbox" id="neuro" onchange="calc()"> Neurological dysfunction</label>
       <label><input type="checkbox" id="endo" onchange="calc()"> Active endocarditis</label>
@@ -268,14 +268,14 @@
 </div>
 
 <footer>
-  UCSRS v2.0 · No patient data are transmitted or stored.
+  UCSRS v2.1 · No patient data are transmitted or stored.
 </footer>
 
 <script>
 // ===== UCSRS ENGINE START =====
 // Single source of truth for all model constants.
 var UCSRS_SPEC = {
-  spec_version: "2.0.0",
+  spec_version: "2.1.0",
   layer1: { w_sts: 0.50, w_euro: 0.50, cap_br: 60 },
   layer2a_meld: { cap_pre_cfs: 65 },
   // v2.0: Layer 2b frailty instrument is the Essential Frailty Toolset (EFT, 0-5).
@@ -472,86 +472,157 @@ function valveBurden(valves){
   return total;
 }
 
-// The UCSRS itself. stsPromPct is supplied by the user; euroPct may be supplied or computed.
-// Internal additive component — estimated from the entered clinical variables.
+// Internal additive component — estimated from the entered clinical variables. It
+// reads no STS-PROM and no EuroSCORE II output: from v2.0 the score is independent
+// of both comparators.
+//
+// v2.1 (28 Aug 2026), Option A2. Three changes, all inside the published 50/50:
+//
+//   1. LOG-ODDS FORM. Increments move from percentage points to log-odds at a 3%
+//      reference risk. Odds multiply, so risk fans out; the additive-percentage form
+//      compressed the range to about 5x across the registry cohorts against
+//      EuroSCORE II's 9.1x. The relative ordering of every weight is preserved.
+//   2. UNIQUE TERMS DOUBLED. Anaemia, atrial fibrillation, ascending or arch atheroma
+//      and the untreated-severe-valve burden are multiplied by two, so that after the
+//      0.5 blend they arrive at full strength rather than half. 85.6% of the v2.0
+//      baseline sat on variables EuroSCORE II already scores, which the blend counted
+//      about one and a half times while counting the distinctive terms at half.
+//   3. SHARED TERMS SCALED BY k, AND THREE READ CONTINUOUSLY. One factor k = 1.15
+//      shrinks the duplicated terms. Age, creatinine clearance and ejection fraction
+//      move from bands to continuous functions, because banding was discarding most
+//      of their information — EuroSCORE II reads age continuously and STS reads
+//      creatinine continuously.
+//
+// HYPERTENSION IS NO LONGER WEIGHTED. Neither parent model weights it for operative
+// mortality, and at about 70% prevalence a +0.30pp increment was adding risk to two
+// patients in three. The field is still collected; it carries no mortality weight.
+//
+// k and the intercept were solved together against PUBLISHED OBSERVED MORTALITY
+// across thirteen registries — not against either comparator — for a median O/E of
+// 1.00, and checked on two independent cohort realisations that took no part in the
+// fit. No performance claim is made: no simulated patient has an outcome.
+var BASELINE = {
+  reference_risk: 0.03,
+  k_shared: 1.15,
+  intercept: -6.0777,
+  unique_multiplier: 2.0,
+  continuous: { age_per_decade_over_60: 0.26, log_clearance_below_90: 0.55,
+                ef_per_10_below_50: 0.30 }
+};
+
+// A percentage-point increment at the reference risk, expressed in log-odds.
+function ppToLogOdds(pp){
+  var ref = BASELINE.reference_risk;
+  var p2 = Math.min(0.60, ref + pp / 100);
+  return Math.log(p2 / (1 - p2)) - Math.log(ref / (1 - ref));
+}
+
+// The v2.0 increments in percentage points, each tagged with whether EuroSCORE II
+// already scores it. Shared terms are scaled by k; the four EuroSCORE II does not
+// carry are doubled.
+var BASELINE_TERMS = {
+  age_over_70_per_yr: [0.12, true], age_over_80_per_yr: [0.20, true],
+  female: [0.40, true], dialysis: [3.10, true], iddm: [0.60, true],
+  lung_any: [0.70, true], ventilated: [2.00, true], arteriopathy: [1.00, true],
+  prev_cardiac: [2.50, true], sternotomy3: [1.50, true], endocarditis: [1.80, true],
+  mi_7: [1.40, true], mi_30: [0.90, true], mi_90: [0.50, true],
+  nyha3: [0.50, true], nyha4: [1.20, true], acute_decomp: [0.60, true],
+  vtvf: [2.00, true], iabp: [1.50, true], impella: [2.00, true],
+  ecmo: [3.50, true], inotropes: [1.20, true], anuria: [2.50, true],
+  urgent: [1.00, true], emergency: [3.50, true], salvage: [8.00, true],
+  neuro: [0.80, true],
+  anemia: [0.90, false], afib: [0.40, false],
+  aortic_atheroma: [0.50, false], valve_burden_per_04: [0.40, false]
+};
+
+// Procedure increments relative to isolated CABG. Repair preserves native tissue and
+// carries less risk than replacement at every valve position; a concomitant tricuspid
+// annuloplasty carries no separate weight; aortic root and ascending work compounds.
+var PROC_INCREMENT = {
+  cabg: 0.0, avr: 0.0, avr_are: 0.3, tavr_explant: 5.0, av_repair: -0.2,
+  mvr: 1.5, mv_repair: -0.5, tv_repair: 2.0, tvr: 3.0,
+  avr_mvr: 2.5, avr_mvr_tvr: 4.0, avr_mv_repair_tv_repair: 1.5,
+  cabg_avr: 1.2, cabg_avr_mv_repair: 2.0, cabg_avr_mv_repair_tv_repair: 2.0,
+  cabg_avr_mvr_tv_repair: 3.0, cabg_mvr: 2.0, cabg_mv_repair: 1.0,
+  cabg_tv_repair: 0.0, asc_aorta: 2.5, cabg_asc_aorta: 3.0,
+  avr_asc_aorta: 3.2, avr_root_asc_aorta: 4.2, other: 1.5
+};
+
+var BW = {}, PW = {};
+(function(){
+  var k = BASELINE.k_shared, um = BASELINE.unique_multiplier, n;
+  for (n in BASELINE_TERMS){
+    BW[n] = ppToLogOdds(BASELINE_TERMS[n][0]) * (BASELINE_TERMS[n][1] ? k : um);
+  }
+  for (n in PROC_INCREMENT){ PW[n] = ppToLogOdds(PROC_INCREMENT[n]) * k; }
+})();
+
 function stsEstimate(p){
-  // Base value. Lowered from 1.50 to 0.50 on 27 Aug 2026: against three real STS-PROM
-  // values the old floor could not go below 1.50, while a healthy 52-year-old's true
-  // STS-PROM was 0.40. The floor, not the terms, was inflating every low-risk patient.
-  var r = 0.5;
-  if (p.age > 70) r += (p.age - 70) * 0.12;
-  if (p.age > 80) r += (p.age - 80) * 0.2;
-  if (p.female) r += 0.4;
-  if (p.lvef != null){ if (p.lvef < 30) r += 2.5; else if (p.lvef < 50) r += 0.8; }
-  var cc = creatinineClearance(p.age, p.weight, p.creatinine, p.female);
-  if (p.dialysis) r += 3.1;
-  else if (cc !== null){ if (cc < 30) r += 2.2; else if (cc < 60) r += 0.9; }
-  if (p.iddm) r += 0.6;
-  if (p.htn) r += 0.3;
-  if (p.lungAny !== undefined ? p.lungAny : p.pulmonary) r += 0.7;
+  var C = BASELINE.continuous, k = BASELINE.k_shared;
+  var z = BASELINE.intercept;
+  var age = p.age;
+  var cc = creatinineClearance(age, p.weight, p.creatinine, p.female);
+
+  // Age: continuous from 60, with the two hinges retained on top for the steepening.
+  z += k * C.age_per_decade_over_60 * Math.max(0, age - 60) / 10;
+  if (age > 70) z += BW.age_over_70_per_yr * (age - 70);
+  if (age > 80) z += BW.age_over_80_per_yr * (age - 80);
+
+  // Renal: clearance read continuously below 90, dialysis carrying its own term.
+  // Dialysis is floored at whatever the same patient's clearance alone would score,
+  // so that starting dialysis can never lower the estimate — against a continuous
+  // clearance term the bare categorical inverts below about 15 mL/min.
+  var ccTerm = (cc !== null && cc !== undefined)
+    ? k * C.log_clearance_below_90 * Math.max(0, Math.log(90 / Math.max(cc, 8)))
+    : 0;
+  if (p.dialysis) z += Math.max(BW.dialysis, ccTerm);
+  else z += ccTerm;
+
+  // Ventricle: continuous below 50%.
+  if (p.lvef != null) z += k * C.ef_per_10_below_50 * Math.max(0, 50 - p.lvef) / 10;
+
+  if (p.female) z += BW.female;
+  if (p.iddm) z += BW.iddm;
+  if (p.lungAny !== undefined ? p.lungAny : p.pulmonary) z += BW.lung_any;
   // Ventilated before arrival in the anaesthetic room — a component of the published
   // critical pre-operative state, and a marker of respiratory failure in its own right.
-  if (p.ventilated) r += 2.0;
-  r += valveBurden(p.valves);
-  if (p.arteriopathy) r += 1.0;
+  if (p.ventilated) z += BW.ventilated;
+  var vb = valveBurden(p.valves);
+  if (vb) z += BW.valve_burden_per_04 * (vb / 0.4);
+  if (p.arteriopathy) z += BW.arteriopathy;
   // Atheroma of the ascending aorta or arch is the classic embolic source and adds
   // beyond the published binary arteriopathy term.
-  if (p.aorticAtheroma) r += 0.5;
-  if (p.prevCardiac) r += 2.5;
-  if (p.endocarditis) r += 1.8;
-  // Infarct recency: the closer the infarct, the less recovered the ventricle.
-  if      (p.miDays === 7)  r += 1.4;
-  else if (p.miDays === 30) r += 0.9;
-  else if (p.miDays === 90) r += 0.5;
-  // Acute decompensation is class IV plus the instability of decompensating now. It is a
-  // level of the same field rather than a second field, so heart failure is counted once.
-  if (p.acuteDecomp) r += 0.6;
-  if (p.afib) r += 0.4;
-  if (p.neuro) r += 0.8;
-  if (p.anemia) r += 0.9;
-  if (p.vtvf) r += 2.0;
-  if (p.iabp) r += 1.5;
-  // A micro-axial pump implies a sicker ventricle than a balloon pump; extracorporeal
-  // support implies failure of the circulation as a whole.
-  if (p.impella) r += 2.0;
-  if (p.ecmo)    r += 3.5;
-  if (p.inot) r += 1.2;
-  if (p.anuria) r += 2.5;
-  if (p.nyha === 3) r += 0.5; else if (p.nyha === 4) r += 1.2;
-  if (p.urgency === 'urgent') r += 1.0;
-  else if (p.urgency === 'emergency') r += 3.5;
-  else if (p.urgency === 'salvage') r += 8.0;
+  if (p.aorticAtheroma) z += BW.aortic_atheroma;
+  if (p.prevCardiac) z += BW.prev_cardiac;
   // Each additional sternotomy beyond the second compounds the risk of re-entry,
   // adhesiolysis and graft or conduit injury.
-  if (p.sternotomy >= 3) r += 1.5;
-  // Procedure increments, relative to isolated CABG. Repair preserves native tissue and
-  // carries less risk than replacement at every valve position; a concomitant tricuspid
-  // annuloplasty carries no separate weight; aortic root and ascending work compounds.
-  var pr = p.procedure;
-  if      (pr === 'avr')                            r += 0.0;
-  else if (pr === 'avr_are')                        r += 0.3;
-  else if (pr === 'tavr_explant')                   r += 5.0;
-  else if (pr === 'av_repair')                      r -= 0.2;
-  else if (pr === 'mvr')                            r += 1.5;
-  else if (pr === 'mv_repair')                      r -= 0.5;
-  else if (pr === 'tv_repair')                      r += 2.0;
-  else if (pr === 'tvr')                            r += 3.0;
-  else if (pr === 'avr_mvr')                        r += 2.5;
-  else if (pr === 'avr_mvr_tvr')                    r += 4.0;
-  else if (pr === 'avr_mv_repair_tv_repair')        r += 1.5;
-  else if (pr === 'cabg_avr')                       r += 1.2;
-  else if (pr === 'cabg_avr_mv_repair')             r += 2.0;
-  else if (pr === 'cabg_avr_mv_repair_tv_repair')   r += 2.0;
-  else if (pr === 'cabg_avr_mvr_tv_repair')         r += 3.0;
-  else if (pr === 'cabg_mvr')                       r += 2.0;
-  else if (pr === 'cabg_mv_repair')                 r += 1.0;
-  else if (pr === 'cabg_tv_repair')                 r += 0.0;
-  else if (pr === 'asc_aorta')                      r += 2.5;
-  else if (pr === 'cabg_asc_aorta')                 r += 3.0;
-  else if (pr === 'avr_asc_aorta')                  r += 3.2;
-  else if (pr === 'avr_root_asc_aorta')             r += 4.2;
-  else if (pr === 'other')                          r += 1.5;
-  return Math.min(Math.max(r, 0.3), 50);
+  if (p.sternotomy >= 3) z += BW.sternotomy3;
+  if (p.endocarditis) z += BW.endocarditis;
+  // Infarct recency: the closer the infarct, the less recovered the ventricle.
+  if      (p.miDays === 7)  z += BW.mi_7;
+  else if (p.miDays === 30) z += BW.mi_30;
+  else if (p.miDays === 90) z += BW.mi_90;
+  // Acute decompensation is class IV plus the instability of decompensating now. It is
+  // a level of the same field rather than a second field, so failure is counted once.
+  if (p.acuteDecomp) z += BW.acute_decomp;
+  if (p.afib) z += BW.afib;
+  if (p.neuro) z += BW.neuro;
+  if (p.anemia) z += BW.anemia;
+  if (p.vtvf) z += BW.vtvf;
+  if (p.iabp) z += BW.iabp;
+  // A micro-axial pump implies a sicker ventricle than a balloon pump; extracorporeal
+  // support implies failure of the circulation as a whole.
+  if (p.impella) z += BW.impella;
+  if (p.ecmo)    z += BW.ecmo;
+  if (p.inot) z += BW.inotropes;
+  if (p.anuria) z += BW.anuria;
+  if (p.nyha === 3) z += BW.nyha3; else if (p.nyha === 4) z += BW.nyha4;
+  if (p.urgency === 'urgent') z += BW.urgent;
+  else if (p.urgency === 'emergency') z += BW.emergency;
+  else if (p.urgency === 'salvage') z += BW.salvage;
+  if (PW[p.procedure] !== undefined) z += PW[p.procedure];
+
+  return Math.min(Math.max(100 / (1 + Math.exp(-z)), 0.30), 50);
 }
 
 function ucsrs(input){
@@ -667,11 +738,12 @@ function selfTest(){
   var out = [];
   // Reference cases. These no longer reproduce the published v1.0 values (4.80 / 7.35):
   // the frailty ladder and the MELD slopes were each reduced by 25% on 27 Aug 2026, and
-  // the Layer 1 baseline floor was lowered from 1.50 to 0.50. Deliberate, documented.
+  // the Layer 1 baseline floor was lowered from 1.50 to 0.50 in v2.0 and stands at 0.30
+  // in v2.1. Deliberate, documented.
   var c1 = ucsrs({stsPromPct:2.8, euroPct:3.2, eft:3, meld:null, lvedd:52, tier:0});
-  out.push({name:'Case 1 (v2.0: 4.35%)',  got:c1.final, want:4.35});
+  out.push({name:'Case 1 (v2.0 and v2.1: 4.35%)',  got:c1.final, want:4.35});
   var c2 = ucsrs({stsPromPct:3.5, euroPct:2.0, eft:0, meld:17, lvedd:50, tier:0});
-  out.push({name:'Case 2 (v2.0: 6.20%)',  got:c2.final, want:6.20});
+  out.push({name:'Case 2 (v2.0 and v2.1: 6.20%)',  got:c2.final, want:6.20});
   var e = eftScore({chair:'slow', cogImpaired:true, hgb:11.2, albumin:3.1, female:false});
   out.push({name:'EFT scoring (1+1+1+1)', got:e.points, want:4});
   out.push({name:'Layer 1 weights are 50/50', got:UCSRS_SPEC.layer1.w_sts + UCSRS_SPEC.layer1.w_euro, want:1.00,

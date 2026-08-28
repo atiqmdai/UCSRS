@@ -27,7 +27,7 @@ const ctx = {};
 new Function('exports', engine + '\nexports.ucsrs=ucsrs;exports.euroscore2=euroscore2;' +
   'exports.meldCorrection=meldCorrection;exports.meldFromLabs=meldFromLabs;' +
   'exports.creatinineClearance=creatinineClearance;exports.UCSRS_SPEC=UCSRS_SPEC;' +
-  'exports.riskCategory=riskCategory;exports.selfTest=selfTest;exports.stsEstimate=stsEstimate;exports.eftScore=eftScore;exports.ucsrsOutcomes=ucsrsOutcomes;')(ctx);
+  'exports.riskCategory=riskCategory;exports.selfTest=selfTest;exports.stsEstimate=stsEstimate;exports.eftScore=eftScore;exports.ucsrsOutcomes=ucsrsOutcomes;exports.bsaMosteller=bsaMosteller;')(ctx);
 
 let failures = 0;
 function check(name, ok, detail) {
@@ -36,12 +36,12 @@ function check(name, ok, detail) {
 }
 function near(a, b, tol = 0.005) { return Math.abs(a - b) < tol; }
 
-console.log('\n1. Worked cases — v2.0 departs from the published values (see §16 of the spec)');
+console.log('\n1. Worked cases — v2.0 and v2.1 depart from the published values (see §16 of the spec)');
 const c1 = ctx.ucsrs({ stsPromPct: 2.8, euroPct: 3.2, eft: 3, meld: null, lvedd: 52, tier: 0 });
-check('Case 1 — paper prints 4.80; v2.0 gives 4.35 (frailty ladder reduced 25%)',
+check('Case 1 — paper prints 4.80; v2.0 and v2.1 give 4.35 (frailty ladder reduced 25%)',
   near(c1.final, 4.35), `got ${c1.final.toFixed(2)}%`);
 const c2 = ctx.ucsrs({ stsPromPct: 3.5, euroPct: 2.0, eft: 0, meld: 17, lvedd: 50, tier: 0 });
-check('Case 2 — paper prints 7.35; v2.0 gives 6.20 (MELD slopes reduced 25%)',
+check('Case 2 — paper prints 7.35; v2.0 and v2.1 give 6.20 (MELD slopes reduced 25%)',
   near(c2.final, 6.20), `got ${c2.final.toFixed(2)}%`);
 check('the departure from the published values is deliberate and documented',
   /reduced by 25% from the\s*\n\s*\/\/ published ladder/.test(HTML) &&
@@ -186,8 +186,11 @@ check('body weight and weight-of-intervention are separate fields (regression)',
   /interventionWeight/.test(engine) && !/p\.weight\s*===/.test(engine));
 
 console.log('\n7c. STS source behaviour');
-check('baseline floor lowered from 1.50 to 0.50 (against five real STS-PROM values)',
-  (function(){ try { return Math.abs(ctx.stsEstimate({age:60,weight:80,creatinine:0.9,female:false,dialysis:false,lvef:60,nyha:1,urgency:'elective',procedure:'cabg'}) - 0.5) < 1e-9; } catch(e){ return false; } })());
+// v2.1: 1.50 in v1.0, 0.50 in v2.0, 0.30 here. The baseline is now a logistic function
+// of a sum of log-odds, so the healthiest constructible patient lands on the clamp
+// rather than on a starting constant.
+check('baseline floor is 0.30 (v1.0 1.50, v2.0 0.50)',
+  (function(){ try { return Math.abs(ctx.stsEstimate({age:60,weight:80,creatinine:0.9,female:false,dialysis:false,lvef:60,nyha:1,urgency:'elective',procedure:'cabg'}) - 0.30) < 1e-9; } catch(e){ return false; } })());
 check('a healthy 52-year-old can now score below 1.0 (real STS was 0.40)',
   ctx.stsEstimate({age:52,weight:85,creatinine:1.09,female:false,dialysis:false,lvef:65,nyha:1,urgency:'elective',procedure:'cabg',interventionWeight:'cabg'}) < 1.0);
 
@@ -459,12 +462,24 @@ check('severe AS is charged at isolated CABG or MVR but not when the aortic is a
   ctx.stsEstimate(PROC('cabg_avr')) &&
   ctx.stsEstimate(Object.assign(PROC('avr_mvr'), { valves: VS('aortic','s','severe',true) })) ===
   ctx.stsEstimate(PROC('avr_mvr')));
-check('two untreated severe lesions both charge',
-  Math.abs(ctx.stsEstimate(Object.assign(PROC('cabg'), { valves: {
+// From v2.1 the baseline is additive in LOG-ODDS, not in percentage points, so two
+// untreated severe lesions no longer add 0.4 + 0.4 percentage points. What must still
+// hold is that the second lesion charges exactly what the first did — the burden term is
+// per-lesion, and the model is multiplicative on the odds.
+check('two untreated severe lesions both charge, each by the same log-odds increment',
+  (function(){
+    var lo = function(pct){ var p = pct / 100; return Math.log(p / (1 - p)); };
+    var none = ctx.stsEstimate(PROC('cabg'));
+    var one  = ctx.stsEstimate(Object.assign(PROC('cabg'), { valves: {
+      aortic:{lesion:'s',severity:'severe',treated:false},
+      mitral:{severity:'none'}, tricuspid:{severity:'none'} } }));
+    var two  = ctx.stsEstimate(Object.assign(PROC('cabg'), { valves: {
       aortic:{lesion:'s',severity:'severe',treated:false},
       mitral:{lesion:'r',severity:'severe',treated:false},
-      tricuspid:{severity:'none'} } })) -
-    (ctx.stsEstimate(PROC('cabg')) + 0.8)) < 1e-9);
+      tricuspid:{severity:'none'} } }));
+    return two > one && one > none &&
+           Math.abs((lo(one) - lo(none)) - (lo(two) - lo(one))) < 1e-9;
+  })());
 check('a lesion the operation corrects carries no weight — no double count',
   ctx.stsEstimate(Object.assign(PROC('avr'), { valves: VS('aortic','s','severe',true) })) ===
   ctx.stsEstimate(PROC('avr')) &&
@@ -670,6 +685,54 @@ check('cardiogenic shock is graded by the support the patient is on',
 check('critical state remains ONE variable — shock plus inotropes does not double count',
   near(ctx.euroscore2(Object.assign({}, BASE, { critical: true })),
        ctx.euroscore2(Object.assign({}, BASE, { critical: true })), 1e-12));
+
+console.log('\n7i. v2.1 baseline — log-odds form, continuity, and the removed weight');
+(function(){
+  var P = function(o){
+    var b = { age:70, weight:80, height:172, creatinine:1.0, female:false, lvef:55,
+              nyha:2, sternotomy:1, urgency:'elective', procedure:'cabg',
+              interventionWeight:'cabg' };
+    for (var k in (o||{})) b[k] = o[k];
+    return b;
+  };
+  var lo = function(pct){ var p = pct / 100; return Math.log(p / (1 - p)); };
+
+  check('hypertension carries no mortality weight from v2.1',
+    ctx.stsEstimate(P({ htn:true })) === ctx.stsEstimate(P({ htn:false })));
+
+  // Age, clearance and ejection fraction are read continuously from v2.1. A banded term
+  // shows as a jump at the band edge; a continuous one does not.
+  var jumpAge = Math.abs(ctx.stsEstimate(P({ age:70.001 })) - ctx.stsEstimate(P({ age:69.999 })));
+  check('age is continuous — no step at the old 70-year band edge', jumpAge < 5e-4);
+  var jumpEf = Math.abs(ctx.stsEstimate(P({ lvef:30.001 })) - ctx.stsEstimate(P({ lvef:29.999 })));
+  check('ejection fraction is continuous — no step at the old 30% band edge', jumpEf < 5e-4);
+  var jumpCr = Math.abs(ctx.stsEstimate(P({ creatinine:1.6001 })) - ctx.stsEstimate(P({ creatinine:1.5999 })));
+  check('creatinine clearance is continuous — no step at a band edge', jumpCr < 5e-4);
+
+  // Dialysis must never reduce the estimate. Against a continuous clearance term a bare
+  // categorical inverts below about 15 mL/min, which is why the dialysis term is floored.
+  var inversion = false;
+  [45, 62, 78, 90].forEach(function(a){
+    [0.8, 1.5, 3.0, 5.0, 8.0].forEach(function(c){
+      if (ctx.stsEstimate(P({ age:a, creatinine:c, dialysis:true })) <
+          ctx.stsEstimate(P({ age:a, creatinine:c, dialysis:false })) - 1e-12) inversion = true;
+    });
+  });
+  check('starting dialysis can never lower the baseline', !inversion);
+
+  // Risk fans out on the odds scale: each increment is a constant log-odds step, so its
+  // effect in percentage points grows with the patient's underlying risk.
+  var wellDelta = ctx.stsEstimate(P({ anemia:true })) - ctx.stsEstimate(P({}));
+  var sickBase  = P({ age:84, lvef:25, creatinine:2.4, nyha:4, urgency:'urgent' });
+  var sickWith  = P({ age:84, lvef:25, creatinine:2.4, nyha:4, urgency:'urgent', anemia:true });
+  var sickDelta = ctx.stsEstimate(sickWith) - ctx.stsEstimate(sickBase);
+  check('an increment is worth more percentage points in a sicker patient (odds scale)',
+    sickDelta > wellDelta * 2);
+  check('the same increment is a constant step in log-odds',
+    Math.abs((lo(ctx.stsEstimate(P({ anemia:true }))) - lo(ctx.stsEstimate(P({})))) -
+             (lo(ctx.stsEstimate(sickWith)) - lo(ctx.stsEstimate(sickBase)))) < 1e-9);
+})();
+
 
 console.log('\n8. Risk categories');
 for (const [v, want] of [[3.9, 'LOW RISK'], [4.0, 'INTERMEDIATE RISK'], [7.9, 'INTERMEDIATE RISK'],

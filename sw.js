@@ -1,5 +1,5 @@
-// UCSRS v2.0.0 Service Worker — cache bumped so prior visitors get the independent-score edition
-const CACHE_NAME = 'ucsrs-v2.0.0';
+// UCSRS v2.1.0 Service Worker — cache bumped so prior visitors get the re-derived baseline
+const CACHE_NAME = 'ucsrs-v2.1.0';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192x192.png', '/icon-512x512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
