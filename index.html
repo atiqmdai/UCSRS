@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UCSRS v2.1 — Universal Cardiac Surgical Risk Score</title>
+<title>UCSRS v2.2 — Universal Cardiac Surgical Risk Score</title>
 <style>
  :root{
    --ink:#1a2230; --muted:#5d6b80; --line:#d7dee8; --bg:#f4f6f9; --card:#fff;
@@ -62,7 +62,7 @@
 </head>
 <body>
 <header>
-  <h1>UCSRS v2.1 — Universal Cardiac Surgical Risk Score</h1>
+  <h1>UCSRS v2.2 — Universal Cardiac Surgical Risk Score</h1>
   <p>Research tool — not for sole clinical decision-making · all computation occurs locally in your browser</p>
 </header>
 
@@ -113,31 +113,12 @@
         <option value="acute_vent">Acute — on ventilator support</option>
         <option value="chronic">Chronic</option>
         <option value="chronic_o2">Chronic, on home oxygen</option></select></div>
-      <div><label>Procedure (UCSRS category)</label><select id="proc" onchange="syncWeight();calc()">
-        <option value="cabg">Isolated CABG</option>
-        <option value="avr">Isolated AVR</option>
-        <option value="avr_are">Isolated AVR with aortic root enlargement</option>
-        <option value="tavr_explant">TAVR explant</option>
-        <option value="av_repair">Isolated AV repair</option>
-        <option value="mvr">Isolated MVR</option>
-        <option value="mv_repair">Isolated MV repair</option>
-        <option value="tv_repair">Isolated TV repair</option>
-        <option value="tvr">Isolated TVR</option>
-        <option value="avr_mvr">AVR + MVR</option>
-        <option value="avr_mvr_tvr">AVR + MVR + TVR</option>
-        <option value="avr_mv_repair_tv_repair">AVR + MV repair + TV repair</option>
-        <option value="cabg_avr">CABG + AVR</option>
-        <option value="cabg_avr_mv_repair">CABG + AVR + MV repair</option>
-        <option value="cabg_avr_mv_repair_tv_repair">CABG + AVR + MV repair + TV repair</option>
-        <option value="cabg_avr_mvr_tv_repair">CABG + AVR + MVR + TV repair</option>
-        <option value="cabg_mvr">CABG + MVR</option>
-        <option value="cabg_mv_repair">CABG + MV repair</option>
-        <option value="cabg_tv_repair">CABG + TV repair</option>
-        <option value="asc_aorta">Ascending aortic aneurysm repair</option>
-        <option value="cabg_asc_aorta">Ascending aortic aneurysm repair + CABG</option>
-        <option value="avr_asc_aorta">AVR with ascending aortic aneurysm repair</option>
-        <option value="avr_root_asc_aorta">AVR, aortic root replacement with coronary reimplantation and ascending aortic aneurysm repair</option>
-        <option value="other">Other</option></select></div>
+      <div><label>Extracardiac arteriopathy</label><select id="pvd" onchange="calc()">
+        <option value="none">None</option>
+        <option value="carotid">Carotid</option>
+        <option value="ascending">Ascending aorta</option>
+        <option value="arch">Aortic arch</option>
+        <option value="peripheral">Peripheral vasculature</option></select></div>
       <!-- Weight of intervention is EuroSCORE II's own procedure-count variable. Every
            procedure in the list above maps to it unambiguously, so it is derived rather
            than asked: kept in the form only so the engine can read it. -->
@@ -167,17 +148,36 @@
         <option value="iabp">IABP</option>
         <option value="impella">Impella</option>
         <option value="ecmo">ECMO</option></select></div>
-      <div><label>Extracardiac arteriopathy</label><select id="pvd" onchange="calc()">
-        <option value="none">None</option>
-        <option value="carotid">Carotid</option>
-        <option value="ascending">Ascending aorta</option>
-        <option value="arch">Aortic arch</option>
-        <option value="peripheral">Peripheral vasculature</option></select></div>
       <div><label>Recent myocardial infarction</label><select id="mi" onchange="calc()">
         <option value="none">None</option>
         <option value="7">Within 7 days</option>
         <option value="30">8–30 days</option>
         <option value="90">31–90 days</option></select></div>
+      <div><label>Procedure Category</label><select id="proc" onchange="syncWeight();calc()">
+        <option value="cabg">Isolated CABG</option>
+        <option value="avr">Isolated AVR</option>
+        <option value="avr_are">Isolated AVR with aortic root enlargement</option>
+        <option value="tavr_explant">TAVR explant</option>
+        <option value="av_repair">Isolated AV repair</option>
+        <option value="mvr">Isolated MVR</option>
+        <option value="mv_repair">Isolated MV repair</option>
+        <option value="tv_repair">Isolated TV repair</option>
+        <option value="tvr">Isolated TVR</option>
+        <option value="avr_mvr">AVR + MVR</option>
+        <option value="avr_mvr_tvr">AVR + MVR + TVR</option>
+        <option value="avr_mv_repair_tv_repair">AVR + MV repair + TV repair</option>
+        <option value="cabg_avr">CABG + AVR</option>
+        <option value="cabg_avr_mv_repair">CABG + AVR + MV repair</option>
+        <option value="cabg_avr_mv_repair_tv_repair">CABG + AVR + MV repair + TV repair</option>
+        <option value="cabg_avr_mvr_tv_repair">CABG + AVR + MVR + TV repair</option>
+        <option value="cabg_mvr">CABG + MVR</option>
+        <option value="cabg_mv_repair">CABG + MV repair</option>
+        <option value="cabg_tv_repair">CABG + TV repair</option>
+        <option value="asc_aorta">Ascending aortic aneurysm repair</option>
+        <option value="cabg_asc_aorta">Ascending aortic aneurysm repair + CABG</option>
+        <option value="avr_asc_aorta">AVR with ascending aortic aneurysm repair</option>
+        <option value="avr_root_asc_aorta">AVR, aortic root replacement with coronary reimplantation and ascending aortic aneurysm repair</option>
+        <option value="other">Other</option></select></div>
       <div><label>Operation</label><select id="sternotomy" onchange="calc()">
         <option value="1">First time</option>
         <option value="2">Redo</option>
@@ -185,6 +185,12 @@
       <div><label>Urgency</label><select id="urg" onchange="calc()">
         <option value="elective">Elective</option><option value="urgent">Urgent</option>
         <option value="emergency">Emergency</option><option value="salvage">Salvage</option></select></div>
+      <div><label title="Oral antiplatelet or anticoagulant still inside its own guideline hold window at operation. Carries no mortality weight; raises the reoperation estimate only.">Anticoagulation</label><select id="anticoagulant" onchange="calc()">
+        <option value="none">None</option>
+        <option value="clopidogrel">Clopidogrel &lt; 5 days</option>
+        <option value="ticagrelor">Ticagrelor &lt; 3 days</option>
+        <option value="prasugrel">Prasugrel &lt; 7 days</option>
+        <option value="apixaban">Apixaban &lt; 2 days</option></select></div>
     </div>
     <div class="checks" style="margin-top:11px">
       <label title="Collected for description. From v2.1 hypertension carries no mortality weight: neither parent model weights it for operative mortality."><input type="checkbox" id="htn" onchange="calc()"> Hypertension</label>
@@ -268,15 +274,15 @@
 </div>
 
 <footer>
-  UCSRS v2.1 · No patient data are transmitted or stored.
+  UCSRS v2.2 · No patient data are transmitted or stored.
 </footer>
 
 <script>
 // ===== UCSRS ENGINE START =====
 // Single source of truth for all model constants.
 var UCSRS_SPEC = {
-  spec_version: "2.1.0",
-  layer1: { w_sts: 0.50, w_euro: 0.50, cap_br: 60 },
+  spec_version: "2.2.0",
+  layer1: { w_baseline: 0.50, w_euro: 0.50, cap_br: 60 },
   layer2a_meld: { cap_pre_cfs: 65 },
   // v2.0: Layer 2b frailty instrument is the Essential Frailty Toolset (EFT, 0-5).
   // Multiplier ladder retained from v1.0; only the instrument mapping changed.
@@ -312,8 +318,12 @@ var UCSRS_SPEC = {
                 critical:0.20, emergency:0.20, salvage:0.35 },
       stroke: { arteriopathy:0.30, aortic_atheroma:0.25, neuro:0.25, afib:0.20, age_gt75:0.18,
                 aorta:0.25, endocarditis:0.20, emergency:0.15, radiation:0.20 },
-      reop:   { prev_cardiac:0.20, radiation:0.20, immuno:0.15, critical:0.20,
-                emergency:0.20, salvage:0.35, aorta:0.15, endocarditis:0.20 }
+      // anticoagulant: an oral antiplatelet or anticoagulant still inside its own
+      // guideline hold window at operation. Heuristic, same magnitude and the same kind
+      // of term as immuno; carries NO mortality weight. Added in v2.2.0 and superseded
+      // at the ~5,000-patient re-estimation.
+      reop:   { prev_cardiac:0.20, radiation:0.20, immuno:0.15, anticoagulant:0.15,
+                critical:0.20, emergency:0.20, salvage:0.35, aorta:0.15, endocarditis:0.20 }
     }
   },
   // Valve lesion severity. A lesion the operation corrects carries no weight here: the
@@ -481,7 +491,7 @@ function valveBurden(valves){
 //   1. LOG-ODDS FORM. Increments move from percentage points to log-odds at a 3%
 //      reference risk. Odds multiply, so risk fans out; the additive-percentage form
 //      compressed the range to about 5x across the registry cohorts against
-//      EuroSCORE II's 9.1x. The relative ordering of every weight is preserved.
+//      EuroSCORE II's 9.2x. The relative ordering of every weight is preserved.
 //   2. UNIQUE TERMS DOUBLED. Anaemia, atrial fibrillation, ascending or arch atheroma
 //      and the untreated-severe-valve burden are multiplied by two, so that after the
 //      0.5 blend they arrive at full strength rather than half. 85.6% of the v2.0
@@ -557,7 +567,7 @@ var BW = {}, PW = {};
   for (n in PROC_INCREMENT){ PW[n] = ppToLogOdds(PROC_INCREMENT[n]) * k; }
 })();
 
-function stsEstimate(p){
+function physiologyBaseline(p){
   var C = BASELINE.continuous, k = BASELINE.k_shared;
   var z = BASELINE.intercept;
   var age = p.age;
@@ -627,7 +637,7 @@ function stsEstimate(p){
 
 function ucsrs(input){
   var S = UCSRS_SPEC;
-  var br = Math.min(S.layer1.w_sts * input.stsPromPct + S.layer1.w_euro * input.euroPct, S.layer1.cap_br);
+  var br = Math.min(S.layer1.w_baseline * input.baselinePct + S.layer1.w_euro * input.euroPct, S.layer1.cap_br);
 
   var meldCorr = meldCorrection(input.meld);
   var preCfs = Math.min(br + meldCorr, S.layer2a_meld.cap_pre_cfs);
@@ -701,6 +711,7 @@ function ucsrsOutcomes(mortPct, f){
   if (f.prevCardiac)  mods.reop += M.reop.prev_cardiac;
   if (f.radiation){ mods.reop += M.reop.radiation; mods.stroke += M.stroke.radiation; }
   if (f.immuno)      mods.reop += M.reop.immuno;
+  if (f.anticoagulant) mods.reop += M.reop.anticoagulant;
   if (f.critical)     mods.reop += M.reop.critical;
   if (f.urgency === 'emergency') mods.reop += M.reop.emergency;
   else if (f.urgency === 'salvage') mods.reop += M.reop.salvage;
@@ -740,14 +751,14 @@ function selfTest(){
   // the frailty ladder and the MELD slopes were each reduced by 25% on 27 Aug 2026, and
   // the Layer 1 baseline floor was lowered from 1.50 to 0.50 in v2.0 and stands at 0.30
   // in v2.1. Deliberate, documented.
-  var c1 = ucsrs({stsPromPct:2.8, euroPct:3.2, eft:3, meld:null, lvedd:52, tier:0});
+  var c1 = ucsrs({baselinePct:2.8, euroPct:3.2, eft:3, meld:null, lvedd:52, tier:0});
   out.push({name:'Case 1 (v2.0 and v2.1: 4.35%)',  got:c1.final, want:4.35});
-  var c2 = ucsrs({stsPromPct:3.5, euroPct:2.0, eft:0, meld:17, lvedd:50, tier:0});
+  var c2 = ucsrs({baselinePct:3.5, euroPct:2.0, eft:0, meld:17, lvedd:50, tier:0});
   out.push({name:'Case 2 (v2.0 and v2.1: 6.20%)',  got:c2.final, want:6.20});
   var e = eftScore({chair:'slow', cogImpaired:true, hgb:11.2, albumin:3.1, female:false});
   out.push({name:'EFT scoring (1+1+1+1)', got:e.points, want:4});
-  out.push({name:'Layer 1 weights are 50/50', got:UCSRS_SPEC.layer1.w_sts + UCSRS_SPEC.layer1.w_euro, want:1.00,
-            extra:(UCSRS_SPEC.layer1.w_sts===0.5 && UCSRS_SPEC.layer1.w_euro===0.5)});
+  out.push({name:'Layer 1 weights are 50/50', got:UCSRS_SPEC.layer1.w_baseline + UCSRS_SPEC.layer1.w_euro, want:1.00,
+            extra:(UCSRS_SPEC.layer1.w_baseline===0.5 && UCSRS_SPEC.layer1.w_euro===0.5)});
   out.push({name:'Layer 2c is active', got:UCSRS_SPEC.layer2c.syntax.length, want:3});
   var ok = out.every(function(t){
     return Math.abs(t.got - t.want) < 0.005 && (t.extra === undefined || t.extra === true);
@@ -1001,7 +1012,7 @@ function calc(){
   if (b !== null && i !== null && c !== null)
     meld = meldFromLabs(b, i, c);
 
-  var sts = age ? stsEstimate(patient) : null;
+  var baseline = age ? physiologyBaseline(patient) : null;
 
   var cogSel = document.getElementById('cog').value;
   var eft = eftScore({
@@ -1017,7 +1028,7 @@ function calc(){
   // body surface area, without which an entered ventricular volume cannot be indexed.
   var required = (num('wt') === null || num('ht') === null ||
                   labNum('hgb') === null || labNum('alb') === null);
-  if (sts === null || euro === null || required){
+  if (baseline === null || euro === null || required){
     scoreEl.textContent = '—';
     catEl.textContent = 'enter patient details to calculate';
     catEl.style.color = 'var(--muted)';
@@ -1026,7 +1037,7 @@ function calc(){
   }
 
   var r = ucsrs({
-    stsPromPct: sts, euroPct: euro, eft: eft.points, meld: meld,
+    baselinePct: baseline, euroPct: euro, eft: eft.points, meld: meld,
     lvesvi: lvesviValue, lvedd: num('lvedd'), syntax: num('syntax'),
     tier: tier, map: num('map'), co: num('co'), pvr: num('pvr'),
     ci: num('ci'), tapse: num('tapse'), pasprhc: num('pasprhc')
@@ -1049,7 +1060,8 @@ function calc(){
     arteriopathy: patient.arteriopathy, aorticAtheroma: patient.aorticAtheroma,
     neuro: patient.neuro, afib: patient.afib,
     aorta: patient.thoracicAorta, endocarditis: patient.endocarditis,
-    prevCardiac: patient.prevCardiac, radiation: chk('radiation'), immuno: chk('immuno')
+    prevCardiac: patient.prevCardiac, radiation: chk('radiation'), immuno: chk('immuno'),
+    anticoagulant: (document.getElementById('anticoagulant')||{}).value !== 'none'
   });
   outcEl.innerHTML =
     '<div style="font-weight:600;color:var(--accent);text-transform:uppercase;font-size:11.5px;letter-spacing:.6px;padding:2px 0 4px">30-day risk estimates</div>' +
