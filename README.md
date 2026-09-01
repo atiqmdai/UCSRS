@@ -50,7 +50,7 @@ score over-predicted, and it over-predicted most in the patients at least risk.
 
 1. **Log-odds form.** Increments move from percentage points to log-odds at a 3% reference
    risk. Odds multiply, so risk fans out; the additive-percentage form compressed the range
-   to about 5× across the registry cohorts against EuroSCORE II's 9.1×. The relative
+   to about 5× across the registry cohorts against EuroSCORE II's 9.2×. The relative
    ordering of every weight is preserved exactly.
 2. **Unique terms doubled.** Anaemia, atrial fibrillation, ascending or arch atheroma and
    the untreated-severe-valve burden are multiplied by two, so that after the 0.5 blend
