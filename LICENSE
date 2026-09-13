@@ -1,0 +1,39 @@
+UCSRS (Universal Cardiac Surgical Risk Score)
+Copyright (c) 2026 Atiq Rehman, MD, and the UCSRS ATLAS Consortium
+
+This work (the specification, reference implementation, and associated documentation
+in this repository) is licensed under the Creative Commons Attribution-NonCommercial
+4.0 International License (CC BY-NC 4.0).
+
+You are free to:
+
+  - Share -- copy and redistribute the material in any medium or format
+  - Adapt -- remix, transform, and build upon the material
+
+for any non-commercial purpose, INCLUDING clinical and research use at any healthcare
+institution, hospital, non-profit, or academic center, without restriction, provided
+that you:
+
+  1. Give appropriate credit -- cite:
+     Rehman A. Universal cardiac surgical risk score (UCSRS): a unified
+     physiology-informed risk architecture for operative mortality prediction across
+     all adult cardiac surgical procedures. J Cardiothorac Surg 2026.
+     DOI 10.1186/s13019-026-04433-x
+  2. Provide a link to this license.
+  3. Indicate if changes were made.
+
+What counts as commercial use. "Commercial use" means use primarily intended for or
+directed toward commercial advantage or private monetary compensation -- for example,
+incorporating this work into a paid product or service offered by a vendor. It does
+NOT include ordinary clinical use, quality-improvement use, or research use by a
+healthcare institution, even a for-profit hospital, since that use is not itself
+directed toward selling or monetizing this work.
+
+Any use that IS commercial under the definition above requires prior written
+permission from the copyright holder. Contact: atiqmd@aol.com.
+
+No warranty. This work is a research tool. It has not been prospectively validated
+against patient outcomes and must not be the sole basis for any clinical decision.
+It is provided "as is," without warranty of any kind, express or implied.
+
+Full legal text of CC BY-NC 4.0: https://creativecommons.org/licenses/by-nc/4.0/legalcode
