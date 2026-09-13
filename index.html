@@ -395,6 +395,32 @@ function creatinineClearance(age, weightKg, cr_mgdl, female){
   return female ? cc * 0.85 : cc;
 }
 
+// Cockcroft-Gault was derived and validated on actual body weight in populations
+// that were not morbidly obese. Above roughly 120% of ideal body weight the added
+// mass is overwhelmingly adipose, not the lean/muscle mass that generates creatinine,
+// so feeding raw weight in continues to inflate the estimate the heavier a patient
+// gets -- a real patient at 200 kg with Cr 2.5 does not have materially better renal
+// function than the same patient at 124 kg. Devine ideal-body-weight + the standard
+// 0.4 adjustment factor (ASHP/kidney-dosing convention) caps that inflation. Applied
+// ONLY to UCSRS's own native renal term (stsEstimate) below -- the EuroSCORE II
+// sub-computation keeps raw actual weight, unmodified, since it must stay faithful
+// to Nashef et al. 2012's published methodology for the head-to-head comparator to
+// remain valid.
+function idealBodyWeight(heightCm, female){
+  if (heightCm == null || isNaN(heightCm)) return null;
+  var heightIn = heightCm / 2.54;
+  var base = female ? 45.5 : 50.0;
+  return base + 2.3 * Math.max(0, heightIn - 60);
+}
+
+function renalWeight(heightCm, weightKg, female){
+  if (weightKg == null || isNaN(weightKg)) return null;
+  var ibw = idealBodyWeight(heightCm, female);
+  if (ibw == null || ibw <= 0) return weightKg;
+  if (weightKg <= 1.20 * ibw) return weightKg;
+  return ibw + 0.4 * (weightKg - ibw);
+ }
+
 function euroscore2(p){
   var E = UCSRS_SPEC.euroscore2, lp = E.constant;
   lp += E.age * Math.max(p.age <= 60 ? 1 : p.age - 59, 1);
@@ -571,7 +597,10 @@ function physiologyBaseline(p){
   var C = BASELINE.continuous, k = BASELINE.k_shared;
   var z = BASELINE.intercept;
   var age = p.age;
-  var cc = creatinineClearance(age, p.weight, p.creatinine, p.female);
+  // Native renal term only: adjusted body weight above 120% IBW (see renalWeight).
+  // euroscore2() below still uses raw p.weight.
+  var ccWeight = renalWeight(p.height, p.weight, p.female);
+  var cc = creatinineClearance(age, ccWeight, p.creatinine, p.female);
 
   // Age: continuous from 60, with the two hinges retained on top for the steepening.
   z += k * C.age_per_decade_over_60 * Math.max(0, age - 60) / 10;
@@ -942,7 +971,7 @@ function calc(){
   var valveEtiology = { aortic: sel('av_etio'), mitral: sel('mv_etio'), tricuspid: sel('tv_etio') };
 
   var patient = {
-    age: age, weight: num('wt'), creatinine: labNum('cr'),
+    age: age, weight: num('wt'), height: num('ht'), creatinine: labNum('cr'),
     female: document.getElementById('sex').value === 'F',
     dialysis: renalVal === 'dialysis',
     lvef: num('lvef'), pasp: num('pasp'),
