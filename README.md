@@ -6,7 +6,7 @@ Reference implementation of UCSRS, developed from the architecture specified in 
 > risk architecture for operative mortality prediction across all adult cardiac surgical
 > procedures. *J Cardiothorac Surg* 2026. DOI 10.1186/s13019-026-04433-x
 
-**Calculator:** https://ucsrs-calculator.netlify.app · Open source (MIT)
+**Calculator:** https://ucsrs-calculator.netlify.app · Free for non-commercial (clinical, research, academic) use, [CC BY-NC 4.0](LICENSE)
 
 ## What is deployed: UCSRS v2.1
 
