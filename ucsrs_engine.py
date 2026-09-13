@@ -187,7 +187,41 @@ def creatinine_clearance(age, weight_kg, cr_mgdl, female: bool) -> Optional[floa
     if not a or not w or not c:          # matches the JS falsy test, so 0 is "missing"
         return None
     cc = ((140 - a) * w) / (72 * c)
-    return cc * 0.85 if female else cc
+    
+
+
+# Cockcroft-Gault was derived and validated on actual body weight in populations
+# that were not morbidly obese. Above roughly 120% of ideal body weight the added
+# mass is overwhelmingly adipose, not the lean/muscle mass that generates creatinine,
+# so feeding raw weight in continues to inflate the estimate the heavier a patient
+# gets -- a real patient at 200 kg with Cr 2.5 does not have materially better renal
+# function than the same patient at 124 kg. Devine ideal-body-weight + the standard
+# 0.4 adjustment factor (ASHP/kidney-dosing convention) caps that inflation. Applied
+# ONLY to UCSRS's own native renal term below -- the EuroSCORE II sub-computation
+# keeps raw actual weight, unmodified, since it must stay faithful to Nashef et al.
+# 2012's published methodology for the head-to-head comparator to remain valid.
+def ideal_body_weight(height_cm, female: bool) -> Optional[float]:
+    h = _num(height_cm)
+    if h is None:
+        return None
+    height_in = h / 2.54
+    base = 45.5 if female else 50.0
+    return base + 2.3 * max(0.0, height_in - 60.0)
+
+
+def renal_weight(height_cm, weight_kg, female: bool) -> Optional[float]:
+    """Actual body weight, unless it exceeds 120% of ideal body weight -- then the
+    Devine adjusted body weight (IBW + 0.4 * (actual - IBW)) is used instead, so the
+    renal term stops treating excess adipose mass as if it were excess lean mass."""
+    w = _num(weight_kg)
+    if w is None:
+        return None
+    ibw = ideal_body_weight(height_cm, female)
+    if ibw is None or ibw <= 0:
+        return w
+    if w <= 1.20 * ibw:
+        return w
+    return ibw + 0.4 * (w - ibw)
 
 
 # ---------------------------------------------------------------- EuroSCORE II
@@ -402,7 +436,10 @@ def physiology_baseline(p):
     z = BASELINE_A2["intercept"]
     age = p["age"]
     female = bool(p.get("female"))
-    cc = creatinine_clearance(age, p.get("weight"), p.get("creatinine"), female)
+    # Native renal term only: adjusted body weight above 120% IBW (see renal_weight).
+    # The EuroSCORE II sub-computation below (euroscore2()) still uses raw p["weight"].
+    _renal_w = renal_weight(p.get("height"), p.get("weight"), female)
+    cc = creatinine_clearance(age, _renal_w, p.get("creatinine"), female)
     lvef = _num(p.get("lvef"))
 
     # continuous terms
