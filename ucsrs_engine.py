@@ -437,7 +437,7 @@ L1 = {
     "ef_30_40": 0.40, "ef_20_30": 0.80, "ef_lt_20": 1.20,
     "nyha3": 0.25, "nyha4": 0.80, "acute_decomp": 0.25,
     "mi_7": 0.45, "mi_30": 0.30, "mi_90": 0.18, "afib": 0.25,
-    "pasp_55_70": 0.40, "pasp_gt_70": 0.80,
+    "pasp_50_70": 0.40, "pasp_gt_70": 0.80,
     "inotropes": 0.40, "vtvf": 0.60, "iabp": 0.50, "impella": 0.62, "ecmo": 0.95,
     "sternotomy2": 1.00, "sternotomy3": 1.50,
     "urgent": 0.35, "emergency": 0.90, "salvage": 2.00,
@@ -519,8 +519,8 @@ def physiology_baseline(p):
     if pasp is not None:
         if pasp > 70:
             z += L1["pasp_gt_70"]
-        elif pasp > 55:
-            z += L1["pasp_55_70"]
+        elif pasp > 50:
+            z += L1["pasp_50_70"]
 
     # Circulatory support: the single highest applicable level, never additive.
     if p.get("ecmo"):

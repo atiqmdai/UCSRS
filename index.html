@@ -603,8 +603,9 @@ var L1 = {
   mi_90:                  0.18,
   afib:                   0.25,
 
-  // Pulmonary hypertension. Below 55 carries no weight.
-  pasp_55_70:             0.40,
+  // Pulmonary hypertension. Below 50 mmHg carries no weight: PH becomes an operative
+  // issue at moderate level, i.e. above 50.
+  pasp_50_70:             0.40,
   pasp_gt_70:             0.80,
 
   // Circulatory support, highest applicable only, never additive.
@@ -713,10 +714,10 @@ function physiologyBaseline(p){
   else if (p.miDays === 90) z += L1.mi_90;
   if (p.afib) z += L1.afib;
 
-  // Pulmonary hypertension; below 55 mmHg carries no weight.
+  // Pulmonary hypertension; below 50 mmHg carries no weight.
   if (p.pasp != null){
     if      (p.pasp > 70) z += L1.pasp_gt_70;
-    else if (p.pasp > 55) z += L1.pasp_55_70;
+    else if (p.pasp > 50) z += L1.pasp_50_70;
   }
 
   // Circulatory support: the single highest applicable level, never additive.
