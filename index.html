@@ -302,8 +302,14 @@ var UCSRS_SPEC = {
   // estimate: it comes from a median-age-82 AVR/TAVR cohort and the interval is
   // wide, so applying it whole to all-comers cardiac surgery would over-reach.
   // This is a deliberate departure from the published model, not a correction.
-  layer2b_eft: { mult: {0:1.00,1:1.25,2:1.60,3:2.10,4:2.60,5:3.10}, cap: 70,
-                 hgb_lo_m: 13.0, hgb_lo_f: 12.0, alb_lo: 3.5, chair_slow_s: 15 },
+  layer2b_eft: { mult: {0:1.00,1:1.25,2:1.60,3:2.10,4:2.60,5:3.10,6:4.00}, cap: 70,
+                 // v3.0: a SECOND haemoglobin point below 8.0 g/dL. The published EFT
+                 // scores haemoglobin as one binary point at the WHO anaemia thresholds
+                 // and is blind to depth; chair rise is already graded 1/2 in the same
+                 // instrument, so this follows its own internal logic. This makes it a
+                 // MODIFIED EFT and must be described as such.
+                 hgb_lo_m: 13.0, hgb_lo_f: 12.0, hgb_crit: 8.0, alb_lo: 3.5,
+                 chair_slow_s: 15 },
   layer2c: {
     lvesvi: [{lte:60,c:0.0},{lte:100,c:0.5},{gt:100,c:2.0}],
     lvedd:  [{lte:55,c:0.0},{lte:65,c:0.5},{gt:65,c:1.5}],
@@ -507,7 +513,10 @@ function eftScore(f){
   if (f.cogImpaired === true){ pts += 1; any = true; }
   else if (f.cogImpaired === false){ any = true; }
   else missing.push('cognition');
-  if (f.hgb != null && !isNaN(f.hgb)){ if (f.hgb < (f.female ? S.hgb_lo_f : S.hgb_lo_m)) pts += 1; any = true; }
+  if (f.hgb != null && !isNaN(f.hgb)){
+    if      (f.hgb < S.hgb_crit) pts += 2;
+    else if (f.hgb < (f.female ? S.hgb_lo_f : S.hgb_lo_m)) pts += 1;
+    any = true; }
   else missing.push('hemoglobin');
   if (f.albumin != null && !isNaN(f.albumin)){ if (f.albumin < S.alb_lo) pts += 1; any = true; }
   else missing.push('albumin');

@@ -37,8 +37,14 @@ SPEC: Dict[str, Any] = {
     # v2.0: the excess above 1.00 is reduced by 25% from the published ladder
     # (1.15/1.35/1.60/1.90/2.30). A deliberate departure, not a correction.
     "layer2b_eft": {
-        "mult": {0: 1.00, 1: 1.25, 2: 1.60, 3: 2.10, 4: 2.60, 5: 3.10},
+        "mult": {0: 1.00, 1: 1.25, 2: 1.60, 3: 2.10, 4: 2.60, 5: 3.10, 6: 4.00},
         "cap": 70, "hgb_lo_m": 13.0, "hgb_lo_f": 12.0, "alb_lo": 3.5,
+        # v3.0: a SECOND haemoglobin point below 8.0 g/dL. The published EFT scores
+        # haemoglobin as one binary point at the WHO anaemia thresholds and is blind
+        # to depth; chair rise is already graded 1/2 in the same instrument, so this
+        # follows its own internal logic. This makes the instrument a MODIFIED EFT
+        # and it must be described as such.
+        "hgb_crit": 8.0,
     },
     "layer2c": {
         "lvesvi": [("lte", 60, 0.0), ("lte", 100, 0.5), ("gt", 100, 2.0)],
@@ -318,7 +324,7 @@ def euroscore2(p: Dict[str, Any]) -> float:
 # ---------------------------------------------------------------- frailty
 def eft_score(chair: Optional[str], cog_impaired: Optional[bool],
               hgb, albumin, female: bool) -> Dict[str, Any]:
-    """Essential Frailty Toolset, 0-5 points. Missing chair rise or cognition gives a
+    """Essential Frailty Toolset, 0-6 points (modified: graded haemoglobin). Missing chair rise or cognition gives a
     partial EFT computed from the laboratory components."""
     S = SPEC["layer2b_eft"]
     pts, missing, any_component = 0, [], False
@@ -344,7 +350,9 @@ def eft_score(chair: Optional[str], cog_impaired: Optional[bool],
 
     h = _num(hgb)
     if h is not None:
-        if h < (S["hgb_lo_f"] if female else S["hgb_lo_m"]):
+        if h < S["hgb_crit"]:
+            pts += 2
+        elif h < (S["hgb_lo_f"] if female else S["hgb_lo_m"]):
             pts += 1
         any_component = True
     else:
