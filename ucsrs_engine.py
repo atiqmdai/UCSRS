@@ -49,7 +49,7 @@ SPEC: Dict[str, Any] = {
     "layer2c": {
         "lvesvi": [("lte", 60, 0.0), ("lte", 100, 0.5), ("gt", 100, 2.0)],
         "lvedd": [("lte", 55, 0.0), ("lte", 65, 0.5), ("gt", 65, 1.5)],
-        "syntax": [("lte", 22, 0.0), ("lte", 32, 1.0), ("gt", 32, 2.5)],
+        "syntax": [("lte", 32, 0.0), ("gt", 32, 2.5)],
     },
     "layer3": {
         "cpo_div": 451,
@@ -449,7 +449,7 @@ L1 = {
     "inotropes": 0.40, "vtvf": 0.60, "iabp": 0.50, "impella": 0.62, "ecmo": 0.95,
     "sternotomy2": 1.00, "sternotomy3": 1.50,
     "urgent": 0.35, "emergency": 0.90, "salvage": 2.00,
-    "asc_aorta": 0.20, "aortic_arch": 1.00,
+    "asc_aorta": 0.20, "aortic_arch": 0.75,
     "bmi_30_40": 0.30, "bmi_40_50": 0.80, "bmi_gt_50": 1.20,
     "iddm": 0.25, "endocarditis": 0.58, "arteriopathy": 0.35,
     "aortic_atheroma": 0.30, "neuro": 0.28, "valve_burden_per_04": 0.25,
@@ -557,11 +557,13 @@ def physiology_baseline(p):
     elif urg == "salvage":
         z += L1["salvage"]
 
-    if p.get("procedure") not in AORTA_PRICED:
-        if p.get("aorta") == "arch":
-            z += L1["aortic_arch"]
-        elif p.get("aorta") == "ascending":
-            z += L1["asc_aorta"]
+    # The procedure table prices ASCENDING work for four categories, so the ascending
+    # term is suppressed for those. It has no arch entry at all, so arch is additional
+    # work in every case and always adds.
+    if p.get("aorta") == "arch":
+        z += L1["aortic_arch"]
+    elif p.get("aorta") == "ascending" and p.get("procedure") not in AORTA_PRICED:
+        z += L1["asc_aorta"]
 
     h, w = _num(p.get("height")), _num(p.get("weight"))
     if h and w:

@@ -313,7 +313,7 @@ var UCSRS_SPEC = {
   layer2c: {
     lvesvi: [{lte:60,c:0.0},{lte:100,c:0.5},{gt:100,c:2.0}],
     lvedd:  [{lte:55,c:0.0},{lte:65,c:0.5},{gt:65,c:1.5}],
-    syntax: [{lte:22,c:0.0},{lte:32,c:1.0},{gt:32,c:2.5}]
+    syntax: [{lte:32,c:0.0},{gt:32,c:2.5}]
   },
   layer3: { cpo_div:451, cpo:[{lt:0.6,c:2.5},{lt:0.9,c:0.8}], pvr:[{gt:5,c:2.8},{gt:3,c:1.2}],
             ci:[{lt:2.0,c:1.5}], tapse_pasp:[{lt:0.406,c:1.8}], cap_final:70 },
@@ -634,7 +634,9 @@ var L1 = {
   // Aortic involvement, graded. Applied only when the procedure category does not
   // already price aortic work, so the two cannot both score the same operation.
   asc_aorta:              0.20,
-  aortic_arch:            1.00,
+  // 0.75 puts arch one 5%->10% step above the same operation without it, which is
+  // intercept-independent: it is a log-odds gap, not an absolute level.
+  aortic_arch:            0.75,
 
   // Comorbidity.
   bmi_30_40:              0.30,
@@ -744,11 +746,11 @@ function physiologyBaseline(p){
   else if (p.urgency === 'emergency') z += L1.emergency;
   else if (p.urgency === 'salvage')   z += L1.salvage;
 
-  // Aortic involvement, graded, suppressed where the procedure already prices it.
-  if (!AORTA_PRICED[p.procedure]){
-    if      (p.aorta === 'arch')      z += L1.aortic_arch;
-    else if (p.aorta === 'ascending') z += L1.asc_aorta;
-  }
+  // Aortic involvement, graded. The procedure table prices ASCENDING work for four
+  // categories, so the ascending term is suppressed for those. It has no arch entry at
+  // all, so arch is additional work in every case and always adds.
+  if (p.aorta === 'arch') z += L1.aortic_arch;
+  else if (p.aorta === 'ascending' && !AORTA_PRICED[p.procedure]) z += L1.asc_aorta;
 
   // BMI, banded. Height and weight are already required inputs.
   var bmi = (p.height && p.weight) ? p.weight / Math.pow(p.height / 100, 2) : null;
