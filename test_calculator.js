@@ -27,7 +27,7 @@ const ctx = {};
 new Function('exports', engine + '\nexports.ucsrs=ucsrs;exports.euroscore2=euroscore2;' +
   'exports.meldCorrection=meldCorrection;exports.meldFromLabs=meldFromLabs;' +
   'exports.creatinineClearance=creatinineClearance;exports.UCSRS_SPEC=UCSRS_SPEC;' +
-  'exports.riskCategory=riskCategory;exports.selfTest=selfTest;exports.stsEstimate=stsEstimate;exports.eftScore=eftScore;exports.ucsrsOutcomes=ucsrsOutcomes;exports.bsaMosteller=bsaMosteller;')(ctx);
+  'exports.riskCategory=riskCategory;exports.selfTest=selfTest;exports.physiologyBaseline=physiologyBaseline;exports.eftScore=eftScore;exports.ucsrsOutcomes=ucsrsOutcomes;exports.bsaMosteller=bsaMosteller;')(ctx);
 
 let failures = 0;
 function check(name, ok, detail) {
@@ -37,10 +37,10 @@ function check(name, ok, detail) {
 function near(a, b, tol = 0.005) { return Math.abs(a - b) < tol; }
 
 console.log('\n1. Worked cases — v2.0 and v2.1 depart from the published values (see §16 of the spec)');
-const c1 = ctx.ucsrs({ stsPromPct: 2.8, euroPct: 3.2, eft: 3, meld: null, lvedd: 52, tier: 0 });
+const c1 = ctx.ucsrs({ baselinePct: 2.8, euroPct: 3.2, eft: 3, meld: null, lvedd: 52, tier: 0 });
 check('Case 1 — paper prints 4.80; v2.0 and v2.1 give 4.35 (frailty ladder reduced 25%)',
   near(c1.final, 4.35), `got ${c1.final.toFixed(2)}%`);
-const c2 = ctx.ucsrs({ stsPromPct: 3.5, euroPct: 2.0, eft: 0, meld: 17, lvedd: 50, tier: 0 });
+const c2 = ctx.ucsrs({ baselinePct: 3.5, euroPct: 2.0, eft: 0, meld: 17, lvedd: 50, tier: 0 });
 check('Case 2 — paper prints 7.35; v2.0 and v2.1 give 6.20 (MELD slopes reduced 25%)',
   near(c2.final, 6.20), `got ${c2.final.toFixed(2)}%`);
 check('the departure from the published values is deliberate and documented',
@@ -48,13 +48,13 @@ check('the departure from the published values is deliberate and documented',
   /every slope reduced by 25% from the published values/.test(HTML));
 
 console.log('\n2. Structural guards — these fail if the model drifts back');
-check('Layer 1 STS weight is 0.50', ctx.UCSRS_SPEC.layer1.w_sts === 0.50, `is ${ctx.UCSRS_SPEC.layer1.w_sts}`);
+check('Layer 1 STS weight is 0.50', ctx.UCSRS_SPEC.layer1.w_baseline === 0.50, `is ${ctx.UCSRS_SPEC.layer1.w_baseline}`);
 check('Layer 1 Euro weight is 0.50', ctx.UCSRS_SPEC.layer1.w_euro === 0.50, `is ${ctx.UCSRS_SPEC.layer1.w_euro}`);
 check('weights sum to 1.00 — no third or fourth term',
-  ctx.UCSRS_SPEC.layer1.w_sts + ctx.UCSRS_SPEC.layer1.w_euro === 1.00);
+  ctx.UCSRS_SPEC.layer1.w_baseline + ctx.UCSRS_SPEC.layer1.w_euro === 1.00);
 check('no morbidity index anywhere in the file', !/morbIdx|morbidity_index|morbIndex/i.test(HTML));
 check('no STS input field — score is free-standing', !/id="sts"/.test(HTML));
-check('STS computed internally by stsEstimate', /function\s+stsEstimate/.test(engine) && /stsEstimate\(patient\)/.test(HTML));
+check('STS computed internally by physiologyBaseline', /function\s+physiologyBaseline/.test(engine) && /physiologyBaseline\(patient\)/.test(HTML));
 check('Layer 2c LVESVI bands present', ctx.UCSRS_SPEC.layer2c.lvesvi.length === 3);
 check('Layer 2c LVEDD bands present', ctx.UCSRS_SPEC.layer2c.lvedd.length === 3);
 check('Layer 2c SYNTAX bands present', ctx.UCSRS_SPEC.layer2c.syntax.length === 3);
@@ -70,40 +70,40 @@ const L2C = [
   ['LVEDD 70 → +1.5', { lvedd: 70 }, 1.5],
 ];
 for (const [name, extra, want] of L2C) {
-  const r = ctx.ucsrs(Object.assign({ stsPromPct: 4, euroPct: 4, eft: 0, meld: null, tier: 0 }, extra));
+  const r = ctx.ucsrs(Object.assign({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, tier: 0 }, extra));
   check(name, near(r.lv, want), `got +${r.lv.toFixed(1)}`);
 }
 for (const [sx, want] of [[10, 0.0], [28, 1.0], [40, 2.5], [0, 0.0]]) {
-  const r = ctx.ucsrs({ stsPromPct: 4, euroPct: 4, eft: 0, meld: null, syntax: sx, tier: 0 });
+  const r = ctx.ucsrs({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, syntax: sx, tier: 0 });
   check(`SYNTAX ${sx} → +${want.toFixed(1)}`, near(r.syntax, want), `got +${r.syntax.toFixed(1)}`);
 }
-const pref = ctx.ucsrs({ stsPromPct: 4, euroPct: 4, eft: 0, meld: null, lvesvi: 120, lvedd: 50, tier: 0 });
+const pref = ctx.ucsrs({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, lvesvi: 120, lvedd: 50, tier: 0 });
 check('LVESVI takes precedence over LVEDD', pref.lvSource === 'LVESVI' && near(pref.lv, 2.0));
 
 console.log('\n4. MELD is fully additive, not weighted at 0.10');
 for (const [m, want] of [[8, 0.0], [12, 1.20], [15, 2.10], [18, 4.125], [20, 5.475], [30, 14.475], [40, 23.475]]) {
   check(`MELD ${m} → +${want}`, near(ctx.meldCorrection(m), want), `got +${ctx.meldCorrection(m).toFixed(2)}`);
 }
-const mA = ctx.ucsrs({ stsPromPct: 10, euroPct: 10, eft: 0, meld: null, tier: 0 });
-const mB = ctx.ucsrs({ stsPromPct: 10, euroPct: 10, eft: 0, meld: 20, tier: 0 });
+const mA = ctx.ucsrs({ baselinePct: 10, euroPct: 10, eft: 0, meld: null, tier: 0 });
+const mB = ctx.ucsrs({ baselinePct: 10, euroPct: 10, eft: 0, meld: 20, tier: 0 });
 check('MELD 20 is fully additive (+5.475), not weighted at a fraction',
   near(mB.final - mA.final, 5.475), `adds ${(mB.final - mA.final).toFixed(2)}`);
 
 console.log('\n5. Caps');
-check('BR capped at 60', near(ctx.ucsrs({ stsPromPct: 90, euroPct: 90, eft: 0, meld: null, tier: 0 }).br, 60));
+check('BR capped at 60', near(ctx.ucsrs({ baselinePct: 90, euroPct: 90, eft: 0, meld: null, tier: 0 }).br, 60));
 check('PRE_CFS capped at 65',
-  near(ctx.ucsrs({ stsPromPct: 90, euroPct: 90, eft: 0, meld: 40, tier: 0 }).preCfs, 65));
+  near(ctx.ucsrs({ baselinePct: 90, euroPct: 90, eft: 0, meld: 40, tier: 0 }).preCfs, 65));
 check('final capped at 70',
-  near(ctx.ucsrs({ stsPromPct: 90, euroPct: 90, eft: 5, meld: 40, lvesvi: 150, syntax: 50, tier: 0 }).final, 70));
+  near(ctx.ucsrs({ baselinePct: 90, euroPct: 90, eft: 5, meld: 40, lvesvi: 150, syntax: 50, tier: 0 }).final, 70));
 
 console.log('\n6. Layer 3 haemodynamics');
-const h = ctx.ucsrs({ stsPromPct: 4, euroPct: 4, eft: 0, meld: null, tier: 2,
+const h = ctx.ucsrs({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, tier: 2,
   map: 60, co: 3.0, pvr: 6.0, ci: 1.8, tapse: 14, pasprhc: 50 });
 check('all four derangements → +8.60', near(h.hemo, 8.60), `got +${h.hemo.toFixed(2)}`);
-const h2 = ctx.ucsrs({ stsPromPct: 4, euroPct: 4, eft: 0, meld: null, tier: 2,
+const h2 = ctx.ucsrs({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, tier: 2,
   map: 90, co: 5.5, pvr: 1.5, ci: 3.0, tapse: 22, pasprhc: 35 });
 check('normal haemodynamics → +0.00', near(h2.hemo, 0));
-const h3 = ctx.ucsrs({ stsPromPct: 4, euroPct: 4, eft: 0, meld: null, tier: 0,
+const h3 = ctx.ucsrs({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, tier: 0,
   map: 60, co: 3.0, pvr: 6.0, ci: 1.8, tapse: 14, pasprhc: 50 });
 check('Layer 3 not applied below Tier 3', near(h3.hemo, 0));
 
@@ -190,9 +190,9 @@ console.log('\n7c. STS source behaviour');
 // of a sum of log-odds, so the healthiest constructible patient lands on the clamp
 // rather than on a starting constant.
 check('baseline floor is 0.30 (v1.0 1.50, v2.0 0.50)',
-  (function(){ try { return Math.abs(ctx.stsEstimate({age:60,weight:80,creatinine:0.9,female:false,dialysis:false,lvef:60,nyha:1,urgency:'elective',procedure:'cabg'}) - 0.30) < 1e-9; } catch(e){ return false; } })());
+  (function(){ try { return Math.abs(ctx.physiologyBaseline({age:60,weight:80,creatinine:0.9,female:false,dialysis:false,lvef:60,nyha:1,urgency:'elective',procedure:'cabg'}) - 0.30) < 1e-9; } catch(e){ return false; } })());
 check('a healthy 52-year-old can now score below 1.0 (real STS was 0.40)',
-  ctx.stsEstimate({age:52,weight:85,creatinine:1.09,female:false,dialysis:false,lvef:65,nyha:1,urgency:'elective',procedure:'cabg',interventionWeight:'cabg'}) < 1.0);
+  ctx.physiologyBaseline({age:52,weight:85,creatinine:1.09,female:false,dialysis:false,lvef:65,nyha:1,urgency:'elective',procedure:'cabg',interventionWeight:'cabg'}) < 1.0);
 
 console.log('\n7d. Layer 2b — Essential Frailty Toolset (v1.1)');
 const M = ctx.UCSRS_SPEC.layer2b_eft.mult;
@@ -286,7 +286,7 @@ check('Layer 2c fields are named in words, not abbreviations',
   !/— indexed automatically/.test(HTML) && !/— preferred/.test(HTML) && !/— fallback only/.test(HTML));
 check('the volume path still indexes to BSA and still takes precedence',
   /lvesviValue = num\('lvesv'\) \/ bsa/.test(HTML) &&
-  ctx.ucsrs({stsPromPct:4,euroPct:4,eft:0,meld:null,lvesvi:120,lvedd:50,tier:0}).lvSource === 'LVESVI');
+  ctx.ucsrs({baselinePct:4,euroPct:4,eft:0,meld:null,lvesvi:120,lvedd:50,tier:0}).lvSource === 'LVESVI');
 check('the weight-of-intervention note is gone',
   !/set automatically from the procedure/.test(HTML));
 check('the MELD note is the short form only',
@@ -325,22 +325,22 @@ check('open-heart number replaces the previous-surgery checkbox',
   /id="sternotomy"/.test(HTML) && !/id="prev"/.test(HTML) &&
   /prevCardiac: sternotomy >= 2/.test(HTML));
 check('a third open heart weighs more than a second',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { sternotomy:3, prevCardiac:true })) >
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { sternotomy:2, prevCardiac:true })));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { sternotomy:3, prevCardiac:true })) >
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { sternotomy:2, prevCardiac:true })));
 check('a first open heart carries no reoperation weight',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { sternotomy:1, prevCardiac:false })) ===
-  ctx.stsEstimate(PROC('cabg')));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { sternotomy:1, prevCardiac:false })) ===
+  ctx.physiologyBaseline(PROC('cabg')));
 check('TAVR explant is the heaviest single-valve procedure',
   ['avr','avr_are','av_repair','mvr','mv_repair','tv_repair','tvr']
-    .every(function(pr){ return ctx.stsEstimate(PROC('tavr_explant')) > ctx.stsEstimate(PROC(pr)); }));
+    .every(function(pr){ return ctx.physiologyBaseline(PROC('tavr_explant')) > ctx.physiologyBaseline(PROC(pr)); }));
 check('root enlargement adds only a small increment over plain AVR',
-  ctx.stsEstimate(PROC('avr_are')) > ctx.stsEstimate(PROC('avr')) &&
-  ctx.stsEstimate(PROC('avr_are')) - ctx.stsEstimate(PROC('avr')) <= 0.5);
+  ctx.physiologyBaseline(PROC('avr_are')) > ctx.physiologyBaseline(PROC('avr')) &&
+  ctx.physiologyBaseline(PROC('avr_are')) - ctx.physiologyBaseline(PROC('avr')) <= 0.5);
 check('AV repair scores below AVR',
-  ctx.stsEstimate(PROC('av_repair')) < ctx.stsEstimate(PROC('avr')));
+  ctx.physiologyBaseline(PROC('av_repair')) < ctx.physiologyBaseline(PROC('avr')));
 check('aortic work compounds: root plus ascending outscores ascending alone',
-  ctx.stsEstimate(PROC('avr_root_asc_aorta')) > ctx.stsEstimate(PROC('avr_asc_aorta')) &&
-  ctx.stsEstimate(PROC('avr_asc_aorta')) > ctx.stsEstimate(PROC('asc_aorta')));
+  ctx.physiologyBaseline(PROC('avr_root_asc_aorta')) > ctx.physiologyBaseline(PROC('avr_asc_aorta')) &&
+  ctx.physiologyBaseline(PROC('avr_asc_aorta')) > ctx.physiologyBaseline(PROC('asc_aorta')));
 check('all four aortic procedures carry the published thoracic-aorta term',
   /AORTA_PROCS = \['asc_aorta', 'cabg_asc_aorta', 'avr_asc_aorta', 'avr_root_asc_aorta'\]/.test(HTML));
 check('operation field is first time / redo / second redo',
@@ -352,27 +352,27 @@ check('heart failure is one field — no separate congestive-failure term',
   ['none','1','2','3','4','acute'].every(function(v){
     return new RegExp('<option value="' + v + '"').test(HTML); }));
 check('none and NYHA I are both the published reference class',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { nyha:1 })) ===
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { nyha:1, heartFailure:'none' })) &&
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:1 })) ===
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:1, heartFailure:'none' })) &&
   ctx.euroscore2(Object.assign({}, BASE, { nyha:1 })) ===
   ctx.euroscore2(Object.assign({}, BASE, { nyha:1, heartFailure:'none' })));
 check('acute decompensation scores as class IV plus an increment',
   /nyha: hfVal === 'acute' \? 4/.test(HTML) &&
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { nyha:4, acuteDecomp:true })) >
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { nyha:4 })));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:4, acuteDecomp:true })) >
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:4 })));
 check('a class and acute decompensation cannot both be chosen',
   (HTML.match(/<select id="nyha"[\s\S]*?<\/select>/)[0].match(/<option/g) || []).length === 6);
 check('NYHA carries heart-failure severity in both halves, once each',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { nyha:4 })) >
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { nyha:3 })) &&
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:4 })) >
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:3 })) &&
   ctx.euroscore2(Object.assign({}, BASE, { nyha:4 })) >
   ctx.euroscore2(Object.assign({}, BASE, { nyha:3 })));
 check('infarct recency is graded 7 / 30 / 90 days',
   /<select id="mi"/.test(HTML) &&
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { miDays:7 })) >
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { miDays:30 })) &&
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { miDays:30 })) >
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { miDays:90 })));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { miDays:7 })) >
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { miDays:30 })) &&
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { miDays:30 })) >
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { miDays:90 })));
 check('any infarct within 90 days still sets the published binary term',
   /recentMI: miVal !== 'none'/.test(HTML));
 
@@ -432,7 +432,7 @@ check('the three valve selects sit inside one collapsible field',
     return new RegExp('<select id="' + id + '" onchange="vsevSummary\\(\\);calc\\(\\)"').test(HTML); }));
 check('the collapsed row reports its contents',
   /parts.length \? parts.join\(' · '\) : 'None entered'/.test(HTML));
-// Wiring guards. The engine tests above call stsEstimate directly with a valves object,
+// Wiring guards. The engine tests above call physiologyBaseline directly with a valves object,
 // which cannot catch a form that never builds one. These check the page's own plumbing.
 check('every variable the patient object reads is declared before it',
   (function(){
@@ -449,19 +449,19 @@ check('treated status is read from the procedure, not asked',
   /f.treated = treatedValves.indexOf\(name\) >= 0/.test(HTML) &&
   /var treatedValves = valvesTreated\(document.getElementById\('proc'\).value\)/.test(HTML));
 check('severe MR is charged at isolated CABG but not when the mitral is addressed',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { valves: VS('mitral','r','severe',false) })) >
-  ctx.stsEstimate(PROC('cabg')) &&
-  ctx.stsEstimate(Object.assign(PROC('cabg_mv_repair'), { valves: VS('mitral','r','severe',true) })) ===
-  ctx.stsEstimate(PROC('cabg_mv_repair')) &&
-  ctx.stsEstimate(Object.assign(PROC('cabg_mvr'), { valves: VS('mitral','r','severe',true) })) ===
-  ctx.stsEstimate(PROC('cabg_mvr')));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { valves: VS('mitral','r','severe',false) })) >
+  ctx.physiologyBaseline(PROC('cabg')) &&
+  ctx.physiologyBaseline(Object.assign(PROC('cabg_mv_repair'), { valves: VS('mitral','r','severe',true) })) ===
+  ctx.physiologyBaseline(PROC('cabg_mv_repair')) &&
+  ctx.physiologyBaseline(Object.assign(PROC('cabg_mvr'), { valves: VS('mitral','r','severe',true) })) ===
+  ctx.physiologyBaseline(PROC('cabg_mvr')));
 check('severe AS is charged at isolated CABG or MVR but not when the aortic is addressed',
-  ctx.stsEstimate(Object.assign(PROC('mvr'), { valves: VS('aortic','s','severe',false) })) >
-  ctx.stsEstimate(PROC('mvr')) &&
-  ctx.stsEstimate(Object.assign(PROC('cabg_avr'), { valves: VS('aortic','s','severe',true) })) ===
-  ctx.stsEstimate(PROC('cabg_avr')) &&
-  ctx.stsEstimate(Object.assign(PROC('avr_mvr'), { valves: VS('aortic','s','severe',true) })) ===
-  ctx.stsEstimate(PROC('avr_mvr')));
+  ctx.physiologyBaseline(Object.assign(PROC('mvr'), { valves: VS('aortic','s','severe',false) })) >
+  ctx.physiologyBaseline(PROC('mvr')) &&
+  ctx.physiologyBaseline(Object.assign(PROC('cabg_avr'), { valves: VS('aortic','s','severe',true) })) ===
+  ctx.physiologyBaseline(PROC('cabg_avr')) &&
+  ctx.physiologyBaseline(Object.assign(PROC('avr_mvr'), { valves: VS('aortic','s','severe',true) })) ===
+  ctx.physiologyBaseline(PROC('avr_mvr')));
 // From v2.1 the baseline is additive in LOG-ODDS, not in percentage points, so two
 // untreated severe lesions no longer add 0.4 + 0.4 percentage points. What must still
 // hold is that the second lesion charges exactly what the first did — the burden term is
@@ -469,11 +469,11 @@ check('severe AS is charged at isolated CABG or MVR but not when the aortic is a
 check('two untreated severe lesions both charge, each by the same log-odds increment',
   (function(){
     var lo = function(pct){ var p = pct / 100; return Math.log(p / (1 - p)); };
-    var none = ctx.stsEstimate(PROC('cabg'));
-    var one  = ctx.stsEstimate(Object.assign(PROC('cabg'), { valves: {
+    var none = ctx.physiologyBaseline(PROC('cabg'));
+    var one  = ctx.physiologyBaseline(Object.assign(PROC('cabg'), { valves: {
       aortic:{lesion:'s',severity:'severe',treated:false},
       mitral:{severity:'none'}, tricuspid:{severity:'none'} } }));
-    var two  = ctx.stsEstimate(Object.assign(PROC('cabg'), { valves: {
+    var two  = ctx.physiologyBaseline(Object.assign(PROC('cabg'), { valves: {
       aortic:{lesion:'s',severity:'severe',treated:false},
       mitral:{lesion:'r',severity:'severe',treated:false},
       tricuspid:{severity:'none'} } }));
@@ -481,25 +481,25 @@ check('two untreated severe lesions both charge, each by the same log-odds incre
            Math.abs((lo(one) - lo(none)) - (lo(two) - lo(one))) < 1e-9;
   })());
 check('a lesion the operation corrects carries no weight — no double count',
-  ctx.stsEstimate(Object.assign(PROC('avr'), { valves: VS('aortic','s','severe',true) })) ===
-  ctx.stsEstimate(PROC('avr')) &&
-  ctx.stsEstimate(Object.assign(PROC('mvr'), { valves: VS('mitral','r','severe',true) })) ===
-  ctx.stsEstimate(PROC('mvr')));
+  ctx.physiologyBaseline(Object.assign(PROC('avr'), { valves: VS('aortic','s','severe',true) })) ===
+  ctx.physiologyBaseline(PROC('avr')) &&
+  ctx.physiologyBaseline(Object.assign(PROC('mvr'), { valves: VS('mitral','r','severe',true) })) ===
+  ctx.physiologyBaseline(PROC('mvr')));
 check('only untreated severe AS and severe MR carry weight',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { valves: VS('aortic','s','severe',false) })) >
-  ctx.stsEstimate(PROC('cabg')) &&
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { valves: VS('mitral','r','severe',false) })) >
-  ctx.stsEstimate(PROC('cabg')));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { valves: VS('aortic','s','severe',false) })) >
+  ctx.physiologyBaseline(PROC('cabg')) &&
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { valves: VS('mitral','r','severe',false) })) >
+  ctx.physiologyBaseline(PROC('cabg')));
 check('untreated severe AI carries no early-mortality weight',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { valves: VS('aortic','r','severe',false) })) ===
-  ctx.stsEstimate(PROC('cabg')));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { valves: VS('aortic','r','severe',false) })) ===
+  ctx.physiologyBaseline(PROC('cabg')));
 check('untreated severe TR carries no early-mortality weight',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { valves: VS('tricuspid','r','severe',false) })) ===
-  ctx.stsEstimate(PROC('cabg')));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { valves: VS('tricuspid','r','severe',false) })) ===
+  ctx.physiologyBaseline(PROC('cabg')));
 check('untreated moderate lesions carry no weight, per the randomised evidence',
   ['aortic','mitral','tricuspid'].every(function(v){
-    return ctx.stsEstimate(Object.assign(PROC('cabg'), { valves: VS(v,'r','moderate',false) })) ===
-           ctx.stsEstimate(PROC('cabg')); }));
+    return ctx.physiologyBaseline(Object.assign(PROC('cabg'), { valves: VS(v,'r','moderate',false) })) ===
+           ctx.physiologyBaseline(PROC('cabg')); }));
 check('the two weighted lesions are 0.4 each',
   ctx.UCSRS_SPEC.valve_severity.untreated_severe.aortic_s === 0.4 &&
   ctx.UCSRS_SPEC.valve_severity.untreated_severe.mitral_r === 0.4);
@@ -515,22 +515,22 @@ check('the procedure-to-valve map covers every valve procedure', (function(){
     .every(function(pr){ return new RegExp('\\b' + pr + ':').test(map); });
 })());
 check('no valve data leaves the score unchanged',
-  ctx.stsEstimate(Object.assign(PROC('avr'), { valves: null })) ===
-  ctx.stsEstimate(PROC('avr')));
+  ctx.physiologyBaseline(Object.assign(PROC('avr'), { valves: null })) ===
+  ctx.physiologyBaseline(PROC('avr')));
 
 check('renal function offers normal, acute, CKD and ESRD',
   ['normal','acute','ckd','dialysis'].every(function(v){
     return new RegExp('<option value="' + v + '"').test(HTML); }));
 check('chronic kidney disease carries no weight beyond the creatinine',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { creatinine:2.5 })) ===
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { creatinine:2.5, ckd:true })));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { creatinine:2.5 })) ===
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { creatinine:2.5, ckd:true })));
 check('acute renal failure and dialysis are mutually exclusive',
   /dialysis: renalVal === 'dialysis'/.test(HTML) && /anuria: renalVal === 'acute'/.test(HTML));
 check('acute renal failure feeds the critical pre-operative state composite',
   /renalVal === 'acute'/.test(HTML));
 check('chronic renal impairment is carried by the creatinine, not a category',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { creatinine:3.5 })) >
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { creatinine:1.0 })) &&
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { creatinine:3.5 })) >
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { creatinine:1.0 })) &&
   ctx.euroscore2(Object.assign({}, BASE, { creatinine:3.5 })) >
   ctx.euroscore2(Object.assign({}, BASE, { creatinine:1.0 })));
 check('the published dialysis term still supersedes the clearance bands',
@@ -546,18 +546,18 @@ check('cardiogenic shock is one graded field, not four checkboxes',
 check('every shock level sets the published critical pre-operative state',
   /var critical = shockVal !== 'none' \|\| ventilated \|\| renalVal === 'acute'/.test(HTML));
 check('the shock ladder escalates: inotropes < IABP < Impella < ECMO',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { inot:true })) <
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { iabp:true })) &&
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { iabp:true })) <
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { impella:true })) &&
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { impella:true })) <
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { ecmo:true })));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { inot:true })) <
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { iabp:true })) &&
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { iabp:true })) <
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { impella:true })) &&
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { impella:true })) <
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { ecmo:true })));
 check('acute pulmonary disease is split by ventilator support',
   /<option value="acute">Acute — no ventilator support<\/option>/.test(HTML) &&
   /<option value="acute_vent">Acute — on ventilator support<\/option>/.test(HTML));
 check('pre-operative ventilation weighs more than acute lung disease alone',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { lungAny:true, ventilated:true })) >
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { lungAny:true })));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { lungAny:true, ventilated:true })) >
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { lungAny:true })));
 check('pre-operative ventilation sets the critical pre-operative state',
   /var ventilated = pulmVal === 'acute_vent'/.test(HTML));
 check('ventilation does not fire the chronic pulmonary term',
@@ -576,21 +576,21 @@ check('the derived anemia thresholds match the frailty instrument',
 
 
 check('ascending or arch atheroma adds beyond peripheral disease',
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { arteriopathy:true, aorticAtheroma:true })) >
-  ctx.stsEstimate(Object.assign(PROC('cabg'), { arteriopathy:true })));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { arteriopathy:true, aorticAtheroma:true })) >
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { arteriopathy:true })));
 check('aortic atheroma raises the stroke estimate',
   ctx.ucsrsOutcomes(5, { arteriopathy:true, aorticAtheroma:true }).stroke >
   ctx.ucsrsOutcomes(5, { arteriopathy:true }).stroke);
 check('tricuspid repair and replacement are separate options',
   /value="tv_repair"/.test(HTML) && /value="tvr"/.test(HTML));
 check('mitral repair carries less weight than mitral replacement',
-  ctx.stsEstimate(PROC('mv_repair')) < ctx.stsEstimate(PROC('mvr')));
+  ctx.physiologyBaseline(PROC('mv_repair')) < ctx.physiologyBaseline(PROC('mvr')));
 check('mitral replacement carries more weight than isolated AVR',
-  ctx.stsEstimate(PROC('mvr')) > ctx.stsEstimate(PROC('avr')));
+  ctx.physiologyBaseline(PROC('mvr')) > ctx.physiologyBaseline(PROC('avr')));
 check('isolated tricuspid replacement carries more than tricuspid repair',
-  ctx.stsEstimate(PROC('tvr')) > ctx.stsEstimate(PROC('tv_repair')));
+  ctx.physiologyBaseline(PROC('tvr')) > ctx.physiologyBaseline(PROC('tv_repair')));
 check('isolated tricuspid surgery carries more than isolated AVR',
-  ctx.stsEstimate(PROC('tv_repair')) > ctx.stsEstimate(PROC('avr')));
+  ctx.physiologyBaseline(PROC('tv_repair')) > ctx.physiologyBaseline(PROC('avr')));
 check('CABG plus tricuspid repair is a procedure, not a comorbidity checkbox',
   /value="cabg_tv_repair"/.test(HTML) && !/id="tvconcom"/.test(HTML) && !/tvConcomitant/.test(HTML));
 check('the procedure list is in the specified order', (function(){
@@ -600,10 +600,10 @@ check('the procedure list is in the specified order', (function(){
   return opts.join(',') === want.join(',');
 })());
 check('CABG plus tricuspid repair scores exactly as isolated CABG',
-  ctx.stsEstimate(PROC('cabg_tv_repair')) === ctx.stsEstimate(PROC('cabg')));
+  ctx.physiologyBaseline(PROC('cabg_tv_repair')) === ctx.physiologyBaseline(PROC('cabg')));
 check('a concomitant tricuspid repair never changes the score',
-  ctx.stsEstimate(PROC('cabg_avr_mv_repair_tv_repair')) === ctx.stsEstimate(PROC('cabg_avr_mv_repair')) &&
-  ctx.stsEstimate(PROC('cabg_tv_repair')) === ctx.stsEstimate(PROC('cabg')));
+  ctx.physiologyBaseline(PROC('cabg_avr_mv_repair_tv_repair')) === ctx.physiologyBaseline(PROC('cabg_avr_mv_repair')) &&
+  ctx.physiologyBaseline(PROC('cabg_tv_repair')) === ctx.physiologyBaseline(PROC('cabg')));
 check('weight of intervention is derived, not asked — the field is hidden',
   /<div style="display:none"><select id="weight">/.test(HTML) &&
   !/<label>Weight of intervention<\/label>/.test(HTML) &&
@@ -619,10 +619,10 @@ check('every dropdown procedure has a weight-of-intervention mapping', (function
   return opts.every(function(o){ return new RegExp('\\b' + o + ':').test(map); });
 })());
 check('within a valve family, replacement always outscores repair',
-  ctx.stsEstimate(PROC('mvr')) > ctx.stsEstimate(PROC('mv_repair')) &&
-  ctx.stsEstimate(PROC('tvr')) > ctx.stsEstimate(PROC('tv_repair')) &&
-  ctx.stsEstimate(PROC('avr_mvr_tvr')) > ctx.stsEstimate(PROC('avr_mv_repair_tv_repair')) &&
-  ctx.stsEstimate(PROC('cabg_avr_mvr_tv_repair')) > ctx.stsEstimate(PROC('cabg_avr_mv_repair')));
+  ctx.physiologyBaseline(PROC('mvr')) > ctx.physiologyBaseline(PROC('mv_repair')) &&
+  ctx.physiologyBaseline(PROC('tvr')) > ctx.physiologyBaseline(PROC('tv_repair')) &&
+  ctx.physiologyBaseline(PROC('avr_mvr_tvr')) > ctx.physiologyBaseline(PROC('avr_mv_repair_tv_repair')) &&
+  ctx.physiologyBaseline(PROC('cabg_avr_mvr_tv_repair')) > ctx.physiologyBaseline(PROC('cabg_avr_mv_repair')));
 check('thoracic aorta is a procedure, not a comorbidity checkbox',
   !/id="aorta"/.test(HTML) && /value="asc_aorta"/.test(HTML) && /function onThoracicAorta/.test(HTML));
 check('the thoracic aorta term still fires from the procedure',
@@ -630,7 +630,7 @@ check('the thoracic aorta term still fires from the procedure',
   ctx.euroscore2(Object.assign({}, BASE, { thoracicAorta: false })));
 check('no procedure produces a negative internal component',
   ['cabg','avr','avr_are','tavr_explant','av_repair','mvr','mv_repair','tv_repair','tvr','avr_mvr','avr_mvr_tvr','avr_mv_repair_tv_repair','cabg_avr','cabg_avr_mv_repair','cabg_avr_mv_repair_tv_repair','cabg_avr_mvr_tv_repair','cabg_mvr','cabg_mv_repair','cabg_tv_repair','asc_aorta','avr_asc_aorta','avr_root_asc_aorta','other']
-    .every(function(pr){ return ctx.stsEstimate(PROC(pr)) > 0; }));
+    .every(function(pr){ return ctx.physiologyBaseline(PROC(pr)) > 0; }));
 check('no references anywhere on the page after the rebuild',
   !/10\.1186/.test(HTML) && !/doi/i.test(HTML));
 check('umol/L appears only in the unit toggle and its conversion code, never as a default label',
@@ -698,15 +698,15 @@ console.log('\n7i. v2.1 baseline — log-odds form, continuity, and the removed 
   var lo = function(pct){ var p = pct / 100; return Math.log(p / (1 - p)); };
 
   check('hypertension carries no mortality weight from v2.1',
-    ctx.stsEstimate(P({ htn:true })) === ctx.stsEstimate(P({ htn:false })));
+    ctx.physiologyBaseline(P({ htn:true })) === ctx.physiologyBaseline(P({ htn:false })));
 
   // Age, clearance and ejection fraction are read continuously from v2.1. A banded term
   // shows as a jump at the band edge; a continuous one does not.
-  var jumpAge = Math.abs(ctx.stsEstimate(P({ age:70.001 })) - ctx.stsEstimate(P({ age:69.999 })));
+  var jumpAge = Math.abs(ctx.physiologyBaseline(P({ age:70.001 })) - ctx.physiologyBaseline(P({ age:69.999 })));
   check('age is continuous — no step at the old 70-year band edge', jumpAge < 5e-4);
-  var jumpEf = Math.abs(ctx.stsEstimate(P({ lvef:30.001 })) - ctx.stsEstimate(P({ lvef:29.999 })));
+  var jumpEf = Math.abs(ctx.physiologyBaseline(P({ lvef:30.001 })) - ctx.physiologyBaseline(P({ lvef:29.999 })));
   check('ejection fraction is continuous — no step at the old 30% band edge', jumpEf < 5e-4);
-  var jumpCr = Math.abs(ctx.stsEstimate(P({ creatinine:1.6001 })) - ctx.stsEstimate(P({ creatinine:1.5999 })));
+  var jumpCr = Math.abs(ctx.physiologyBaseline(P({ creatinine:1.6001 })) - ctx.physiologyBaseline(P({ creatinine:1.5999 })));
   check('creatinine clearance is continuous — no step at a band edge', jumpCr < 5e-4);
 
   // Dialysis must never reduce the estimate. Against a continuous clearance term a bare
@@ -714,23 +714,23 @@ console.log('\n7i. v2.1 baseline — log-odds form, continuity, and the removed 
   var inversion = false;
   [45, 62, 78, 90].forEach(function(a){
     [0.8, 1.5, 3.0, 5.0, 8.0].forEach(function(c){
-      if (ctx.stsEstimate(P({ age:a, creatinine:c, dialysis:true })) <
-          ctx.stsEstimate(P({ age:a, creatinine:c, dialysis:false })) - 1e-12) inversion = true;
+      if (ctx.physiologyBaseline(P({ age:a, creatinine:c, dialysis:true })) <
+          ctx.physiologyBaseline(P({ age:a, creatinine:c, dialysis:false })) - 1e-12) inversion = true;
     });
   });
   check('starting dialysis can never lower the baseline', !inversion);
 
   // Risk fans out on the odds scale: each increment is a constant log-odds step, so its
   // effect in percentage points grows with the patient's underlying risk.
-  var wellDelta = ctx.stsEstimate(P({ anemia:true })) - ctx.stsEstimate(P({}));
+  var wellDelta = ctx.physiologyBaseline(P({ anemia:true })) - ctx.physiologyBaseline(P({}));
   var sickBase  = P({ age:84, lvef:25, creatinine:2.4, nyha:4, urgency:'urgent' });
   var sickWith  = P({ age:84, lvef:25, creatinine:2.4, nyha:4, urgency:'urgent', anemia:true });
-  var sickDelta = ctx.stsEstimate(sickWith) - ctx.stsEstimate(sickBase);
+  var sickDelta = ctx.physiologyBaseline(sickWith) - ctx.physiologyBaseline(sickBase);
   check('an increment is worth more percentage points in a sicker patient (odds scale)',
     sickDelta > wellDelta * 2);
   check('the same increment is a constant step in log-odds',
-    Math.abs((lo(ctx.stsEstimate(P({ anemia:true }))) - lo(ctx.stsEstimate(P({})))) -
-             (lo(ctx.stsEstimate(sickWith)) - lo(ctx.stsEstimate(sickBase)))) < 1e-9);
+    Math.abs((lo(ctx.physiologyBaseline(P({ anemia:true }))) - lo(ctx.physiologyBaseline(P({})))) -
+             (lo(ctx.physiologyBaseline(sickWith)) - lo(ctx.physiologyBaseline(sickBase)))) < 1e-9);
 })();
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""UCSRS v2.1 — reference implementation in Python.
+"""UCSRS v2.3 — reference implementation in Python.
 
 This is a line-for-line port of the engine block in UCSRS_Calculator.index.html
 (between the ENGINE START and ENGINE END markers). The JavaScript file remains the
@@ -24,10 +24,10 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Optional
 
-SPEC_VERSION = "2.1.0"
+SPEC_VERSION = "2.3.0"
 
 SPEC: Dict[str, Any] = {
-    "layer1": {"w_sts": 0.50, "w_euro": 0.50, "cap_br": 60},
+    "layer1": {"w_baseline": 0.50, "w_euro": 0.50, "cap_br": 60},
     "layer2a_meld": {"cap_pre_cfs": 65},
     # v2.0: the excess above 1.00 is reduced by 25% from the published ladder
     # (1.15/1.35/1.60/1.90/2.30). A deliberate departure, not a correction.
@@ -61,7 +61,12 @@ SPEC: Dict[str, Any] = {
             "stroke": {"arteriopathy": 0.30, "aortic_atheroma": 0.25, "neuro": 0.25,
                        "afib": 0.20, "age_gt75": 0.18, "aorta": 0.25, "endocarditis": 0.20,
                        "emergency": 0.15, "radiation": 0.20},
+            # anticoagulant: an oral antiplatelet or anticoagulant still inside its own
+            # guideline hold window at operation. Heuristic, same magnitude and the
+            # same kind of term as immuno; carries NO mortality weight. Added in
+            # v2.2.0 and superseded at the ~5,000-patient re-estimation.
             "reop": {"prev_cardiac": 0.20, "radiation": 0.20, "immuno": 0.15,
+                     "anticoagulant": 0.15,
                      "critical": 0.20, "emergency": 0.20, "salvage": 0.35, "aorta": 0.15,
                      "endocarditis": 0.20},
         },
@@ -187,7 +192,8 @@ def creatinine_clearance(age, weight_kg, cr_mgdl, female: bool) -> Optional[floa
     if not a or not w or not c:          # matches the JS falsy test, so 0 is "missing"
         return None
     cc = ((140 - a) * w) / (72 * c)
-    
+    return cc * 0.85 if female else cc
+
 
 
 # Cockcroft-Gault was derived and validated on actual body weight in populations
@@ -523,7 +529,7 @@ def ucsrs(baseline_pct: float, euro_pct: float, eft: int, meld: Optional[float],
           map_mmhg=None, co=None, pvr=None, ci=None, tapse=None,
           pasp_rhc=None) -> Dict[str, Any]:
     S = SPEC
-    br = min(S["layer1"]["w_sts"] * baseline_pct + S["layer1"]["w_euro"] * euro_pct,
+    br = min(S["layer1"]["w_baseline"] * baseline_pct + S["layer1"]["w_euro"] * euro_pct,
              S["layer1"]["cap_br"])
 
     meld_corr = meld_correction(meld)
@@ -644,6 +650,8 @@ def ucsrs_outcomes(mort_pct: float,
         mods["reop"] += M["reop"]["prev_cardiac"]
     if f.get("immuno"):
         mods["reop"] += M["reop"]["immuno"]
+    if f.get("anticoagulant"):
+        mods["reop"] += M["reop"]["anticoagulant"]
     if f.get("critical"):
         mods["reop"] += M["reop"]["critical"]
 

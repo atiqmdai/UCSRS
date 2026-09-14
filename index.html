@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UCSRS v2.2 — Universal Cardiac Surgical Risk Score</title>
+<title>UCSRS v2.3 — Universal Cardiac Surgical Risk Score</title>
 <style>
  :root{
    --ink:#1a2230; --muted:#5d6b80; --line:#d7dee8; --bg:#f4f6f9; --card:#fff;
@@ -62,7 +62,7 @@
 </head>
 <body>
 <header>
-  <h1>UCSRS v2.2 — Universal Cardiac Surgical Risk Score</h1>
+  <h1>UCSRS v2.3 — Universal Cardiac Surgical Risk Score</h1>
   <p>Research tool — not for sole clinical decision-making · all computation occurs locally in your browser</p>
 </header>
 
@@ -274,14 +274,14 @@
 </div>
 
 <footer>
-  UCSRS v2.2 · No patient data are transmitted or stored.
+  UCSRS v2.3 · No patient data are transmitted or stored.
 </footer>
 
 <script>
 // ===== UCSRS ENGINE START =====
 // Single source of truth for all model constants.
 var UCSRS_SPEC = {
-  spec_version: "2.2.0",
+  spec_version: "2.3.0",
   layer1: { w_baseline: 0.50, w_euro: 0.50, cap_br: 60 },
   layer2a_meld: { cap_pre_cfs: 65 },
   // v2.0: Layer 2b frailty instrument is the Essential Frailty Toolset (EFT, 0-5).
@@ -402,7 +402,7 @@ function creatinineClearance(age, weightKg, cr_mgdl, female){
 // gets -- a real patient at 200 kg with Cr 2.5 does not have materially better renal
 // function than the same patient at 124 kg. Devine ideal-body-weight + the standard
 // 0.4 adjustment factor (ASHP/kidney-dosing convention) caps that inflation. Applied
-// ONLY to UCSRS's own native renal term (stsEstimate) below -- the EuroSCORE II
+// ONLY to UCSRS's own native renal term (physiologyBaseline) below -- the EuroSCORE II
 // sub-computation keeps raw actual weight, unmodified, since it must stay faithful
 // to Nashef et al. 2012's published methodology for the head-to-head comparator to
 // remain valid.
