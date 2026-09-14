@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UCSRS v2.3 — Universal Cardiac Surgical Risk Score</title>
+<title>UCSRS v3.0 — Universal Cardiac Surgical Risk Score</title>
 <style>
  :root{
    --ink:#1a2230; --muted:#5d6b80; --line:#d7dee8; --bg:#f4f6f9; --card:#fff;
@@ -62,7 +62,7 @@
 </head>
 <body>
 <header>
-  <h1>UCSRS v2.3 — Universal Cardiac Surgical Risk Score</h1>
+  <h1>UCSRS v3.0 — Universal Cardiac Surgical Risk Score</h1>
   <p>Research tool — not for sole clinical decision-making · all computation occurs locally in your browser</p>
 </header>
 
@@ -274,15 +274,18 @@
 </div>
 
 <footer>
-  UCSRS v2.3 · No patient data are transmitted or stored.
+  UCSRS v3.0 · No patient data are transmitted or stored.
 </footer>
 
 <script>
 // ===== UCSRS ENGINE START =====
 // Single source of truth for all model constants.
 var UCSRS_SPEC = {
-  spec_version: "2.3.0",
-  layer1: { w_baseline: 0.50, w_euro: 0.50, cap_br: 60 },
+  spec_version: "3.0.0-pre",
+  // v3.0: Layer 1 is the physiology-derived baseline alone. EuroSCORE II is no
+  // longer a component; it is computed separately and reported as an external
+  // comparator only, alongside the site's STS-PROM.
+  layer1: { cap_br: 60 },
   layer2a_meld: { cap_pre_cfs: 65 },
   // v2.0: Layer 2b frailty instrument is the Essential Frailty Toolset (EFT, 0-5).
   // Multiplier ladder retained from v1.0; only the instrument mapping changed.
@@ -400,11 +403,11 @@ function creatinineClearance(age, weightKg, cr_mgdl, female){
 // mass is overwhelmingly adipose, not the lean/muscle mass that generates creatinine,
 // so feeding raw weight in continues to inflate the estimate the heavier a patient
 // gets -- a real patient at 200 kg with Cr 2.5 does not have materially better renal
-// function than the same patient at 124 kg. Devine ideal-body-weight + the standard
-// 0.4 adjustment factor (ASHP/kidney-dosing convention) caps that inflation. Applied
+// function than the same patient at 124 kg. An ideal-body-weight estimate plus the standard
+// 0.4 adjustment factor, as used in renal drug dosing, caps that inflation. Applied
 // ONLY to UCSRS's own native renal term (physiologyBaseline) below -- the EuroSCORE II
 // sub-computation keeps raw actual weight, unmodified, since it must stay faithful
-// to Nashef et al. 2012's published methodology for the head-to-head comparator to
+// to the comparator's own published methodology for the head-to-head comparison to
 // remain valid.
 function idealBodyWeight(heightCm, female){
   if (heightCm == null || isNaN(heightCm)) return null;
@@ -538,12 +541,89 @@ function valveBurden(valves){
 // 1.00, and checked on two independent cohort realisations that took no part in the
 // fit. No performance claim is made: no simulated patient has an outcome.
 var BASELINE = {
-  reference_risk: 0.03,
-  k_shared: 1.15,
+  // PROVISIONAL. The intercept is the one value that must come out of the calibration
+  // run against the thirteen registry anchors, together with any uniform slope applied
+  // across the whole vector. This is the v2.1 value, carried only so the structure is
+  // testable before calibration. It is NOT a v3.0 constant.
   intercept: -6.0777,
-  unique_multiplier: 2.0,
-  continuous: { age_per_decade_over_60: 0.26, log_clearance_below_90: 0.55,
-                ef_per_10_below_50: 0.30 }
+  reference_risk: 0.03,
+  crcl_k: 0.80
+};
+
+// v3.0 Layer 1. One coefficient per variable, log-odds, set from clinical and
+// literature judgment. There is no shared/unique tagging and no k_shared: with the
+// whole layer under our control there is no external formula to compensate for, so
+// overlap is resolved by construction rather than by a correction factor.
+// EuroSCORE II is no longer a component of this layer. It is computed separately and
+// reported as an external comparator only.
+var L1 = {
+  age_per_decade_over_60: 0.30,
+  age_per_yr_over_75:     0.05,
+  female:                 0.20,
+
+  // Renal. Clearance read continuously; dialysis floored at the patient's own
+  // clearance term so that starting dialysis can never lower the estimate.
+  dialysis:               0.90,
+  anuria:                 0.75,
+
+  // Pulmonary, four graded levels, highest applicable only.
+  lung_chronic:           0.25,
+  lung_chronic_o2:        0.50,
+  lung_acute:             0.40,
+  lung_acute_vent:        0.95,
+
+  // Ventricle, banded. EF at or above 40 carries no weight.
+  ef_30_40:               0.40,
+  ef_20_30:               0.80,
+  ef_lt_20:               1.20,
+
+  nyha3:                  0.25,
+  nyha4:                  0.80,
+  acute_decomp:           0.25,
+  mi_7:                   0.45,
+  mi_30:                  0.30,
+  mi_90:                  0.18,
+  afib:                   0.25,
+
+  // Pulmonary hypertension. Below 55 carries no weight.
+  pasp_55_70:             0.40,
+  pasp_gt_70:             0.80,
+
+  // Circulatory support, highest applicable only, never additive.
+  inotropes:              0.40,
+  vtvf:                   0.60,
+  iabp:                   0.50,
+  impella:                0.62,
+  ecmo:                   0.95,
+
+  // Operative. Sternotomy count is highest applicable, not additive.
+  sternotomy2:            1.00,
+  sternotomy3:            1.50,
+  urgent:                 0.35,
+  emergency:              0.90,
+  salvage:                2.00,
+
+  // Aortic involvement, graded. Applied only when the procedure category does not
+  // already price aortic work, so the two cannot both score the same operation.
+  asc_aorta:              0.20,
+  aortic_arch:            1.00,
+
+  // Comorbidity.
+  bmi_30_40:              0.30,
+  bmi_40_50:              0.80,
+  bmi_gt_50:              1.20,
+  iddm:                   0.25,
+  endocarditis:           0.58,
+  arteriopathy:           0.35,
+  aortic_atheroma:        0.30,
+  neuro:                  0.28,
+  valve_burden_per_04:    0.25,
+  immuno:                 0.40,
+  radiation:              0.40
+
+  // anaemia and albumin carry NO Layer 1 weight in v3.0. Both are counted once, in
+  // the Essential Frailty Toolset at Layer 2b. Mobility likewise: the chair rise is
+  // an EFT component and has no separate Layer 1 term.
 };
 
 // A percentage-point increment at the reference risk, expressed in log-odds.
@@ -552,24 +632,6 @@ function ppToLogOdds(pp){
   var p2 = Math.min(0.60, ref + pp / 100);
   return Math.log(p2 / (1 - p2)) - Math.log(ref / (1 - ref));
 }
-
-// The v2.0 increments in percentage points, each tagged with whether EuroSCORE II
-// already scores it. Shared terms are scaled by k; the four EuroSCORE II does not
-// carry are doubled.
-var BASELINE_TERMS = {
-  age_over_70_per_yr: [0.12, true], age_over_80_per_yr: [0.20, true],
-  female: [0.40, true], dialysis: [3.10, true], iddm: [0.60, true],
-  lung_any: [0.70, true], ventilated: [2.00, true], arteriopathy: [1.00, true],
-  prev_cardiac: [2.50, true], sternotomy3: [1.50, true], endocarditis: [1.80, true],
-  mi_7: [1.40, true], mi_30: [0.90, true], mi_90: [0.50, true],
-  nyha3: [0.50, true], nyha4: [1.20, true], acute_decomp: [0.60, true],
-  vtvf: [2.00, true], iabp: [1.50, true], impella: [2.00, true],
-  ecmo: [3.50, true], inotropes: [1.20, true], anuria: [2.50, true],
-  urgent: [1.00, true], emergency: [3.50, true], salvage: [8.00, true],
-  neuro: [0.80, true],
-  anemia: [0.90, false], afib: [0.40, false],
-  aortic_atheroma: [0.50, false], valve_burden_per_04: [0.40, false]
-};
 
 // Procedure increments relative to isolated CABG. Repair preserves native tissue and
 // carries less risk than replacement at every valve position; a concomitant tricuspid
@@ -584,81 +646,99 @@ var PROC_INCREMENT = {
   avr_asc_aorta: 3.2, avr_root_asc_aorta: 4.2, other: 1.5
 };
 
-var BW = {}, PW = {};
-(function(){
-  var k = BASELINE.k_shared, um = BASELINE.unique_multiplier, n;
-  for (n in BASELINE_TERMS){
-    BW[n] = ppToLogOdds(BASELINE_TERMS[n][0]) * (BASELINE_TERMS[n][1] ? k : um);
-  }
-  for (n in PROC_INCREMENT){ PW[n] = ppToLogOdds(PROC_INCREMENT[n]) * k; }
-})();
+// Procedure categories that already price aortic work. The graded asc/arch term is
+// suppressed for these so one operation is never charged for the aorta twice.
+var AORTA_PRICED = { asc_aorta:1, cabg_asc_aorta:1, avr_asc_aorta:1, avr_root_asc_aorta:1 };
+
+// v3.0: the procedure table is re-expressed in log-odds with no k scaling.
+var PW = {};
+(function(){ for (var n in PROC_INCREMENT){ PW[n] = ppToLogOdds(PROC_INCREMENT[n]); } })();
 
 function physiologyBaseline(p){
-  var C = BASELINE.continuous, k = BASELINE.k_shared;
   var z = BASELINE.intercept;
   var age = p.age;
-  // Native renal term only: adjusted body weight above 120% IBW (see renalWeight).
-  // euroscore2() below still uses raw p.weight.
+
+  // Native renal term only: adjusted body weight above 120% ideal body weight (see
+  // renalWeight). euroscore2() keeps raw p.weight, so the comparator stays faithful
+  // to its own published method.
   var ccWeight = renalWeight(p.height, p.weight, p.female);
   var cc = creatinineClearance(age, ccWeight, p.creatinine, p.female);
 
-  // Age: continuous from 60, with the two hinges retained on top for the steepening.
-  z += k * C.age_per_decade_over_60 * Math.max(0, age - 60) / 10;
-  if (age > 70) z += BW.age_over_70_per_yr * (age - 70);
-  if (age > 80) z += BW.age_over_80_per_yr * (age - 80);
+  z += L1.age_per_decade_over_60 * Math.max(0, age - 60) / 10;
+  if (age > 75) z += L1.age_per_yr_over_75 * (age - 75);
+  if (p.female) z += L1.female;
 
-  // Renal: clearance read continuously below 90, dialysis carrying its own term.
-  // Dialysis is floored at whatever the same patient's clearance alone would score,
-  // so that starting dialysis can never lower the estimate — against a continuous
-  // clearance term the bare categorical inverts below about 15 mL/min.
   var ccTerm = (cc !== null && cc !== undefined)
-    ? k * C.log_clearance_below_90 * Math.max(0, Math.log(90 / Math.max(cc, 8)))
+    ? BASELINE.crcl_k * Math.max(0, Math.log(90 / Math.max(cc, 8)))
     : 0;
-  if (p.dialysis) z += Math.max(BW.dialysis, ccTerm);
+  if (p.dialysis) z += Math.max(L1.dialysis, ccTerm);
   else z += ccTerm;
+  if (p.anuria) z += L1.anuria;
 
-  // Ventricle: continuous below 50%.
-  if (p.lvef != null) z += k * C.ef_per_10_below_50 * Math.max(0, 50 - p.lvef) / 10;
+  // Pulmonary, highest applicable only.
+  if      (p.pulmStatus === 'acute_vent')  z += L1.lung_acute_vent;
+  else if (p.pulmStatus === 'acute')       z += L1.lung_acute;
+  else if (p.pulmStatus === 'chronic_o2')  z += L1.lung_chronic_o2;
+  else if (p.pulmStatus === 'chronic')     z += L1.lung_chronic;
 
-  if (p.female) z += BW.female;
-  if (p.iddm) z += BW.iddm;
-  if (p.lungAny !== undefined ? p.lungAny : p.pulmonary) z += BW.lung_any;
-  // Ventilated before arrival in the anaesthetic room — a component of the published
-  // critical pre-operative state, and a marker of respiratory failure in its own right.
-  if (p.ventilated) z += BW.ventilated;
+  // Ventricle, banded; at or above 40% carries no weight.
+  if (p.lvef != null){
+    if      (p.lvef < 20) z += L1.ef_lt_20;
+    else if (p.lvef < 30) z += L1.ef_20_30;
+    else if (p.lvef < 40) z += L1.ef_30_40;
+  }
+
+  if (p.nyha === 3) z += L1.nyha3; else if (p.nyha === 4) z += L1.nyha4;
+  if (p.acuteDecomp) z += L1.acute_decomp;
+  if      (p.miDays === 7)  z += L1.mi_7;
+  else if (p.miDays === 30) z += L1.mi_30;
+  else if (p.miDays === 90) z += L1.mi_90;
+  if (p.afib) z += L1.afib;
+
+  // Pulmonary hypertension; below 55 mmHg carries no weight.
+  if (p.pasp != null){
+    if      (p.pasp > 70) z += L1.pasp_gt_70;
+    else if (p.pasp > 55) z += L1.pasp_55_70;
+  }
+
+  // Circulatory support: the single highest applicable level, never additive.
+  if      (p.ecmo)     z += L1.ecmo;
+  else if (p.impella)  z += L1.impella;
+  else if (p.vtvf)     z += L1.vtvf;
+  else if (p.iabp)     z += L1.iabp;
+  else if (p.inot)     z += L1.inotropes;
+
+  // Sternotomy count, highest applicable, not additive.
+  if      (p.sternotomy >= 3) z += L1.sternotomy3;
+  else if (p.sternotomy === 2 || p.prevCardiac) z += L1.sternotomy2;
+
+  if      (p.urgency === 'urgent')    z += L1.urgent;
+  else if (p.urgency === 'emergency') z += L1.emergency;
+  else if (p.urgency === 'salvage')   z += L1.salvage;
+
+  // Aortic involvement, graded, suppressed where the procedure already prices it.
+  if (!AORTA_PRICED[p.procedure]){
+    if      (p.aorta === 'arch')      z += L1.aortic_arch;
+    else if (p.aorta === 'ascending') z += L1.asc_aorta;
+  }
+
+  // BMI, banded. Height and weight are already required inputs.
+  var bmi = (p.height && p.weight) ? p.weight / Math.pow(p.height / 100, 2) : null;
+  if (bmi != null){
+    if      (bmi > 50) z += L1.bmi_gt_50;
+    else if (bmi > 40) z += L1.bmi_40_50;
+    else if (bmi > 30) z += L1.bmi_30_40;
+  }
+
+  if (p.iddm) z += L1.iddm;
+  if (p.endocarditis) z += L1.endocarditis;
+  if (p.arteriopathy) z += L1.arteriopathy;
+  if (p.aorticAtheroma) z += L1.aortic_atheroma;
+  if (p.neuro) z += L1.neuro;
   var vb = valveBurden(p.valves);
-  if (vb) z += BW.valve_burden_per_04 * (vb / 0.4);
-  if (p.arteriopathy) z += BW.arteriopathy;
-  // Atheroma of the ascending aorta or arch is the classic embolic source and adds
-  // beyond the published binary arteriopathy term.
-  if (p.aorticAtheroma) z += BW.aortic_atheroma;
-  if (p.prevCardiac) z += BW.prev_cardiac;
-  // Each additional sternotomy beyond the second compounds the risk of re-entry,
-  // adhesiolysis and graft or conduit injury.
-  if (p.sternotomy >= 3) z += BW.sternotomy3;
-  if (p.endocarditis) z += BW.endocarditis;
-  // Infarct recency: the closer the infarct, the less recovered the ventricle.
-  if      (p.miDays === 7)  z += BW.mi_7;
-  else if (p.miDays === 30) z += BW.mi_30;
-  else if (p.miDays === 90) z += BW.mi_90;
-  // Acute decompensation is class IV plus the instability of decompensating now. It is
-  // a level of the same field rather than a second field, so failure is counted once.
-  if (p.acuteDecomp) z += BW.acute_decomp;
-  if (p.afib) z += BW.afib;
-  if (p.neuro) z += BW.neuro;
-  if (p.anemia) z += BW.anemia;
-  if (p.vtvf) z += BW.vtvf;
-  if (p.iabp) z += BW.iabp;
-  // A micro-axial pump implies a sicker ventricle than a balloon pump; extracorporeal
-  // support implies failure of the circulation as a whole.
-  if (p.impella) z += BW.impella;
-  if (p.ecmo)    z += BW.ecmo;
-  if (p.inot) z += BW.inotropes;
-  if (p.anuria) z += BW.anuria;
-  if (p.nyha === 3) z += BW.nyha3; else if (p.nyha === 4) z += BW.nyha4;
-  if (p.urgency === 'urgent') z += BW.urgent;
-  else if (p.urgency === 'emergency') z += BW.emergency;
-  else if (p.urgency === 'salvage') z += BW.salvage;
+  if (vb) z += L1.valve_burden_per_04 * (vb / 0.4);
+  if (p.immuno) z += L1.immuno;
+  if (p.radiation) z += L1.radiation;
   if (PW[p.procedure] !== undefined) z += PW[p.procedure];
 
   return Math.min(Math.max(100 / (1 + Math.exp(-z)), 0.30), 50);
@@ -666,7 +746,7 @@ function physiologyBaseline(p){
 
 function ucsrs(input){
   var S = UCSRS_SPEC;
-  var br = Math.min(S.layer1.w_baseline * input.baselinePct + S.layer1.w_euro * input.euroPct, S.layer1.cap_br);
+  var br = Math.min(input.baselinePct, S.layer1.cap_br);
 
   var meldCorr = meldCorrection(input.meld);
   var preCfs = Math.min(br + meldCorr, S.layer2a_meld.cap_pre_cfs);
@@ -786,8 +866,8 @@ function selfTest(){
   out.push({name:'Case 2 (v2.0 and v2.1: 6.20%)',  got:c2.final, want:6.20});
   var e = eftScore({chair:'slow', cogImpaired:true, hgb:11.2, albumin:3.1, female:false});
   out.push({name:'EFT scoring (1+1+1+1)', got:e.points, want:4});
-  out.push({name:'Layer 1 weights are 50/50', got:UCSRS_SPEC.layer1.w_baseline + UCSRS_SPEC.layer1.w_euro, want:1.00,
-            extra:(UCSRS_SPEC.layer1.w_baseline===0.5 && UCSRS_SPEC.layer1.w_euro===0.5)});
+  out.push({name:'Layer 1 takes no EuroSCORE II component', got:(UCSRS_SPEC.layer1.w_euro===undefined), want:true,
+            extra:(UCSRS_SPEC.layer1.w_baseline===undefined && UCSRS_SPEC.layer1.w_euro===undefined)});
   out.push({name:'Layer 2c is active', got:UCSRS_SPEC.layer2c.syntax.length, want:3});
   var ok = out.every(function(t){
     return Math.abs(t.got - t.want) < 0.005 && (t.extra === undefined || t.extra === true);

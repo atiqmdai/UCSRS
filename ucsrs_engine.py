@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""UCSRS v2.3 — reference implementation in Python.
+"""UCSRS v3.0 — reference implementation in Python.
 
 This is a line-for-line port of the engine block in UCSRS_Calculator.index.html
 (between the ENGINE START and ENGINE END markers). The JavaScript file remains the
@@ -24,10 +24,11 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Optional
 
-SPEC_VERSION = "2.3.0"
+SPEC_VERSION = "3.0.0-pre"
 
 SPEC: Dict[str, Any] = {
-    "layer1": {"w_baseline": 0.50, "w_euro": 0.50, "cap_br": 60},
+    # v3.0: Layer 1 is the physiology-derived baseline alone.
+    "layer1": {"cap_br": 60},
     "layer2a_meld": {"cap_pre_cfs": 65},
     # v2.0: the excess above 1.00 is reduced by 25% from the published ladder
     # (1.15/1.35/1.60/1.90/2.30). A deliberate departure, not a correction.
@@ -396,19 +397,16 @@ def valve_burden(valves: Optional[Dict[str, Dict[str, Any]]]) -> float:
 # patients in three for no measurable gain.
 
 BASELINE_A2 = {
+    # PROVISIONAL. The intercept must come out of the calibration run against the
+    # thirteen registry anchors, with any uniform slope applied across the whole
+    # vector. This is the v2.1 value, carried only so the structure is testable
+    # before calibration. It is NOT a v3.0 constant.
     "reference_risk": 0.03,
-    "k_shared": 1.15,
     "intercept": -6.0777,
-    "unique_multiplier": 2.0,
-    "continuous": {"age_per_decade_over_60": 0.26,
-                   "log_clearance_below_90": 0.55,
-                   "ef_per_10_below_50": 0.30},
+    "crcl_k": 0.80,
 }
 
 _REF = BASELINE_A2["reference_risk"]
-_K = BASELINE_A2["k_shared"]
-_UM = BASELINE_A2["unique_multiplier"]
-_C = BASELINE_A2["continuous"]
 
 
 def _pp_to_logodds(pp):
@@ -417,109 +415,171 @@ def _pp_to_logodds(pp):
     return math.log(p2 / (1 - p2)) - math.log(_REF / (1 - _REF))
 
 
-# percentage-point increments from v2.0, tagged shared (EuroSCORE II also has it) or not
-_TERMS = {
-    "age_over_70_per_yr": (0.12, True), "age_over_80_per_yr": (0.20, True),
-    "female": (0.40, True), "dialysis": (3.10, True), "iddm": (0.60, True),
-    "lung_any": (0.70, True), "ventilated": (2.00, True), "arteriopathy": (1.00, True),
-    "prev_cardiac": (2.50, True), "sternotomy3": (1.50, True), "endocarditis": (1.80, True),
-    "mi_7": (1.40, True), "mi_30": (0.90, True), "mi_90": (0.50, True),
-    "nyha3": (0.50, True), "nyha4": (1.20, True), "acute_decomp": (0.60, True),
-    "vtvf": (2.00, True), "iabp": (1.50, True), "impella": (2.00, True),
-    "ecmo": (3.50, True), "inotropes": (1.20, True), "anuria": (2.50, True),
-    "urgent": (1.00, True), "emergency": (3.50, True), "salvage": (8.00, True),
-    "neuro": (0.80, True),
-    # absent from EuroSCORE II — doubled so the blend delivers them at full weight
-    "anemia": (0.90, False), "afib": (0.40, False),
-    "aortic_atheroma": (0.50, False), "valve_burden_per_04": (0.40, False),
+# v3.0 Layer 1: one coefficient per variable, log-odds, set from clinical and
+# literature judgment. No shared/unique tagging and no k_shared — with the whole layer
+# under our control there is no external formula to compensate for. EuroSCORE II is no
+# longer a component; it is computed separately as an external comparator only.
+# Anaemia, albumin and mobility carry NO Layer 1 weight: each is counted once, in the
+# Essential Frailty Toolset at Layer 2b.
+L1 = {
+    "age_per_decade_over_60": 0.30, "age_per_yr_over_75": 0.05, "female": 0.20,
+    "dialysis": 0.90, "anuria": 0.75,
+    "lung_chronic": 0.25, "lung_chronic_o2": 0.50,
+    "lung_acute": 0.40, "lung_acute_vent": 0.95,
+    "ef_30_40": 0.40, "ef_20_30": 0.80, "ef_lt_20": 1.20,
+    "nyha3": 0.25, "nyha4": 0.80, "acute_decomp": 0.25,
+    "mi_7": 0.45, "mi_30": 0.30, "mi_90": 0.18, "afib": 0.25,
+    "pasp_55_70": 0.40, "pasp_gt_70": 0.80,
+    "inotropes": 0.40, "vtvf": 0.60, "iabp": 0.50, "impella": 0.62, "ecmo": 0.95,
+    "sternotomy2": 1.00, "sternotomy3": 1.50,
+    "urgent": 0.35, "emergency": 0.90, "salvage": 2.00,
+    "asc_aorta": 0.20, "aortic_arch": 1.00,
+    "bmi_30_40": 0.30, "bmi_40_50": 0.80, "bmi_gt_50": 1.20,
+    "iddm": 0.25, "endocarditis": 0.58, "arteriopathy": 0.35,
+    "aortic_atheroma": 0.30, "neuro": 0.28, "valve_burden_per_04": 0.25,
+    "immuno": 0.40, "radiation": 0.40,
 }
-_W = {k: _pp_to_logodds(pp) * (_K if sh else _UM) for k, (pp, sh) in _TERMS.items()}
-_PROC_W = {k: _pp_to_logodds(v) * _K for k, v in PROC_INCREMENT.items()}
+
+# Procedure categories that already price aortic work. The graded asc/arch term is
+# suppressed for these so one operation is never charged for the aorta twice.
+AORTA_PRICED = {"asc_aorta", "cabg_asc_aorta", "avr_asc_aorta", "avr_root_asc_aorta"}
+
+# v3.0: the procedure table is re-expressed in log-odds with no k scaling.
+_PROC_W = {k: _pp_to_logodds(v) for k, v in PROC_INCREMENT.items()}
 
 
 def physiology_baseline(p):
-    """The UCSRS baseline. Reads no STS-PROM and no EuroSCORE II output."""
     z = BASELINE_A2["intercept"]
     age = p["age"]
-    female = bool(p.get("female"))
-    # Native renal term only: adjusted body weight above 120% IBW (see renal_weight).
-    # The EuroSCORE II sub-computation below (euroscore2()) still uses raw p["weight"].
-    _renal_w = renal_weight(p.get("height"), p.get("weight"), female)
-    cc = creatinine_clearance(age, _renal_w, p.get("creatinine"), female)
-    lvef = _num(p.get("lvef"))
 
-    # continuous terms
-    z += _K * _C["age_per_decade_over_60"] * max(0.0, age - 60) / 10.0
-    if age > 70:
-        z += _W["age_over_70_per_yr"] * (age - 70)
-    if age > 80:
-        z += _W["age_over_80_per_yr"] * (age - 80)
-    # Renal. Clearance is read continuously below 90; dialysis carries its own term.
-    # Dialysis is floored at whatever the same patient's clearance alone would score,
-    # so that starting dialysis can never lower the estimate — with a continuous
-    # clearance term the bare categorical would otherwise invert below about 15 mL/min.
-    _cc_term = (_K * _C["log_clearance_below_90"] * max(0.0, math.log(90.0 / max(cc, 8.0)))
-                if cc is not None else 0.0)
+    # Native renal term only: adjusted body weight above 120% ideal body weight.
+    # euroscore2() keeps raw p["weight"] so the comparator stays faithful to its own
+    # published method.
+    cc_w = renal_weight(p.get("height"), p.get("weight"), p.get("female", False))
+    cc = creatinine_clearance(age, cc_w, p.get("creatinine"), p.get("female", False))
+
+    z += L1["age_per_decade_over_60"] * max(0.0, age - 60) / 10.0
+    if age > 75:
+        z += L1["age_per_yr_over_75"] * (age - 75)
+    if p.get("female"):
+        z += L1["female"]
+
+    cc_term = (BASELINE_A2["crcl_k"] * max(0.0, math.log(90.0 / max(cc, 8.0)))
+               if cc is not None else 0.0)
     if p.get("dialysis"):
-        z += max(_W["dialysis"], _cc_term)
+        z += max(L1["dialysis"], cc_term)
     else:
-        z += _cc_term
-    if lvef is not None:
-        z += _K * _C["ef_per_10_below_50"] * max(0.0, 50.0 - lvef) / 10.0
+        z += cc_term
+    if p.get("anuria"):
+        z += L1["anuria"]
 
-    if female:
-        z += _W["female"]
+    pulm = p.get("pulmStatus")
+    if pulm == "acute_vent":
+        z += L1["lung_acute_vent"]
+    elif pulm == "acute":
+        z += L1["lung_acute"]
+    elif pulm == "chronic_o2":
+        z += L1["lung_chronic_o2"]
+    elif pulm == "chronic":
+        z += L1["lung_chronic"]
+
+    lvef = p.get("lvef")
+    if lvef is not None:
+        if lvef < 20:
+            z += L1["ef_lt_20"]
+        elif lvef < 30:
+            z += L1["ef_20_30"]
+        elif lvef < 40:
+            z += L1["ef_30_40"]
+
+    if p.get("nyha") == 3:
+        z += L1["nyha3"]
+    elif p.get("nyha") == 4:
+        z += L1["nyha4"]
+    if p.get("acuteDecomp"):
+        z += L1["acute_decomp"]
+    if p.get("miDays") == 7:
+        z += L1["mi_7"]
+    elif p.get("miDays") == 30:
+        z += L1["mi_30"]
+    elif p.get("miDays") == 90:
+        z += L1["mi_90"]
+    if p.get("afib"):
+        z += L1["afib"]
+
+    pasp = p.get("pasp")
+    if pasp is not None:
+        if pasp > 70:
+            z += L1["pasp_gt_70"]
+        elif pasp > 55:
+            z += L1["pasp_55_70"]
+
+    # Circulatory support: the single highest applicable level, never additive.
+    if p.get("ecmo"):
+        z += L1["ecmo"]
+    elif p.get("impella"):
+        z += L1["impella"]
+    elif p.get("vtvf"):
+        z += L1["vtvf"]
+    elif p.get("iabp"):
+        z += L1["iabp"]
+    elif p.get("inot"):
+        z += L1["inotropes"]
+
+    # Sternotomy count, highest applicable, not additive.
+    stern = p.get("sternotomy")
+    if stern is not None and stern >= 3:
+        z += L1["sternotomy3"]
+    elif stern == 2 or p.get("prevCardiac"):
+        z += L1["sternotomy2"]
+
+    urg = p.get("urgency")
+    if urg == "urgent":
+        z += L1["urgent"]
+    elif urg == "emergency":
+        z += L1["emergency"]
+    elif urg == "salvage":
+        z += L1["salvage"]
+
+    if p.get("procedure") not in AORTA_PRICED:
+        if p.get("aorta") == "arch":
+            z += L1["aortic_arch"]
+        elif p.get("aorta") == "ascending":
+            z += L1["asc_aorta"]
+
+    h, w = _num(p.get("height")), _num(p.get("weight"))
+    if h and w:
+        bmi = w / (h / 100.0) ** 2
+        if bmi > 50:
+            z += L1["bmi_gt_50"]
+        elif bmi > 40:
+            z += L1["bmi_40_50"]
+        elif bmi > 30:
+            z += L1["bmi_30_40"]
+
     if p.get("iddm"):
-        z += _W["iddm"]
-    if (p["lungAny"] if "lungAny" in p else p.get("pulmonary")):
-        z += _W["lung_any"]
-    if p.get("ventilated"):
-        z += _W["ventilated"]
+        z += L1["iddm"]
+    if p.get("endocarditis"):
+        z += L1["endocarditis"]
+    if p.get("arteriopathy"):
+        z += L1["arteriopathy"]
+    if p.get("aorticAtheroma"):
+        z += L1["aortic_atheroma"]
+    if p.get("neuro"):
+        z += L1["neuro"]
     vb = valve_burden(p.get("valves"))
     if vb:
-        z += _W["valve_burden_per_04"] * (vb / 0.4)
-    if p.get("arteriopathy"):
-        z += _W["arteriopathy"]
-    if p.get("aorticAtheroma"):
-        z += _W["aortic_atheroma"]
-    if p.get("prevCardiac"):
-        z += _W["prev_cardiac"]
-    if (p.get("sternotomy") or 1) >= 3:
-        z += _W["sternotomy3"]
-    if p.get("endocarditis"):
-        z += _W["endocarditis"]
-    md = p.get("miDays")
-    if md in (7, 30, 90):
-        z += _W[f"mi_{md}"]
-    if p.get("acuteDecomp"):
-        z += _W["acute_decomp"]
-    if p.get("afib"):
-        z += _W["afib"]
-    if p.get("neuro"):
-        z += _W["neuro"]
-    if p.get("anemia"):
-        z += _W["anemia"]
-    for k in ("vtvf", "iabp", "impella", "ecmo"):
-        if p.get(k):
-            z += _W[k]
-    if p.get("inot"):
-        z += _W["inotropes"]
-    if p.get("anuria"):
-        z += _W["anuria"]
-    n = p.get("nyha")
-    if n == 3:
-        z += _W["nyha3"]
-    elif n == 4:
-        z += _W["nyha4"]
-    u = p.get("urgency")
-    if u in ("urgent", "emergency", "salvage"):
-        z += _W[u]
-    z += _PROC_W.get(p.get("procedure"), 0.0)
+        z += L1["valve_burden_per_04"] * (vb / 0.4)
+    if p.get("immuno"):
+        z += L1["immuno"]
+    if p.get("radiation"):
+        z += L1["radiation"]
+    if p.get("procedure") in _PROC_W:
+        z += _PROC_W[p["procedure"]]
 
     return min(max(100.0 / (1.0 + math.exp(-z)), 0.30), 50.0)
 
 
-# backwards-compatible alias: the JavaScript name
 sts_estimate = physiology_baseline
 
 
@@ -529,8 +589,7 @@ def ucsrs(baseline_pct: float, euro_pct: float, eft: int, meld: Optional[float],
           map_mmhg=None, co=None, pvr=None, ci=None, tapse=None,
           pasp_rhc=None) -> Dict[str, Any]:
     S = SPEC
-    br = min(S["layer1"]["w_baseline"] * baseline_pct + S["layer1"]["w_euro"] * euro_pct,
-             S["layer1"]["cap_br"])
+    br = min(baseline_pct, S["layer1"]["cap_br"])
 
     meld_corr = meld_correction(meld)
     pre_cfs = min(br + meld_corr, S["layer2a_meld"]["cap_pre_cfs"])
