@@ -286,13 +286,23 @@ var UCSRS_SPEC = {
   // longer a component; it is computed separately and reported as an external
   // comparator only, alongside the site's STS-PROM.
   layer1: { cap_br: 60 },
-  layer2a_meld: { cap_pre_cfs: 65 },
+  // v3.0: MELD moves from additive percentage points to log-odds. per_point is
+  // ln(1.09) from the adjusted OR of 1.09 per MELD point (95% CI 1.07-1.10) in a
+  // 10,882-patient cardiac surgical cohort. The ADJUSTED estimate is the correct
+  // one: MELD contains creatinine and Layer 1 already carries a renal term, so the
+  // unadjusted per-point figure would double-count.
+  layer2a_meld: { cap_pre_cfs: 65, per_point: 0.0862, threshold: 9, meld_max: 40 },
   // v2.0: Layer 2b frailty instrument is the Essential Frailty Toolset (EFT, 0-5).
   // Multiplier ladder retained from v1.0; only the instrument mapping changed.
   // Frailty multipliers, 27 Aug 2026: the excess above 1.00 is reduced by 25% from the
-  // published ladder (1.15/1.35/1.60/1.90/2.30 -> 1.1125/1.2625/1.45/1.675/1.975).
+  // v3.0 ladder. Raised from the v2.0 values (1.1125/1.2625/1.45/1.675/1.975)
+  // toward FRAILTY-AVR (Afilalo, JACC 2017): EFT frail vs not-frail carried an
+  // adjusted OR of 3.29 (95% CI 1.73-6.26) for 30-day mortality, which at a 3%
+  // reference is a probability multiplier near 3.08. Stopped short of that point
+  // estimate: it comes from a median-age-82 AVR/TAVR cohort and the interval is
+  // wide, so applying it whole to all-comers cardiac surgery would over-reach.
   // This is a deliberate departure from the published model, not a correction.
-  layer2b_eft: { mult: {0:1.00,1:1.1125,2:1.2625,3:1.45,4:1.675,5:1.975}, cap: 70,
+  layer2b_eft: { mult: {0:1.00,1:1.25,2:1.60,3:2.10,4:2.60,5:3.10}, cap: 70,
                  hgb_lo_m: 13.0, hgb_lo_f: 12.0, alb_lo: 3.5, chair_slow_s: 15 },
   layer2c: {
     lvesvi: [{lte:60,c:0.0},{lte:100,c:0.5},{gt:100,c:2.0}],
@@ -376,12 +386,20 @@ function meldFromLabs(bili_mgdl, inr, cr_mgdl){
 
 // MELD correction, 27 Aug 2026: every slope reduced by 25% from the published values
 // (0.40/0.90/1.20 -> 0.30/0.675/0.90). A deliberate departure from the published model.
+// v3.0: returns a LOG-ODDS increment, not percentage points. Layer 1 is log-odds;
+// points add and risk multiplies, so an additive point correction was disproportionate
+// for a low-risk patient and too small for a high-risk one.
 function meldCorrection(m){
-  if (m == null || isNaN(m)) return 0;
-  if (m < 9)  return 0;
-  if (m <= 15) return (m - 8) * 0.30;
-  if (m <= 20) return 2.10 + (m - 15) * 0.675;
-  return 5.475 + (m - 20) * 0.90;
+  var S = UCSRS_SPEC.layer2a_meld;
+  if (m == null || isNaN(m) || m < S.threshold) return 0;
+  return S.per_point * (Math.min(m, S.meld_max) - S.threshold);
+}
+
+// Apply a log-odds increment to a percentage.
+function shiftLogOdds(pct, d){
+  if (d === 0) return pct;
+  var p = Math.min(Math.max(pct, 1e-9), 100 - 1e-9) / 100;
+  return 100 / (1 + Math.exp(-(Math.log(p / (1 - p)) + d)));
 }
 
 // Body surface area, Mosteller. Needed to index left ventricular volumes and to
@@ -749,7 +767,7 @@ function ucsrs(input){
   var br = Math.min(input.baselinePct, S.layer1.cap_br);
 
   var meldCorr = meldCorrection(input.meld);
-  var preCfs = Math.min(br + meldCorr, S.layer2a_meld.cap_pre_cfs);
+  var preCfs = Math.min(shiftLogOdds(br, meldCorr), S.layer2a_meld.cap_pre_cfs);
 
   var mult = S.layer2b_eft.mult[input.eft];
   var base = Math.min(preCfs * mult, S.layer2b_eft.cap);

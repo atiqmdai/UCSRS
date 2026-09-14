@@ -29,11 +29,15 @@ SPEC_VERSION = "3.0.0-pre"
 SPEC: Dict[str, Any] = {
     # v3.0: Layer 1 is the physiology-derived baseline alone.
     "layer1": {"cap_br": 60},
-    "layer2a_meld": {"cap_pre_cfs": 65},
+    # v3.0: MELD in log-odds. per_point = ln(1.09), the ADJUSTED OR per MELD point
+    # (95% CI 1.07-1.10) in a 10,882-patient cardiac surgical cohort. Adjusted is the
+    # correct estimate: MELD contains creatinine and Layer 1 carries a renal term.
+    "layer2a_meld": {"cap_pre_cfs": 65, "per_point": 0.0862, "threshold": 9,
+                     "meld_max": 40},
     # v2.0: the excess above 1.00 is reduced by 25% from the published ladder
     # (1.15/1.35/1.60/1.90/2.30). A deliberate departure, not a correction.
     "layer2b_eft": {
-        "mult": {0: 1.00, 1: 1.1125, 2: 1.2625, 3: 1.45, 4: 1.675, 5: 1.975},
+        "mult": {0: 1.00, 1: 1.25, 2: 1.60, 3: 2.10, 4: 2.60, 5: 3.10},
         "cap": 70, "hgb_lo_m": 13.0, "hgb_lo_f": 12.0, "alb_lo": 3.5,
     },
     "layer2c": {
@@ -167,17 +171,21 @@ def _js_round(x: float) -> float:
 
 
 def meld_correction(m: Optional[float]) -> float:
-    """v2.0: every slope reduced by 25% from the published values
-    (0.40/0.90/1.20 -> 0.30/0.675/0.90)."""
-    if m is None:
+    """v3.0: returns a LOG-ODDS increment, not percentage points. Layer 1 is log-odds;
+    points add and risk multiplies, so an additive point correction was
+    disproportionate for a low-risk patient and too small for a high-risk one."""
+    S = SPEC["layer2a_meld"]
+    if m is None or m < S["threshold"]:
         return 0.0
-    if m < 9:
-        return 0.0
-    if m <= 15:
-        return (m - 8) * 0.30
-    if m <= 20:
-        return 2.10 + (m - 15) * 0.675
-    return 5.475 + (m - 20) * 0.90
+    return S["per_point"] * (min(m, S["meld_max"]) - S["threshold"])
+
+
+def shift_log_odds(pct: float, d: float) -> float:
+    """Apply a log-odds increment to a percentage."""
+    if d == 0:
+        return pct
+    p = min(max(pct, 1e-9), 100 - 1e-9) / 100.0
+    return 100.0 / (1.0 + math.exp(-(math.log(p / (1 - p)) + d)))
 
 
 def bsa_mosteller(height_cm, weight_kg) -> Optional[float]:
@@ -592,7 +600,7 @@ def ucsrs(baseline_pct: float, euro_pct: float, eft: int, meld: Optional[float],
     br = min(baseline_pct, S["layer1"]["cap_br"])
 
     meld_corr = meld_correction(meld)
-    pre_cfs = min(br + meld_corr, S["layer2a_meld"]["cap_pre_cfs"])
+    pre_cfs = min(shift_log_odds(br, meld_corr), S["layer2a_meld"]["cap_pre_cfs"])
 
     mult = S["layer2b_eft"]["mult"][eft]
     base = min(pre_cfs * mult, S["layer2b_eft"]["cap"])
