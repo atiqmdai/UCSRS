@@ -313,7 +313,7 @@ var UCSRS_SPEC = {
   layer2c: {
     lvesvi: [{lte:60,c:0.0},{lte:100,c:0.5},{gt:100,c:2.0}],
     lvedd:  [{lte:55,c:0.0},{lte:65,c:0.5},{gt:65,c:1.5}],
-    syntax: [{lte:32,c:0.0},{gt:32,c:2.5}]
+    syntax: [{lte:32,c:0.0},{lte:40,c:2.5},{gt:40,c:4.5}]
   },
   layer3: { cpo_div:451, cpo:[{lt:0.6,c:2.5},{lt:0.9,c:0.8}], pvr:[{gt:5,c:2.8},{gt:3,c:1.2}],
             ci:[{lt:2.0,c:1.5}], tapse_pasp:[{lt:0.406,c:1.8}], cap_final:70 },
