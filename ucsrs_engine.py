@@ -32,8 +32,16 @@ SPEC: Dict[str, Any] = {
     # v3.0: MELD in log-odds. per_point = ln(1.09), the ADJUSTED OR per MELD point
     # (95% CI 1.07-1.10) in a 10,882-patient cardiac surgical cohort. Adjusted is the
     # correct estimate: MELD contains creatinine and Layer 1 carries a renal term.
-    "layer2a_meld": {"cap_pre_cfs": 65, "per_point": 0.0862, "threshold": 9,
+    "layer2a_meld": {"cap_pre_cfs": 65, "per_point": 0.18, "threshold": 9,
                      "meld_max": 40},
+    # v3.0 final: slope raised 0.0862 -> 0.18 per MELD point, extrapolated from a
+    # 10,882-patient cardiac-surgery series on CPB (MELD <10 4.6%, 10-19 17.5%,
+    # >=20 31.2%), which implies 0.198 log-odds/point below MELD ~15 flattening to
+    # 0.080 above 20. 0.18 is a single-segment compromise set by the investigator.
+    # The published gradient is UNADJUSTED: creatinine is 24-43% of a sick patient's
+    # MELD and is scored separately, and albumin/haemoglobin in the mEFT track the
+    # same hepatic synthetic failure as INR. That overlap is DECLARED, not removed -
+    # ATLAS resolves it by joint estimation. See UCSRS_v3.0_Calibration_Protocol.md.
     # v2.0: the excess above 1.00 is reduced by 25% from the published ladder
     # (1.15/1.35/1.60/1.90/2.30). A deliberate departure, not a correction.
     "layer2b_eft": {
