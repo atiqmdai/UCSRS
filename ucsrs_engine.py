@@ -572,13 +572,18 @@ def physiology_baseline(p):
     elif pulm == "chronic":
         z += L1["lung_chronic"]
 
-    lvef = p.get("lvef")
+    # v3.0 final: bands are INCLUSIVE of their upper edge (investigator, 15 Sep):
+    #   >40 = 0.00 | 31-40 = 0.40 | 21-30 = 0.80 | <=20 = 1.20
+    # An ejection fraction of 30 is severely depressed by definition and belongs in
+    # the severe band, not the 31-40 one. This also aligns the boundary with
+    # EuroSCORE II, which places 30 in its "poor" class.
+    lvef = _num(p.get("lvef"))
     if lvef is not None:
-        if lvef < 20:
+        if lvef <= 20:
             z += L1["ef_lt_20"]
-        elif lvef < 30:
+        elif lvef <= 30:
             z += L1["ef_20_30"]
-        elif lvef < 40:
+        elif lvef <= 40:
             z += L1["ef_30_40"]
 
     if p.get("nyha") == 3:
