@@ -499,7 +499,9 @@ AORTA_PRICED = {"asc_aorta", "cabg_asc_aorta", "avr_asc_aorta", "avr_root_asc_ao
 # aortic codes take EuroSCORE II's value directly (it models them via its aorta flag).
 # v3.0 final: each procedure takes EuroSCORE II's intervention-class baseline plus
 # HALF its deviation from that class's REFERENCE operation (cabg / avr / cabg_avr /
-# cabg_avr_mv_repair) - not from the class mean. Averaging over the "single" class
+# cabg_avr_mv_repair) - not from the class mean. The root increment over plain
+# ascending replacement is 0.130 (investigator, 15 Sep), giving a normal-risk
+# elective Bentall 3.80% against EuroSCORE II's 2.92%. Averaging over the "single" class
 # dragged isolated AVR below isolated CABG, because that class also contains TAVR
 # explant, TVR and the aortic codes. Aortic codes take EuroSCORE II's value directly.
 _PROC_W = {
@@ -511,7 +513,7 @@ _PROC_W = {
     "avr_mv_repair_tv_repair": 0.588212,
     "avr_mvr": 0.693811,
     "avr_mvr_tvr": 1.151328,
-    "avr_root_asc_aorta": 1.454868,
+    "avr_root_asc_aorta": 1.334868,
     "cabg": 0.0,
     "cabg_asc_aorta": 1.204868,
     "cabg_avr": 0.552148,
