@@ -36,7 +36,7 @@ SPEC: Dict[str, Any] = {
                      # TWO-SEGMENT (investigator, 15 Sep): the published cardiac
                      # gradient is steep to MELD 20 and flattens above it. A single
                      # slope fits neither end.
-                     "per_point": 0.17,          # MELD 9 -> 20
+                     "per_point": 0.18,          # MELD 9 -> 20
                      "per_point_hi": 0.08,       # above MELD 20
                      "breakpoint": 20},
     # v3.0 final: slope raised 0.0862 -> 0.18 per MELD point, extrapolated from a
