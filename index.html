@@ -297,9 +297,10 @@ var UCSRS_SPEC = {
   layer2a_meld: { cap_pre_cfs: 65, per_point: 0.18, per_point_hi: 0.08, breakpoint: 20, threshold: 9, meld_max: 40 },
   // v2.0: Layer 2b frailty instrument is the Essential Frailty Toolset (EFT, 0-5).
   // Multiplier ladder retained from v1.0; only the instrument mapping changed.
-  // Frailty multipliers, 27 Aug 2026: the excess above 1.00 is reduced by 25% from the
-  // v3.0 ladder. Raised from the v2.0 values (1.1125/1.2625/1.45/1.675/1.975)
-  // toward FRAILTY-AVR (Afilalo, JACC 2017): EFT frail vs not-frail carried an
+  // Frailty multipliers. The v2.1 ladder (1.1125/1.2625/1.45/1.675/1.975) was the
+  // published one with its excess above 1.00 reduced by 25%. v3.0 abandons that
+  // construction and re-sets the ladder against FRAILTY-AVR: EFT frail vs not-frail
+  // carried an
   // adjusted OR of 3.29 (95% CI 1.73-6.26) for 30-day mortality, which at a 3%
   // reference is a probability multiplier near 3.08. Stopped short of that point
   // estimate: it comes from a median-age-82 AVR/TAVR cohort and the interval is
@@ -944,14 +945,22 @@ function riskCategory(v){
 // Acceptance test: reference worked cases. Runs on load; fails loudly.
 function selfTest(){
   var out = [];
-  // Reference cases. These no longer reproduce the published v1.0 values (4.80 / 7.35):
-  // the frailty ladder and the MELD slopes were each reduced by 25% on 27 Aug 2026, and
-  // the Layer 1 baseline floor was lowered from 1.50 to 0.50 in v2.0 and stands at 0.30
-  // in v2.1. Deliberate, documented.
+  // Reference cases, v3.0. These do not reproduce the published v1.0 values (4.80 / 7.35),
+  // nor the v2.1 values (4.35 / 6.20). Both expectations are DERIVED from the spec
+  // constants rather than hard-coded, so a coefficient change moves the target with the
+  // engine instead of silently breaking a number nobody can re-derive.
+  //
+  // Case 1: no MELD, so PRE_CFS is the baseline unchanged and Layer 2b multiplies the
+  // percentage by the mEFT ladder. Case 2: MELD 17 is a log-odds shift of
+  // per_point x (17 - threshold) applied to the baseline, with the ladder at 1.00.
   var c1 = ucsrs({baselinePct:2.8, euroPct:3.2, eft:3, meld:null, lvedd:52, tier:0});
-  out.push({name:'Case 1 (v2.0 and v2.1: 4.35%)',  got:c1.final, want:4.35});
+  out.push({name:'Case 1 (mEFT 3 ladder)', got:c1.final,
+            want:2.8 * UCSRS_SPEC.layer2b_eft.mult[3]});
   var c2 = ucsrs({baselinePct:3.5, euroPct:2.0, eft:0, meld:17, lvedd:50, tier:0});
-  out.push({name:'Case 2 (v2.0 and v2.1: 6.20%)',  got:c2.final, want:6.20});
+  var c2shift = UCSRS_SPEC.layer2a_meld.per_point * (17 - UCSRS_SPEC.layer2a_meld.threshold);
+  var c2odds  = Math.log(0.035 / 0.965) + c2shift;
+  out.push({name:'Case 2 (MELD 17 log-odds shift)', got:c2.final,
+            want:100 * Math.exp(c2odds) / (1 + Math.exp(c2odds))});
   var e = eftScore({chair:'slow', cogImpaired:true, hgb:11.2, albumin:3.1, female:false});
   out.push({name:'EFT scoring (1+1+1+1)', got:e.points, want:4});
   out.push({name:'Layer 1 takes no EuroSCORE II component', got:(UCSRS_SPEC.layer1.w_euro===undefined), want:true,

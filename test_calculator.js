@@ -23,6 +23,12 @@ const i = HTML.indexOf(START), j = HTML.indexOf(END);
 if (i < 0 || j < 0) { console.error('FAIL: engine markers not found in the HTML'); process.exit(1); }
 const engine = HTML.slice(i + START.length, j);
 
+// What a user actually sees: the page with the engine block and every JavaScript line
+// comment removed. Some checks are about the interface, not the source, and must not be
+// tripped by a coefficient comment that carries provenance on purpose.
+const RENDERED = (HTML.slice(0, i) + HTML.slice(j + END.length))
+  .split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+
 const ctx = {};
 new Function('exports', engine + '\nexports.ucsrs=ucsrs;exports.euroscore2=euroscore2;' +
   'exports.meldCorrection=meldCorrection;exports.meldFromLabs=meldFromLabs;' +
@@ -36,22 +42,48 @@ function check(name, ok, detail) {
 }
 function near(a, b, tol = 0.005) { return Math.abs(a - b) < tol; }
 
-console.log('\n1. Worked cases — v2.0 and v2.1 depart from the published values (see §16 of the spec)');
+// Every expectation below is DERIVED from the published spec constants, not copied from
+// engine output. A test that asserts whatever the engine happens to return proves only
+// that the engine is self-consistent. These assert that the engine implements the spec.
+const SPEC = ctx.UCSRS_SPEC;
+const shiftLogOdds = (pct, d) => {
+  const o = (pct / 100) / (1 - pct / 100);
+  const z = Math.log(o) + d;
+  return 100 * Math.exp(z) / (1 + Math.exp(z));
+};
+
+console.log('\n1. Worked cases — v3.0 vector, derived from the spec constants');
+
+// Case 1: no MELD, so PRE_CFS is the baseline unchanged; Layer 2b multiplies the
+// percentage by the mEFT ladder (G1: still on the percentage scale, deliberately).
+const c1want = 2.8 * SPEC.layer2b_eft.mult[3];
 const c1 = ctx.ucsrs({ baselinePct: 2.8, euroPct: 3.2, eft: 3, meld: null, lvedd: 52, tier: 0 });
-check('Case 1 — paper prints 4.80; v2.0 and v2.1 give 4.35 (frailty ladder reduced 25%)',
-  near(c1.final, 4.35), `got ${c1.final.toFixed(2)}%`);
+check(`Case 1 — 2.8% x mEFT-3 ladder ${SPEC.layer2b_eft.mult[3]} = ${c1want.toFixed(2)}%`,
+  near(c1.final, c1want), `got ${c1.final.toFixed(2)}%`);
+
+// Case 2: MELD 17 is a log-odds shift of per_point x (17 - threshold), applied to the
+// baseline; mEFT 0 leaves the ladder at 1.00.
+const c2shift = SPEC.layer2a_meld.per_point * (17 - SPEC.layer2a_meld.threshold);
+const c2want = shiftLogOdds(3.5, c2shift);
 const c2 = ctx.ucsrs({ baselinePct: 3.5, euroPct: 2.0, eft: 0, meld: 17, lvedd: 50, tier: 0 });
-check('Case 2 — paper prints 7.35; v2.0 and v2.1 give 6.20 (MELD slopes reduced 25%)',
-  near(c2.final, 6.20), `got ${c2.final.toFixed(2)}%`);
-check('the departure from the published values is deliberate and documented',
-  /reduced by 25% from the\s*\n\s*\/\/ published ladder/.test(HTML) &&
-  /every slope reduced by 25% from the published values/.test(HTML));
+check(`Case 2 — 3.5% shifted +${c2shift.toFixed(2)} log-odds = ${c2want.toFixed(2)}%`,
+  near(c2.final, c2want), `got ${c2.final.toFixed(2)}%`);
+
+// v3.0 departs from the published v1.0 values (4.80 / 7.35) and from v2.1 (4.35 / 6.20).
+// The departure is deliberate; what matters is that nothing still claims otherwise.
+check('no surviving claim that the engine reproduces the published v1.0 worked cases',
+  !/reproduces the published (values|worked cases)/i.test(HTML));
 
 console.log('\n2. Structural guards — these fail if the model drifts back');
-check('Layer 1 STS weight is 0.50', ctx.UCSRS_SPEC.layer1.w_baseline === 0.50, `is ${ctx.UCSRS_SPEC.layer1.w_baseline}`);
-check('Layer 1 Euro weight is 0.50', ctx.UCSRS_SPEC.layer1.w_euro === 0.50, `is ${ctx.UCSRS_SPEC.layer1.w_euro}`);
-check('weights sum to 1.00 — no third or fourth term',
-  ctx.UCSRS_SPEC.layer1.w_baseline + ctx.UCSRS_SPEC.layer1.w_euro === 1.00);
+// v3.0 inverts the v2.1 guard. Layer 1 is a single logistic model; it no longer blends a
+// physiology baseline with a EuroSCORE II component at 0.50/0.50. EuroSCORE II survives
+// only as the comparator, computed alongside and never folded into the score.
+check('Layer 1 takes no EuroSCORE II component (w_euro removed)',
+  ctx.UCSRS_SPEC.layer1.w_euro === undefined, `is ${ctx.UCSRS_SPEC.layer1.w_euro}`);
+check('Layer 1 takes no blend weight at all (w_baseline removed)',
+  ctx.UCSRS_SPEC.layer1.w_baseline === undefined, `is ${ctx.UCSRS_SPEC.layer1.w_baseline}`);
+check('EuroSCORE II is still computed, as the comparator only',
+  typeof ctx.euroscore2 === 'function');
 check('no morbidity index anywhere in the file', !/morbIdx|morbidity_index|morbIndex/i.test(HTML));
 check('no STS input field — score is free-standing', !/id="sts"/.test(HTML));
 check('STS computed internally by physiologyBaseline', /function\s+physiologyBaseline/.test(engine) && /physiologyBaseline\(patient\)/.test(HTML));
@@ -62,32 +94,76 @@ check('caps are 60 / 65 / 70',
   ctx.UCSRS_SPEC.layer1.cap_br === 60 && ctx.UCSRS_SPEC.layer2a_meld.cap_pre_cfs === 65 &&
   ctx.UCSRS_SPEC.layer2b_eft.cap === 70);
 
-console.log('\n3. Layer 2c bands, hand-worked');
-const L2C = [
-  ['LVESVI 55 → +0.0', { lvesvi: 55 }, 0.0], ['LVESVI 80 → +0.5', { lvesvi: 80 }, 0.5],
-  ['LVESVI 120 → +2.0', { lvesvi: 120 }, 2.0],
-  ['LVEDD 50 → +0.0', { lvedd: 50 }, 0.0], ['LVEDD 60 → +0.5', { lvedd: 60 }, 0.5],
-  ['LVEDD 70 → +1.5', { lvedd: 70 }, 1.5],
-];
-for (const [name, extra, want] of L2C) {
-  const r = ctx.ucsrs(Object.assign({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, tier: 0 }, extra));
-  check(name, near(r.lv, want), `got +${r.lv.toFixed(1)}`);
-}
-for (const [sx, want] of [[10, 0.0], [28, 1.0], [40, 2.5], [0, 0.0]]) {
-  const r = ctx.ucsrs({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, syntax: sx, tier: 0 });
-  check(`SYNTAX ${sx} → +${want.toFixed(1)}`, near(r.syntax, want), `got +${r.syntax.toFixed(1)}`);
-}
-const pref = ctx.ucsrs({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, lvesvi: 120, lvedd: 50, tier: 0 });
-check('LVESVI takes precedence over LVEDD', pref.lvSource === 'LVESVI' && near(pref.lv, 2.0));
+console.log('\n3. Layer 2c bands — v3.0 is on the LOG-ODDS scale, read from the spec');
 
-console.log('\n4. MELD is fully additive, not weighted at 0.10');
-for (const [m, want] of [[8, 0.0], [12, 1.20], [15, 2.10], [18, 4.125], [20, 5.475], [30, 14.475], [40, 23.475]]) {
-  check(`MELD ${m} → +${want}`, near(ctx.meldCorrection(m), want), `got +${ctx.meldCorrection(m).toFixed(2)}`);
+// v3.0 converted Layer 2c from percentage points to log-odds. The band values are read
+// from the spec so this test cannot silently drift if a coefficient is re-tuned; what it
+// asserts is that the right BAND is selected for a given measurement.
+const bandFor = (bands, v) => {
+  for (const b of bands) {
+    if (b.lte !== undefined && v <= b.lte) return b.c;
+    if (b.gt !== undefined && v > b.gt) return b.c;
+  }
+  return 0;
+};
+for (const [field, val] of [['lvesvi', 55], ['lvesvi', 80], ['lvesvi', 120],
+                            ['lvedd', 50], ['lvedd', 60], ['lvedd', 70]]) {
+  const want = bandFor(SPEC.layer2c[field], val);
+  const r = ctx.ucsrs(Object.assign(
+    { baselinePct: 4, euroPct: 4, eft: 0, meld: null, tier: 0 }, { [field]: val }));
+  check(`${field.toUpperCase()} ${val} → +${want.toFixed(2)} log-odds`,
+    near(r.lv, want), `got +${r.lv.toFixed(2)}`);
 }
-const mA = ctx.ucsrs({ baselinePct: 10, euroPct: 10, eft: 0, meld: null, tier: 0 });
-const mB = ctx.ucsrs({ baselinePct: 10, euroPct: 10, eft: 0, meld: 20, tier: 0 });
-check('MELD 20 is fully additive (+5.475), not weighted at a fraction',
-  near(mB.final - mA.final, 5.475), `adds ${(mB.final - mA.final).toFixed(2)}`);
+for (const sx of [10, 28, 40, 45, 0]) {
+  const want = sx === 0 ? 0 : bandFor(SPEC.layer2c.syntax, sx);
+  const r = ctx.ucsrs({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, syntax: sx, tier: 0 });
+  check(`SYNTAX ${sx} → +${want.toFixed(2)} log-odds`,
+    near(r.syntax, want), `got +${r.syntax.toFixed(2)}`);
+}
+const lvesviTop = bandFor(SPEC.layer2c.lvesvi, 120);
+const pref = ctx.ucsrs({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, lvesvi: 120, lvedd: 50, tier: 0 });
+check('LVESVI takes precedence over LVEDD',
+  pref.lvSource === 'LVESVI' && near(pref.lv, lvesviTop), `got ${pref.lvSource} +${pref.lv.toFixed(2)}`);
+
+// SYNTAX is optional in v3.0 (B4). Absent must score zero and be flagged, never imputed.
+const noSx = ctx.ucsrs({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, tier: 0 });
+check('SYNTAX absent scores 0.00 and is flagged, not imputed',
+  near(noSx.syntax, 0) && noSx.syntaxGiven === false);
+
+console.log('\n4. MELD — v3.0 two-segment log-odds shift, derived from the spec');
+
+// v3.0: 0.18 per point from the threshold to the breakpoint, 0.08 per point above it,
+// capped at meld_max. The second segment exists because a single 0.18 slope carried to
+// MELD 40 over-predicted badly against the published cirrhosis strata.
+const MELDSPEC = SPEC.layer2a_meld;
+const meldWant = (m) => {
+  m = Math.min(m, MELDSPEC.meld_max);
+  if (m <= MELDSPEC.threshold) return 0;
+  const lo = MELDSPEC.per_point * (Math.min(m, MELDSPEC.breakpoint) - MELDSPEC.threshold);
+  const hi = m > MELDSPEC.breakpoint ? MELDSPEC.per_point_hi * (m - MELDSPEC.breakpoint) : 0;
+  return lo + hi;
+};
+for (const m of [8, 9, 12, 15, 18, 20, 25, 30, 40, 45]) {
+  const want = meldWant(m);
+  check(`MELD ${m} → +${want.toFixed(2)} log-odds`,
+    near(ctx.meldCorrection(m), want), `got +${ctx.meldCorrection(m).toFixed(2)}`);
+}
+check('MELD is capped at meld_max — 45 scores the same as 40',
+  near(ctx.meldCorrection(45), ctx.meldCorrection(40)));
+check('the slope breaks at the breakpoint, it does not run straight',
+  meldWant(MELDSPEC.breakpoint + 10) < meldWant(MELDSPEC.breakpoint) + MELDSPEC.per_point * 10);
+
+// The shift is on log-odds, so the same MELD is worth more percentage points in a sicker
+// patient. That is the v3.0 scale change, and it is the point of it.
+const mLow  = ctx.ucsrs({ baselinePct: 3,  euroPct: 3,  eft: 0, meld: null, tier: 0 });
+const mLowM = ctx.ucsrs({ baselinePct: 3,  euroPct: 3,  eft: 0, meld: 20,   tier: 0 });
+const mHi   = ctx.ucsrs({ baselinePct: 20, euroPct: 20, eft: 0, meld: null, tier: 0 });
+const mHiM  = ctx.ucsrs({ baselinePct: 20, euroPct: 20, eft: 0, meld: 20,   tier: 0 });
+check('MELD 20 is worth more percentage points in a sicker patient (odds scale)',
+  (mHiM.final - mHi.final) > (mLowM.final - mLow.final),
+  `adds ${(mLowM.final - mLow.final).toFixed(2)} at 3% vs ${(mHiM.final - mHi.final).toFixed(2)} at 20%`);
+check('MELD 20 applied to a 3% baseline matches the derived shift',
+  near(mLowM.final, shiftLogOdds(3, meldWant(20))), `got ${mLowM.final.toFixed(2)}%`);
 
 console.log('\n5. Caps');
 check('BR capped at 60', near(ctx.ucsrs({ baselinePct: 90, euroPct: 90, eft: 0, meld: null, tier: 0 }).br, 60));
@@ -185,24 +261,40 @@ check('CCS 4 uses 0.2226147', near(delta({ ccs4: true }), 0.2226147, 1e-6));
 check('body weight and weight-of-intervention are separate fields (regression)',
   /interventionWeight/.test(engine) && !/p\.weight\s*===/.test(engine));
 
-console.log('\n7c. STS source behaviour');
-// v2.1: 1.50 in v1.0, 0.50 in v2.0, 0.30 here. The baseline is now a logistic function
-// of a sum of log-odds, so the healthiest constructible patient lands on the clamp
-// rather than on a starting constant.
-check('baseline floor is 0.30 (v1.0 1.50, v2.0 0.50)',
-  (function(){ try { return Math.abs(ctx.physiologyBaseline({age:60,weight:80,creatinine:0.9,female:false,dialysis:false,lvef:60,nyha:1,urgency:'elective',procedure:'cabg'}) - 0.30) < 1e-9; } catch(e){ return false; } })());
+console.log('\n7c. Layer 1 baseline behaviour');
+// v3.0 re-anchored the intercept (calibration_shift +1.451532), so the reference patient
+// no longer sits ON the 0.30 clamp as it did in v2.1 — it sits above it. The clamp is a
+// guard against the logistic tail, not the score's starting point. Investigator ruling of
+// 15 September: the clamp values are clinically immaterial (nothing above ~30% is
+// separable), so the test asserts the reference patient is inside the clamps, not equal
+// to one.
+const REFPT = {age:60,weight:80,creatinine:0.9,female:false,dialysis:false,lvef:60,nyha:1,urgency:'elective',procedure:'cabg'};
+const refBase = ctx.physiologyBaseline(REFPT);
+check('reference 60M elective CABG sits strictly inside the Layer 1 clamps (0.30 / 50)',
+  refBase > 0.30 && refBase < 50, `got ${refBase.toFixed(3)}%`);
+check('the Layer 1 clamps are 0.30 and 50 in the shipped engine',
+  /Math\.min\(Math\.max\(100 \/ \(1 \+ Math\.exp\(-z\)\), 0\.30\), 50\)/.test(engine));
 check('a healthy 52-year-old can now score below 1.0 (real STS was 0.40)',
   ctx.physiologyBaseline({age:52,weight:85,creatinine:1.09,female:false,dialysis:false,lvef:65,nyha:1,urgency:'elective',procedure:'cabg',interventionWeight:'cabg'}) < 1.0);
 
-console.log('\n7d. Layer 2b — Essential Frailty Toolset (v1.1)');
+console.log('\n7d. Layer 2b — modified Essential Frailty Toolset (mEFT, 0-6)');
+// v3.0: the published EFT is 0-5. UCSRS adds a SIXTH rung — a second haemoglobin point
+// below 8.0 g/dL — and renames the instrument mEFT wherever it is referenced (D3). The
+// "published ladder reduced 25%" construction of v2.1 is gone; the ladder was re-set
+// against FRAILTY-AVR rather than derived from the published one.
 const M = ctx.UCSRS_SPEC.layer2b_eft.mult;
-check('multiplier ladder is the published one reduced 25% (1.00/1.1125/1.2625/1.45/1.675/1.975)',
-  M[0] === 1.00 && M[1] === 1.1125 && M[2] === 1.2625 && M[3] === 1.45 && M[4] === 1.675 && M[5] === 1.975,
-  JSON.stringify(M));
-check('the reduction is exactly 25% of the published excess above 1.00',
-  [1.15,1.35,1.60,1.90,2.30].every(function(pub,i){
-    return Math.abs((1 + (pub-1)*0.75) - M[i+1]) < 1e-9; }));
-check('EFT is 0-5 (six multiplier levels)', Object.keys(M).length === 6);
+check('mEFT is 0-6 — seven multiplier levels, one more than the published instrument',
+  Object.keys(M).length === 7, JSON.stringify(M));
+check('the ladder starts at 1.00 — mEFT 0 is no penalty', M[0] === 1.00, `is ${M[0]}`);
+check('the ladder is strictly increasing across all seven rungs',
+  [1,2,3,4,5,6].every(i => M[i] > M[i-1]), JSON.stringify(M));
+check('the sixth rung exists and is the largest step on the ladder',
+  M[6] !== undefined && (M[6] - M[5]) >= (M[5] - M[4]),
+  `rung 6 adds ${(M[6]-M[5]).toFixed(2)}, rung 5 adds ${(M[5]-M[4]).toFixed(2)}`);
+check('the critical-haemoglobin threshold driving the sixth rung is 8.0 g/dL',
+  ctx.UCSRS_SPEC.layer2b_eft.hgb_crit === 8, `is ${ctx.UCSRS_SPEC.layer2b_eft.hgb_crit}`);
+check('no surviving claim that the ladder is the published one reduced 25%',
+  !/reduced by 25% from the published ladder/.test(HTML));
 const efts = (f) => ctx.eftScore(Object.assign({ chair: 'fast', cogImpaired: false, hgb: 14, albumin: 4.0, female: false }, f));
 check('robust patient → EFT 0', efts({}).points === 0);
 check('chair rise 15 s or more → 1 point', efts({ chair: 'slow' }).points === 1);
@@ -258,8 +350,11 @@ check('age >75 raises renal and stroke, not vent',
 check('smoker checkbox present in the form', /id="smoker"/.test(HTML));
 
 console.log('\n7f. No references on the page');
-check('no literature/source references anywhere in the shipped HTML',
-  !/Nashef|Afilalo|Rehman|Cardiothorac|13019|zenodo|Dalhousie|DOI|Section 3\.3|JAHA|acsdriskcalc|github/i.test(HTML));
+// Scoped to the rendered interface. The calculator must not present itself to a user as a
+// cited, published instrument — but the coefficient comments MUST keep their provenance,
+// because that provenance is what the methods paper and the release record rest on.
+check('no literature/source references in the rendered interface',
+  !/Nashef|Afilalo|Rehman|Cardiothorac|13019|zenodo|Dalhousie|DOI|Section 3\.3|JAHA|acsdriskcalc|github/i.test(RENDERED));
 
 console.log('\n7g. MELD from labs (mg/dL) and units');
 check('MELD floors at 6 for normal labs', ctx.meldFromLabs(0.8, 1.0, 0.9, false) === 6,
@@ -555,9 +650,20 @@ check('the shock ladder escalates: inotropes < IABP < Impella < ECMO',
 check('acute pulmonary disease is split by ventilator support',
   /<option value="acute">Acute — no ventilator support<\/option>/.test(HTML) &&
   /<option value="acute_vent">Acute — on ventilator support<\/option>/.test(HTML));
+// v3.0 reads the four-level pulmStatus directly; lungAny/ventilated are derived flags for
+// the comparator and the outcome model and carry no Layer 1 weight. This check was silently
+// passing nothing until 276658c, when pulmStatus was finally wired into the form.
 check('pre-operative ventilation weighs more than acute lung disease alone',
-  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { lungAny:true, ventilated:true })) >
-  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { lungAny:true })));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { pulmStatus:'acute_vent' })) >
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { pulmStatus:'acute' })));
+check('the pulmonary ladder is strictly ordered: none < chronic < acute < ventilated',
+  (function(){
+    const b = (s) => ctx.physiologyBaseline(Object.assign(PROC('cabg'), s ? { pulmStatus:s } : {}));
+    return b(null) < b('chronic') && b('chronic') < b('acute') && b('acute') < b('acute_vent');
+  })());
+check('home oxygen weighs more than chronic disease without it',
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { pulmStatus:'chronic_o2' })) >
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { pulmStatus:'chronic' })));
 check('pre-operative ventilation sets the critical pre-operative state',
   /var ventilated = pulmVal === 'acute_vent'/.test(HTML));
 check('ventilation does not fire the chronic pulmonary term',
@@ -663,8 +769,12 @@ check('110 umol/L converts to the same clearance as 1.244 mg/dL',
        ctx.creatinineClearance(72, 70, 1.2443, true), 0.05));
 check('creatinine and bilirubin labelled mg/dL',
   /Creatinine \(mg\/dL\)/.test(HTML) && /Bilirubin \(mg\/dL\)/.test(HTML));
-check('American spellings (hemoglobin, anemia, hemodynamic)',
-  !/[Hh]aemoglobin|anaemia|haemodynamic/.test(HTML) && /Hemoglobin \(g\/dL\)/.test(HTML));
+// Scoped to what a user actually sees. v3.0 coefficient comments are written in British
+// English because the investigator writes that way and they carry the provenance the
+// methods paper cites; the RENDERED interface stays American. RENDERED strips the engine
+// block and every line comment, leaving markup and visible text.
+check('American spellings in the rendered interface (hemoglobin, anemia, hemodynamic)',
+  !/[Hh]aemoglobin|anaemia|haemodynamic/.test(RENDERED) && /Hemoglobin \(g\/dL\)/.test(HTML));
 
 console.log('\n7h. Diabetes, pulmonary and shock fields');
 check('diabetes is a three-level control-method field, not a checkbox',
@@ -700,36 +810,85 @@ console.log('\n7i. v2.1 baseline — log-odds form, continuity, and the removed 
   check('hypertension carries no mortality weight from v2.1',
     ctx.physiologyBaseline(P({ htn:true })) === ctx.physiologyBaseline(P({ htn:false })));
 
-  // Age, clearance and ejection fraction are read continuously from v2.1. A banded term
-  // shows as a jump at the band edge; a continuous one does not.
+  // v3.0 REVERSES v2.1 here. Age and ejection fraction are banded on purpose — age in the
+  // STS manner with acceleration above 80, EF in four bands inclusive of the upper edge.
+  // Creatinine stays continuous: it replaced Cockcroft-Gault clearance and is scored as
+  // 1.10 x ln(cr), so there is no band edge to jump at.
   var jumpAge = Math.abs(ctx.physiologyBaseline(P({ age:70.001 })) - ctx.physiologyBaseline(P({ age:69.999 })));
-  check('age is continuous — no step at the old 70-year band edge', jumpAge < 5e-4);
-  var jumpEf = Math.abs(ctx.physiologyBaseline(P({ lvef:30.001 })) - ctx.physiologyBaseline(P({ lvef:29.999 })));
-  check('ejection fraction is continuous — no step at the old 30% band edge', jumpEf < 5e-4);
-  var jumpCr = Math.abs(ctx.physiologyBaseline(P({ creatinine:1.6001 })) - ctx.physiologyBaseline(P({ creatinine:1.5999 })));
-  check('creatinine clearance is continuous — no step at a band edge', jumpCr < 5e-4);
+  check('age is BANDED in v3.0 — a step exists at the 70-year band edge', jumpAge > 5e-4,
+    `step ${jumpAge.toFixed(4)} pp`);
+  check('the age ladder is monotonic across every band edge',
+    [59,64,69,74,79,84,89].every(function(e){
+      return ctx.physiologyBaseline(P({ age:e + 1 })) > ctx.physiologyBaseline(P({ age:e })); }));
+  // STS-style acceleration above 80, measured against the SEVENTH decade rather than
+  // against any single edge. The 64->65 step is +0.44 log-odds and is the largest single
+  // step on the ladder, so a naive "biggest step is above 80" assertion is false. What is
+  // true, and what the investigator asked for, is that the ladder steepens above 80 after
+  // flattening through the seventies: steps run +0.15, +0.14 across 70-79 and +0.24, +0.16,
+  // +0.23 from 80 up. See the register — the 60->65 step is flagged as an open anomaly.
+  var step = function(a){ return ctx.physiologyBaseline(P({ age:a + 1 })) - ctx.physiologyBaseline(P({ age:a })); };
+  var seventies = (step(69) + step(74)) / 2;
+  var eighties  = (step(79) + step(84) + step(89)) / 3;
+  check('age accelerates above 80 — mean step above 80 exceeds the 70-79 mean',
+    eighties > seventies, `70s ${seventies.toFixed(4)} pp vs 80+ ${eighties.toFixed(4)} pp`);
 
-  // Dialysis must never reduce the estimate. Against a continuous clearance term a bare
-  // categorical inverts below about 15 mL/min, which is why the dialysis term is floored.
-  var inversion = false;
+  var jumpEf = Math.abs(ctx.physiologyBaseline(P({ lvef:30.001 })) - ctx.physiologyBaseline(P({ lvef:29.999 })));
+  check('ejection fraction is BANDED in v3.0 — a step exists at the 30% band edge', jumpEf > 5e-4,
+    `step ${jumpEf.toFixed(4)} pp`);
+  check('EF band edges are inclusive of the upper value — 30 scores as severe, not moderate',
+    ctx.physiologyBaseline(P({ lvef:30 })) > ctx.physiologyBaseline(P({ lvef:30.001 })));
+  check('the EF ladder is monotonic: >40 < 31-40 < 21-30 < <=20',
+    ctx.physiologyBaseline(P({ lvef:45 })) < ctx.physiologyBaseline(P({ lvef:35 })) &&
+    ctx.physiologyBaseline(P({ lvef:35 })) < ctx.physiologyBaseline(P({ lvef:25 })) &&
+    ctx.physiologyBaseline(P({ lvef:25 })) < ctx.physiologyBaseline(P({ lvef:18 })));
+
+  var jumpCr = Math.abs(ctx.physiologyBaseline(P({ creatinine:1.6001 })) - ctx.physiologyBaseline(P({ creatinine:1.5999 })));
+  check('serum creatinine is continuous — no step at any band edge', jumpCr < 5e-4);
+
+  // v3.0 dialysis rule, ruled by the investigator on 15 September 2026: a dialysed patient
+  // scores AS IF creatinine 4.0, and the measured value is not read at all. Post-dialysis
+  // creatinine reflects the timing of the last session and dialysis adequacy rather than
+  // renal reserve, so it carries no information worth scoring.
+  //
+  // The consequence is accepted and deliberate: a NON-dialysed patient above creatinine 4.0
+  // scores higher than a dialysed one, because untreated uraemia at creatinine 8 is not a
+  // lesser state than treated ESRD. This is NOT the EuroSCORE II dialysis inversion, which
+  // ranks dialysis (0.642) BELOW moderate impairment (0.859 at CrCl <= 50); UCSRS ranks
+  // dialysis (1.525) well above it (0.762 at creatinine 2.0).
+  var dialysisVaries = false;
   [45, 62, 78, 90].forEach(function(a){
+    var ref = ctx.physiologyBaseline(P({ age:a, creatinine:4.0, dialysis:true }));
     [0.8, 1.5, 3.0, 5.0, 8.0].forEach(function(c){
-      if (ctx.physiologyBaseline(P({ age:a, creatinine:c, dialysis:true })) <
-          ctx.physiologyBaseline(P({ age:a, creatinine:c, dialysis:false })) - 1e-12) inversion = true;
+      if (Math.abs(ctx.physiologyBaseline(P({ age:a, creatinine:c, dialysis:true })) - ref) > 1e-9) {
+        dialysisVaries = true;
+      }
     });
   });
-  check('starting dialysis can never lower the baseline', !inversion);
+  check('dialysis scores flat — the measured creatinine is not read at all', !dialysisVaries);
+  check('a dialysed patient scores exactly as a non-dialysed patient at creatinine 4.0',
+    Math.abs(ctx.physiologyBaseline(P({ creatinine:1.0, dialysis:true })) -
+             ctx.physiologyBaseline(P({ creatinine:4.0, dialysis:false }))) < 1e-9);
+  check('dialysis ranks ABOVE moderate impairment — not the EuroSCORE II inversion',
+    ctx.physiologyBaseline(P({ creatinine:1.0, dialysis:true })) >
+    ctx.physiologyBaseline(P({ creatinine:2.0, dialysis:false })));
 
   // Risk fans out on the odds scale: each increment is a constant log-odds step, so its
   // effect in percentage points grows with the patient's underlying risk.
-  var wellDelta = ctx.physiologyBaseline(P({ anemia:true })) - ctx.physiologyBaseline(P({}));
+  // v3.0: anaemia and albumin carry NO Layer 1 weight — both are counted once, in the mEFT
+  // at Layer 2b. Using `anemia` here would test a term that no longer exists and pass
+  // vacuously at zero. Chronic pulmonary disease is a real Layer 1 increment, so it is
+  // what the scale behaviour is demonstrated on.
+  var INC = { pulmStatus: 'chronic' };
+  var wellDelta = ctx.physiologyBaseline(P(INC)) - ctx.physiologyBaseline(P({}));
   var sickBase  = P({ age:84, lvef:25, creatinine:2.4, nyha:4, urgency:'urgent' });
-  var sickWith  = P({ age:84, lvef:25, creatinine:2.4, nyha:4, urgency:'urgent', anemia:true });
+  var sickWith  = P({ age:84, lvef:25, creatinine:2.4, nyha:4, urgency:'urgent', pulmStatus:'chronic' });
   var sickDelta = ctx.physiologyBaseline(sickWith) - ctx.physiologyBaseline(sickBase);
+  check('the Layer 1 increment used here is non-zero (guards against a vacuous pass)',
+    wellDelta > 1e-6, `well delta ${wellDelta.toFixed(4)} pp`);
   check('an increment is worth more percentage points in a sicker patient (odds scale)',
-    sickDelta > wellDelta * 2);
+    sickDelta > wellDelta * 2, `${wellDelta.toFixed(2)} pp well vs ${sickDelta.toFixed(2)} pp sick`);
   check('the same increment is a constant step in log-odds',
-    Math.abs((lo(ctx.physiologyBaseline(P({ anemia:true }))) - lo(ctx.physiologyBaseline(P({})))) -
+    Math.abs((lo(ctx.physiologyBaseline(P(INC))) - lo(ctx.physiologyBaseline(P({})))) -
              (lo(ctx.physiologyBaseline(sickWith)) - lo(ctx.physiologyBaseline(sickBase)))) < 1e-9);
 })();
 
