@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Optional
 
-SPEC_VERSION = "3.0.0-pre"
+SPEC_VERSION = "3.0.0"
 
 SPEC: Dict[str, Any] = {
     # v3.0: Layer 1 is the physiology-derived baseline alone.

@@ -1167,6 +1167,10 @@ function calc(){
     endocarditis: chk('endo'), critical: critical,
     iddm: dmVal === 'insulin',            // published term applies to insulin treatment only
     dmOral: dmVal === 'oral',             // captured; carries no weight in this version
+    // v3.0: the UCSRS baseline reads the four-level pulmonary status directly. The three
+    // derived flags below remain because the EuroSCORE II comparator and the companion
+    // outcome model still consume them.
+    pulmStatus: pulmVal,
     pulmonary: pulmVal === 'chronic' || pulmVal === 'chronic_o2',  // chronic dysfunction term
     lungAny: pulmVal !== 'none',          // any significant lung disease, incl. acute
     homeOxygen: pulmVal === 'chronic_o2', // captured; no separate weight in this version
