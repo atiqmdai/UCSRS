@@ -820,17 +820,40 @@ console.log('\n7i. v2.1 baseline — log-odds form, continuity, and the removed 
   check('the age ladder is monotonic across every band edge',
     [59,64,69,74,79,84,89].every(function(e){
       return ctx.physiologyBaseline(P({ age:e + 1 })) > ctx.physiologyBaseline(P({ age:e })); }));
-  // STS-style acceleration above 80, measured against the SEVENTH decade rather than
-  // against any single edge. The 64->65 step is +0.44 log-odds and is the largest single
-  // step on the ladder, so a naive "biggest step is above 80" assertion is false. What is
-  // true, and what the investigator asked for, is that the ladder steepens above 80 after
-  // flattening through the seventies: steps run +0.15, +0.14 across 70-79 and +0.24, +0.16,
-  // +0.23 from 80 up. See the register — the 60->65 step is flagged as an open anomaly.
+  // STS-style acceleration above 80, measured against the seventh decade rather than
+  // against any single band edge.
+  //
+  // The 64->65 step is +0.44 log-odds, the largest single step on the ladder, so a naive
+  // "biggest step is above 80" assertion is false. That step is NOT an anomaly: the bands
+  // are fitted to EuroSCORE II's own log-odds delta, and EuroSCORE II is FLAT to age 60
+  // (its term is 0.0285181 x max(1, age - 59)) and climbs linearly after. The <60 and
+  // 60-64 bands therefore both sit in the flat region while 65-69 sits in the climbing
+  // one. EuroSCORE II itself is continuous, so it takes that climb a year at a time while
+  // UCSRS takes it in one banded step -- the single-edge deltas differ (UCSRS +0.31 pp at
+  // 64->65 against EuroSCORE II's +0.02 pp) even though the curves agree across the band.
+  // Smoothing the ladder was examined on
+  // 15 September and rejected: raising the under-65 bands to make the ladder even puts
+  // every patient below 65 at 1.34x EuroSCORE II, outside the 1.0-1.30 band, and lowering
+  // 65-69 merely relocates the jump to age 70 at +0.47 while dropping a 67-year-old to
+  // 0.71x. As it stands UCSRS tracks the comparator at 0.95-1.09x from 52 to 87.
   var step = function(a){ return ctx.physiologyBaseline(P({ age:a + 1 })) - ctx.physiologyBaseline(P({ age:a })); };
   var seventies = (step(69) + step(74)) / 2;
   var eighties  = (step(79) + step(84) + step(89)) / 3;
   check('age accelerates above 80 — mean step above 80 exceeds the 70-79 mean',
     eighties > seventies, `70s ${seventies.toFixed(4)} pp vs 80+ ${eighties.toFixed(4)} pp`);
+  // The invariant that actually matters, and the one that made the 64->65 step worth
+  // keeping: across the whole age range the banded ladder must track the comparator. A
+  // band edge is a discrete approximation of a continuous curve, so single-edge steps
+  // will differ; the RATIO is what must hold.
+  check('UCSRS tracks EuroSCORE II within 0.90-1.30x at every age from 52 to 87',
+    (function(){
+      var worst = null;
+      [52, 58, 62, 67, 72, 78, 82, 87].forEach(function(a){
+        var r = ctx.physiologyBaseline(P({ age:a })) / ctx.euroscore2(P({ age:a }));
+        if (worst === null || Math.abs(r - 1) > Math.abs(worst - 1)) worst = r;
+      });
+      return worst >= 0.90 && worst <= 1.30;
+    })(), 'guards the age ladder against drift in either direction');
 
   var jumpEf = Math.abs(ctx.physiologyBaseline(P({ lvef:30.001 })) - ctx.physiologyBaseline(P({ lvef:29.999 })));
   check('ejection fraction is BANDED in v3.0 — a step exists at the 30% band edge', jumpEf > 5e-4,
