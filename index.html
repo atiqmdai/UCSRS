@@ -281,7 +281,7 @@
 // ===== UCSRS ENGINE START =====
 // Single source of truth for all model constants.
 var UCSRS_SPEC = {
-  spec_version: "3.0.0-pre",
+  spec_version: "3.0.0",
   // v3.0: Layer 1 is the physiology-derived baseline alone. EuroSCORE II is no
   // longer a component; it is computed separately and reported as an external
   // comparator only, alongside the site's STS-PROM.
@@ -291,7 +291,10 @@ var UCSRS_SPEC = {
   // 10,882-patient cardiac surgical cohort. The ADJUSTED estimate is the correct
   // one: MELD contains creatinine and Layer 1 already carries a renal term, so the
   // unadjusted per-point figure would double-count.
-  layer2a_meld: { cap_pre_cfs: 65, per_point: 0.0862, threshold: 9, meld_max: 40 },
+  // v3.0 final: TWO-SEGMENT. The published cardiac gradient is steep to MELD 20 and
+  // flattens above it. Lower segment 0.18 sits below the published ~0.198 as the
+  // declared allowance for the creatinine overlap that cannot be removed.
+  layer2a_meld: { cap_pre_cfs: 65, per_point: 0.18, per_point_hi: 0.08, breakpoint: 20, threshold: 9, meld_max: 40 },
   // v2.0: Layer 2b frailty instrument is the Essential Frailty Toolset (EFT, 0-5).
   // Multiplier ladder retained from v1.0; only the instrument mapping changed.
   // Frailty multipliers, 27 Aug 2026: the excess above 1.00 is reduced by 25% from the
@@ -310,10 +313,14 @@ var UCSRS_SPEC = {
                  // MODIFIED EFT and must be described as such.
                  hgb_lo_m: 13.0, hgb_lo_f: 12.0, hgb_crit: 8.0, alb_lo: 3.5,
                  chair_slow_s: 15 },
+  // v3.0 final: Layer 2c converted from PERCENTAGE POINTS to LOG-ODDS and re-weighted.
+  // Cohort 4 (318,162,816 cells) measured LVEDD moving the score 1.1 points across its
+  // whole range and SYNTAX 3.2 - both inert. SYNTAX is OPTIONAL and frequently
+  // unmeasured; absent scores 0.00. Its coefficients are investigator judgment.
   layer2c: {
-    lvesvi: [{lte:60,c:0.0},{lte:100,c:0.5},{gt:100,c:2.0}],
-    lvedd:  [{lte:55,c:0.0},{lte:65,c:0.5},{gt:65,c:1.5}],
-    syntax: [{lte:32,c:0.0},{lte:40,c:2.5},{gt:40,c:4.5}]
+    lvesvi: [{lte:60,c:0.0},{lte:100,c:0.25},{gt:100,c:0.6}],
+    lvedd:  [{lte:55,c:0.0},{lte:65,c:0.2},{gt:65,c:0.45}],
+    syntax: [{lte:32,c:0.0},{lte:40,c:0.35},{gt:40,c:0.7}]
   },
   layer3: { cpo_div:451, cpo:[{lt:0.6,c:2.5},{lt:0.9,c:0.8}], pvr:[{gt:5,c:2.8},{gt:3,c:1.2}],
             ci:[{lt:2.0,c:1.5}], tapse_pasp:[{lt:0.406,c:1.8}], cap_final:70 },
@@ -398,7 +405,22 @@ function meldFromLabs(bili_mgdl, inr, cr_mgdl){
 function meldCorrection(m){
   var S = UCSRS_SPEC.layer2a_meld;
   if (m == null || isNaN(m) || m < S.threshold) return 0;
-  return S.per_point * (Math.min(m, S.meld_max) - S.threshold);
+  var v = Math.min(m, S.meld_max), bp = S.breakpoint;
+  return S.per_point * (Math.min(v, bp) - S.threshold) + (v > bp ? S.per_point_hi * (v - bp) : 0);
+}
+
+// v3.0 final: banded age. Bands are EuroSCORE II's own log-odds delta at the band
+// midpoint, plus a deliberate acceleration above 80.
+function ageBand(age){
+  var a = (age == null || isNaN(age)) ? 0 : age;
+  if (a < 60) return L1.age_lt_60;
+  if (a < 65) return L1.age_60_64;
+  if (a < 70) return L1.age_65_69;
+  if (a < 75) return L1.age_70_74;
+  if (a < 80) return L1.age_75_79;
+  if (a < 85) return L1.age_80_84;
+  if (a < 90) return L1.age_85_89;
+  return L1.age_ge_90;
 }
 
 // Apply a log-odds increment to a percentage.
@@ -568,13 +590,12 @@ function valveBurden(valves){
 // 1.00, and checked on two independent cohort realisations that took no part in the
 // fit. No performance claim is made: no simulated patient has an outcome.
 var BASELINE = {
-  // PROVISIONAL. The intercept is the one value that must come out of the calibration
-  // run against the thirteen registry anchors, together with any uniform slope applied
-  // across the whole vector. This is the v2.1 value, carried only so the structure is
-  // testable before calibration. It is NOT a v3.0 constant.
+  // v3.0 final. calibration_shift solved so a normal-risk 70-year-old man having an
+  // isolated elective first-time CABG reads 1.15x EuroSCORE II.
   intercept: -6.0777,
   reference_risk: 0.03,
-  crcl_k: 0.80
+  calibration_shift: 1.451532,
+  sternotomy_scale: 1.118599
 };
 
 // v3.0 Layer 1. One coefficient per variable, log-odds, set from clinical and
@@ -584,14 +605,20 @@ var BASELINE = {
 // EuroSCORE II is no longer a component of this layer. It is computed separately and
 // reported as an external comparator only.
 var L1 = {
-  age_per_decade_over_60: 0.30,
-  age_per_yr_over_75:     0.05,
-  female:                 0.20,
+  // v3.0 final: age BANDED. Serum creatinine carries no age signal, so this term is
+  // complete.
+  age_lt_60:  -0.59,   age_60_64: -0.53,   age_65_69: -0.09,   age_70_74: 0.06,
+  age_75_79:  0.2,    age_80_84: 0.44,    age_85_89: 0.6,    age_ge_90: 0.83,
+  female:                 0.2,
 
-  // Renal. Clearance read continuously; dialysis floored at the patient's own
-  // clearance term so that starting dialysis can never lower the estimate.
-  dialysis:               0.90,
-  anuria:                 0.75,
+  // Renal: SERUM CREATININE only. Cockcroft-Gault is deleted from the scored path - it
+  // smuggled age (+0.300 across 60-85), sex (+0.130) and weight (-0.347 across 60-120 kg,
+  // i.e. it REWARDED obesity) into terms that already have explicit counterparts.
+  // Dialysis REPLACES the term at a fixed creatinine equivalent. Anuria is read off the
+  // creatinine and carries no separate weight.
+  renal_k:                1.1,
+  dialysis_cr_equiv:      4.0,
+  anuria:                 0.0,
 
   // Pulmonary, four graded levels, highest applicable only.
   lung_chronic:           0.25,
@@ -636,7 +663,7 @@ var L1 = {
   asc_aorta:              0.20,
   // 0.75 puts arch one 5%->10% step above the same operation without it, which is
   // intercept-independent: it is a log-odds gap, not an absolute level.
-  aortic_arch:            0.75,
+  aortic_arch:            1.012,  // investigator judgment; NO published anchor
 
   // Comorbidity.
   bmi_30_40:              0.30,
@@ -681,29 +708,55 @@ var PROC_INCREMENT = {
 var AORTA_PRICED = { asc_aorta:1, cabg_asc_aorta:1, avr_asc_aorta:1, avr_root_asc_aorta:1 };
 
 // v3.0: the procedure table is re-expressed in log-odds with no k scaling.
-var PW = {};
-(function(){ for (var n in PROC_INCREMENT){ PW[n] = ppToLogOdds(PROC_INCREMENT[n]); } })();
+var PW = {
+  "asc_aorta": 0.658932,
+  "av_repair": -0.029315,
+  "avr": 0.006212,
+  "avr_are": 0.055416,
+  "avr_asc_aorta": 1.204868,
+  "avr_mv_repair_tv_repair": 0.588212,
+  "avr_mvr": 0.693811,
+  "avr_mvr_tvr": 1.151328,
+  "avr_root_asc_aorta": 1.334868,
+  "cabg": 0.0,
+  "cabg_asc_aorta": 1.204868,
+  "cabg_avr": 0.552148,
+  "cabg_avr_mv_repair": 0.972453,
+  "cabg_avr_mv_repair_tv_repair": 0.972453,
+  "cabg_avr_mvr_tv_repair": 1.068905,
+  "cabg_mv_repair": 0.52671,
+  "cabg_mvr": 0.643517,
+  "cabg_tv_repair": 0.0,
+  "mv_repair": -0.08752,
+  "mvr": 0.216737,
+  "other": 0.006212,
+  "tavr_explant": 0.523088,
+  "tv_repair": 0.272042,
+  "tvr": 0.368493
+};
+// v3.0 final: PW is a literal table, not derived from PROC_INCREMENT. Each procedure
+// takes EuroSCORE II's intervention-class baseline plus HALF its deviation from that
+// class's REFERENCE operation (cabg / avr / cabg_avr / cabg_avr_mv_repair) - not from
+// the class mean, which dragged isolated AVR below isolated CABG. Aortic codes take
+// EuroSCORE II's value directly. PROC_INCREMENT is retained for reference only.
 
 function physiologyBaseline(p){
-  var z = BASELINE.intercept;
+  var z = BASELINE.intercept + BASELINE.calibration_shift;
   var age = p.age;
 
-  // Native renal term only: adjusted body weight above 120% ideal body weight (see
-  // renalWeight). euroscore2() keeps raw p.weight, so the comparator stays faithful
-  // to its own published method.
-  var ccWeight = renalWeight(p.height, p.weight, p.female);
-  var cc = creatinineClearance(age, ccWeight, p.creatinine, p.female);
-
-  z += L1.age_per_decade_over_60 * Math.max(0, age - 60) / 10;
-  if (age > 75) z += L1.age_per_yr_over_75 * (age - 75);
+  // Age: banded. Creatinine carries no age signal, so this term is complete.
+  z += ageBand(age);
   if (p.female) z += L1.female;
 
-  var ccTerm = (cc !== null && cc !== undefined)
-    ? BASELINE.crcl_k * Math.max(0, Math.log(90 / Math.max(cc, 8)))
-    : 0;
-  if (p.dialysis) z += Math.max(L1.dialysis, ccTerm);
-  else z += ccTerm;
-  if (p.anuria) z += L1.anuria;
+  // Renal: serum creatinine only. Dialysis REPLACES the term at a fixed creatinine
+  // equivalent, so the score cannot depend on hours since the last session. Anuria
+  // carries no separate weight - it is read off the creatinine.
+  if (p.dialysis){
+    z += L1.renal_k * Math.log(L1.dialysis_cr_equiv);
+  } else {
+    var cr = (p.creatinine != null && !isNaN(p.creatinine)) ? p.creatinine : null;
+    if (cr) z += L1.renal_k * Math.max(0, Math.log(cr));
+  }
 
   // Pulmonary, highest applicable only.
   if      (p.pulmStatus === 'acute_vent')  z += L1.lung_acute_vent;
@@ -712,10 +765,13 @@ function physiologyBaseline(p){
   else if (p.pulmStatus === 'chronic')     z += L1.lung_chronic;
 
   // Ventricle, banded; at or above 40% carries no weight.
+  // v3.0 final: bands INCLUSIVE of their upper edge. An ejection fraction of 30 is
+  // severely depressed by definition and belongs in the 21-30 band, not 31-40. This
+  // also aligns the boundary with EuroSCORE II, which puts 30 in its "poor" class.
   if (p.lvef != null){
-    if      (p.lvef < 20) z += L1.ef_lt_20;
-    else if (p.lvef < 30) z += L1.ef_20_30;
-    else if (p.lvef < 40) z += L1.ef_30_40;
+    if      (p.lvef <= 20) z += L1.ef_lt_20;
+    else if (p.lvef <= 30) z += L1.ef_20_30;
+    else if (p.lvef <= 40) z += L1.ef_30_40;
   }
 
   if (p.nyha === 3) z += L1.nyha3; else if (p.nyha === 4) z += L1.nyha4;
@@ -739,8 +795,8 @@ function physiologyBaseline(p){
   else if (p.inot)     z += L1.inotropes;
 
   // Sternotomy count, highest applicable, not additive.
-  if      (p.sternotomy >= 3) z += L1.sternotomy3;
-  else if (p.sternotomy === 2 || p.prevCardiac) z += L1.sternotomy2;
+  if      (p.sternotomy >= 3) z += L1.sternotomy3 * BASELINE.sternotomy_scale;
+  else if (p.sternotomy === 2 || p.prevCardiac) z += L1.sternotomy2 * BASELINE.sternotomy_scale;
 
   if      (p.urgency === 'urgent')    z += L1.urgent;
   else if (p.urgency === 'emergency') z += L1.emergency;
@@ -804,7 +860,9 @@ function ucsrs(input){
     }
   }
 
-  var final = Math.min(base + lv + sx + hemo, S.layer3.cap_final);
+  // v3.0: Layer 2c is a LOG-ODDS shift on the post-frailty subtotal, not an additive
+  // slab of percentage points. Layer 3 remains percentage points.
+  var final = Math.min(shiftLogOdds(base, lv + sx) + hemo, S.layer3.cap_final);
 
   return { br:br, meldCorr:meldCorr, preCfs:preCfs, mult:mult, base:base,
            lv:lv, lvSource:lvSource, syntax:sx, syntaxGiven:sxGiven,
