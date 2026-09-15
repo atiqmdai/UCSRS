@@ -413,13 +413,12 @@ def valve_burden(valves: Optional[Dict[str, Dict[str, Any]]]) -> float:
 # patients in three for no measurable gain.
 
 BASELINE_A2 = {
-    # PROVISIONAL. The intercept must come out of the calibration run against the
-    # thirteen registry anchors, with any uniform slope applied across the whole
-    # vector. This is the v2.1 value, carried only so the structure is testable
-    # before calibration. It is NOT a v3.0 constant.
+    # v3.0 final. Solved so a normal-risk 70-year-old man having an isolated elective
+    # first-time CABG reads 1.15x EuroSCORE II. See UCSRS_v3.0_Calibration_Protocol.md.
     "reference_risk": 0.03,
     "intercept": -6.0777,
-    "crcl_k": 0.80,
+    "calibration_shift": 1.451532,
+    "sternotomy_scale": 1.118599,
 }
 
 _REF = BASELINE_A2["reference_risk"]
@@ -438,8 +437,17 @@ def _pp_to_logodds(pp):
 # Anaemia, albumin and mobility carry NO Layer 1 weight: each is counted once, in the
 # Essential Frailty Toolset at Layer 2b.
 L1 = {
-    "age_per_decade_over_60": 0.30, "age_per_yr_over_75": 0.05, "female": 0.20,
-    "dialysis": 0.90, "anuria": 0.75,
+    # v3.0 final: age is BANDED (creatinine carries no age signal, so the age term is
+    # complete). Each band is EuroSCORE II's own log-odds delta at the band midpoint,
+    # plus a deliberate acceleration above 80.
+    "age_lt_60": -0.59, "age_60_64": -0.53, "age_65_69": -0.09, "age_70_74": 0.06,
+    "age_75_79": 0.20, "age_80_84": 0.44, "age_85_89": 0.60, "age_ge_90": 0.83,
+    "female": 0.20,
+    # Renal: serum creatinine only. Cockcroft-Gault is DELETED from the scored path
+    # (it survives inside euroscore2(), which needs it by published method).
+    "renal_k": 1.10,
+    "dialysis_cr_equiv": 4.0,   # dialysis scores AS IF creatinine 4.0, replacing the term
+    "anuria": 0.00,             # calculated from creatinine; no separate weight
     "lung_chronic": 0.25, "lung_chronic_o2": 0.50,
     "lung_acute": 0.40, "lung_acute_vent": 0.95,
     "ef_30_40": 0.40, "ef_20_30": 0.80, "ef_lt_20": 1.20,
@@ -449,7 +457,7 @@ L1 = {
     "inotropes": 0.40, "vtvf": 0.60, "iabp": 0.50, "impella": 0.62, "ecmo": 0.95,
     "sternotomy2": 1.00, "sternotomy3": 1.50,
     "urgent": 0.35, "emergency": 0.90, "salvage": 2.00,
-    "asc_aorta": 0.20, "aortic_arch": 0.75,
+    "asc_aorta": 0.20, "aortic_arch": 1.398,
     "bmi_30_40": 0.30, "bmi_40_50": 0.80, "bmi_gt_50": 1.20,
     "iddm": 0.25, "endocarditis": 0.58, "arteriopathy": 0.35,
     "aortic_atheroma": 0.30, "neuro": 0.28, "valve_burden_per_04": 0.25,
@@ -461,33 +469,73 @@ L1 = {
 AORTA_PRICED = {"asc_aorta", "cabg_asc_aorta", "avr_asc_aorta", "avr_root_asc_aorta"}
 
 # v3.0: the procedure table is re-expressed in log-odds with no k scaling.
-_PROC_W = {k: _pp_to_logodds(v) for k, v in PROC_INCREMENT.items()}
+# v3.0 final: procedure increments REPLACED, not scaled. Each takes EuroSCORE II's
+# own intervention-class baseline plus half of UCSRS's within-class deviation;
+# aortic codes take EuroSCORE II's value directly (it models them via its aorta flag).
+_PROC_W = {
+    "cabg": 0.0,
+    "cabg_tv_repair": 0.0,
+    "avr": -0.158897,
+    "avr_are": -0.109694,
+    "tavr_explant": 0.357978,
+    "av_repair": -0.194424,
+    "mvr": 0.051627,
+    "mv_repair": -0.252629,
+    "tv_repair": 0.106932,
+    "tvr": 0.203384,
+    "asc_aorta": 0.658932,
+    "other": 0.006212,
+    "cabg_asc_aorta": 1.204868,
+    "avr_mvr": 0.645079,
+    "avr_mv_repair_tv_repair": 0.539481,
+    "cabg_avr": 0.503416,
+    "cabg_mvr": 0.594785,
+    "cabg_mv_repair": 0.477978,
+    "avr_asc_aorta": 1.204868,
+    "avr_root_asc_aorta": 1.454868,
+    "avr_mvr_tvr": 1.082496,
+    "cabg_avr_mv_repair": 0.903622,
+    "cabg_avr_mv_repair_tv_repair": 0.903622,
+    "cabg_avr_mvr_tv_repair": 1.000073
+}
+
+
+
+def age_band(age):
+    """v3.0 final: banded age. Bands are EuroSCORE II's own log-odds delta at the band
+    midpoint, plus a deliberate acceleration above 80 (investigator, 15 Sep 2026)."""
+    a = _num(age) or 0.0
+    if a < 60:  return L1["age_lt_60"]
+    if a < 65:  return L1["age_60_64"]
+    if a < 70:  return L1["age_65_69"]
+    if a < 75:  return L1["age_70_74"]
+    if a < 80:  return L1["age_75_79"]
+    if a < 85:  return L1["age_80_84"]
+    if a < 90:  return L1["age_85_89"]
+    return L1["age_ge_90"]
 
 
 def physiology_baseline(p):
     z = BASELINE_A2["intercept"]
     age = p["age"]
 
-    # Native renal term only: adjusted body weight above 120% ideal body weight.
-    # euroscore2() keeps raw p["weight"] so the comparator stays faithful to its own
-    # published method.
-    cc_w = renal_weight(p.get("height"), p.get("weight"), p.get("female", False))
-    cc = creatinine_clearance(age, cc_w, p.get("creatinine"), p.get("female", False))
+    z += BASELINE_A2["calibration_shift"]
 
-    z += L1["age_per_decade_over_60"] * max(0.0, age - 60) / 10.0
-    if age > 75:
-        z += L1["age_per_yr_over_75"] * (age - 75)
+    # Age: banded. Creatinine carries no age signal, so this term is complete.
+    z += age_band(age)
     if p.get("female"):
         z += L1["female"]
 
-    cc_term = (BASELINE_A2["crcl_k"] * max(0.0, math.log(90.0 / max(cc, 8.0)))
-               if cc is not None else 0.0)
+    # Renal: serum creatinine only. Dialysis REPLACES the term at a fixed creatinine
+    # equivalent of 4.0, so the score cannot depend on hours since the last session.
+    # Anuria carries no separate weight - it is read off the creatinine (investigator,
+    # 15 Sep), which also removes the additive double-count.
     if p.get("dialysis"):
-        z += max(L1["dialysis"], cc_term)
+        z += L1["renal_k"] * math.log(L1["dialysis_cr_equiv"])
     else:
-        z += cc_term
-    if p.get("anuria"):
-        z += L1["anuria"]
+        cr = _num(p.get("creatinine"))
+        if cr:
+            z += L1["renal_k"] * max(0.0, math.log(cr))
 
     pulm = p.get("pulmStatus")
     if pulm == "acute_vent":
@@ -545,9 +593,9 @@ def physiology_baseline(p):
     # Sternotomy count, highest applicable, not additive.
     stern = p.get("sternotomy")
     if stern is not None and stern >= 3:
-        z += L1["sternotomy3"]
+        z += L1["sternotomy3"] * BASELINE_A2["sternotomy_scale"]
     elif stern == 2 or p.get("prevCardiac"):
-        z += L1["sternotomy2"]
+        z += L1["sternotomy2"] * BASELINE_A2["sternotomy_scale"]
 
     urg = p.get("urgency")
     if urg == "urgent":
