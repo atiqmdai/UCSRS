@@ -46,10 +46,18 @@ SPEC: Dict[str, Any] = {
         # and it must be described as such.
         "hgb_crit": 8.0,
     },
+    # v3.0 final: Layer 2c converted from PERCENTAGE POINTS to LOG-ODDS, so the whole
+    # score is on one scale (Layer 1 converted at v2.1, Layer 2a in this build).
+    # Values raised per investigator, 15 Sep: LV geometry and SYNTAX were inert at
+    # cohort scale (LVEDD moved the score 1.1pp, SYNTAX 3.2pp, across their full range).
     "layer2c": {
-        "lvesvi": [("lte", 60, 0.0), ("lte", 100, 0.5), ("gt", 100, 2.0)],
-        "lvedd": [("lte", 55, 0.0), ("lte", 65, 0.5), ("gt", 65, 1.5)],
-        "syntax": [("lte", 32, 0.0), ("lte", 40, 2.5), ("gt", 40, 4.5)],
+        "lvesvi": [("lte", 60, 0.00), ("lte", 100, 0.25), ("gt", 100, 0.60)],
+        "lvedd": [("lte", 55, 0.00), ("lte", 65, 0.20), ("gt", 65, 0.45)],
+        # SYNTAX is OPTIONAL and frequently unmeasured outside trial centres. Absent
+        # scores 0.00 and the patient is flagged; it may not enter a primary analysis.
+        # Coefficients are investigator judgment, NOT published: SYNTAX was validated
+        # for PCI-vs-CABG allocation, not operative mortality after CABG.
+        "syntax": [("lte", 32, 0.00), ("lte", 40, 0.35), ("gt", 40, 0.70)],
     },
     "layer3": {
         "cpo_div": 451,
@@ -692,7 +700,9 @@ def ucsrs(baseline_pct: float, euro_pct: float, eft: int, meld: Optional[float],
             hemo += band(v_tapse / v_pasp, S["layer3"]["tapse_pasp"])
             hemo_used = True
 
-    final = min(base + lv + sx + hemo, S["layer3"]["cap_final"])
+    # v3.0: Layer 2c is now a LOG-ODDS shift on the post-frailty subtotal, not an
+    # additive slab of percentage points. Layer 3 remains percentage points.
+    final = min(shift_log_odds(base, lv + sx) + hemo, S["layer3"]["cap_final"])
 
     return {"br": br, "meldCorr": meld_corr, "preCfs": pre_cfs, "mult": mult,
             "base": base, "lv": lv, "lvSource": lv_source, "syntax": sx,
