@@ -497,31 +497,36 @@ AORTA_PRICED = {"asc_aorta", "cabg_asc_aorta", "avr_asc_aorta", "avr_root_asc_ao
 # v3.0 final: procedure increments REPLACED, not scaled. Each takes EuroSCORE II's
 # own intervention-class baseline plus half of UCSRS's within-class deviation;
 # aortic codes take EuroSCORE II's value directly (it models them via its aorta flag).
+# v3.0 final: each procedure takes EuroSCORE II's intervention-class baseline plus
+# HALF its deviation from that class's REFERENCE operation (cabg / avr / cabg_avr /
+# cabg_avr_mv_repair) - not from the class mean. Averaging over the "single" class
+# dragged isolated AVR below isolated CABG, because that class also contains TAVR
+# explant, TVR and the aortic codes. Aortic codes take EuroSCORE II's value directly.
 _PROC_W = {
-    "cabg": 0.0,
-    "cabg_tv_repair": 0.0,
-    "avr": -0.158897,
-    "avr_are": -0.109694,
-    "tavr_explant": 0.357978,
-    "av_repair": -0.194424,
-    "mvr": 0.051627,
-    "mv_repair": -0.252629,
-    "tv_repair": 0.106932,
-    "tvr": 0.203384,
     "asc_aorta": 0.658932,
-    "other": 0.006212,
-    "cabg_asc_aorta": 1.204868,
-    "avr_mvr": 0.645079,
-    "avr_mv_repair_tv_repair": 0.539481,
-    "cabg_avr": 0.503416,
-    "cabg_mvr": 0.594785,
-    "cabg_mv_repair": 0.477978,
+    "av_repair": -0.029315,
+    "avr": 0.006212,
+    "avr_are": 0.055416,
     "avr_asc_aorta": 1.204868,
+    "avr_mv_repair_tv_repair": 0.588212,
+    "avr_mvr": 0.693811,
+    "avr_mvr_tvr": 1.151328,
     "avr_root_asc_aorta": 1.454868,
-    "avr_mvr_tvr": 1.082496,
-    "cabg_avr_mv_repair": 0.903622,
-    "cabg_avr_mv_repair_tv_repair": 0.903622,
-    "cabg_avr_mvr_tv_repair": 1.000073
+    "cabg": 0.0,
+    "cabg_asc_aorta": 1.204868,
+    "cabg_avr": 0.552148,
+    "cabg_avr_mv_repair": 0.972453,
+    "cabg_avr_mv_repair_tv_repair": 0.972453,
+    "cabg_avr_mvr_tv_repair": 1.068905,
+    "cabg_mv_repair": 0.52671,
+    "cabg_mvr": 0.643517,
+    "cabg_tv_repair": 0.0,
+    "mv_repair": -0.08752,
+    "mvr": 0.216737,
+    "other": 0.006212,
+    "tavr_explant": 0.523088,
+    "tv_repair": 0.272042,
+    "tvr": 0.368493
 }
 
 
