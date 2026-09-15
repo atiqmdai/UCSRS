@@ -482,7 +482,14 @@ L1 = {
     "inotropes": 0.40, "vtvf": 0.60, "iabp": 0.50, "impella": 0.62, "ecmo": 0.95,
     "sternotomy2": 1.00, "sternotomy3": 1.50,
     "urgent": 0.35, "emergency": 0.90, "salvage": 2.00,
-    "asc_aorta": 0.20, "aortic_arch": 1.398,
+    "asc_aorta": 0.20,
+    # Arch: 1.012, set to the investigator's <10% target for a normal-risk elective
+    # 70-year-old (Bentall + arch = 9.80%). NO PUBLISHED ANCHOR EXISTS: EuroSCORE II
+    # carries one binary thoracic-aorta flag (0.6527205) that does not distinguish
+    # ascending from arch, and the STS ACSD models exclude aortic surgery entirely -
+    # the April 2025 STS aortic calculator covers root and ascending only, not arch.
+    # This is investigator judgment and must be labelled as such in the spec.
+    "aortic_arch": 1.012,
     "bmi_30_40": 0.30, "bmi_40_50": 0.80, "bmi_gt_50": 1.20,
     "iddm": 0.25, "endocarditis": 0.58, "arteriopathy": 0.35,
     "aortic_atheroma": 0.30, "neuro": 0.28, "valve_burden_per_04": 0.25,
