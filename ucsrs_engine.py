@@ -32,8 +32,13 @@ SPEC: Dict[str, Any] = {
     # v3.0: MELD in log-odds. per_point = ln(1.09), the ADJUSTED OR per MELD point
     # (95% CI 1.07-1.10) in a 10,882-patient cardiac surgical cohort. Adjusted is the
     # correct estimate: MELD contains creatinine and Layer 1 carries a renal term.
-    "layer2a_meld": {"cap_pre_cfs": 65, "per_point": 0.18, "threshold": 9,
-                     "meld_max": 40},
+    "layer2a_meld": {"cap_pre_cfs": 65, "threshold": 9, "meld_max": 40,
+                     # TWO-SEGMENT (investigator, 15 Sep): the published cardiac
+                     # gradient is steep to MELD 20 and flattens above it. A single
+                     # slope fits neither end.
+                     "per_point": 0.17,          # MELD 9 -> 20
+                     "per_point_hi": 0.08,       # above MELD 20
+                     "breakpoint": 20},
     # v3.0 final: slope raised 0.0862 -> 0.18 per MELD point, extrapolated from a
     # 10,882-patient cardiac-surgery series on CPB (MELD <10 4.6%, 10-19 17.5%,
     # >=20 31.2%), which implies 0.198 log-odds/point below MELD ~15 flattening to
@@ -199,7 +204,11 @@ def meld_correction(m: Optional[float]) -> float:
     S = SPEC["layer2a_meld"]
     if m is None or m < S["threshold"]:
         return 0.0
-    return S["per_point"] * (min(m, S["meld_max"]) - S["threshold"])
+    m = min(m, S["meld_max"])
+    bp = S["breakpoint"]
+    lo = S["per_point"] * (min(m, bp) - S["threshold"])
+    hi = S["per_point_hi"] * (m - bp) if m > bp else 0.0
+    return lo + hi
 
 
 def shift_log_odds(pct: float, d: float) -> float:
