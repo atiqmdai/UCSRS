@@ -928,6 +928,13 @@ def patient_from_row(row: Dict[str, Any]) -> Dict[str, Any]:
         "pasp": _num(row.get("pasp_mmhg")),
         "nyha": nyha,
         "heartFailure": hf,
+        "pulmStatus": pulm,  # BUGFIX (15 Sep 2026, SPEC_VERSION 3.0.0 unchanged -- L1 coefficients did not
+        # change, only this field-mapping wiring): physiology_baseline() reads
+        # p.get("pulmStatus") for the pulmonary-status log-odds term; this key was
+        # missing here, so that term was silently 0 for every submission-file
+        # patient. No patients enrolled under v3.0/v4.0 yet, so fixed at the source
+        # rather than papered over downstream. See
+        # UCSRS_v4.0_ATLAS_Document_Update_Record.md for the finding.
         "acuteDecomp": hf == "acute",
         "ccs4": _flag(row.get("ccs_class_4")),
         "arteriopathy": arterio != "none",
