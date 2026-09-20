@@ -323,6 +323,13 @@ var UCSRS_SPEC = {
     lvedd:  [{lte:55,c:0.0},{lte:65,c:0.2},{gt:65,c:0.45}],
     syntax: [{lte:32,c:0.0},{lte:40,c:0.35},{gt:40,c:0.7}]
   },
+  // LOCKED 20 September 2026, investigator ruling. Layer 3 stays in PERCENTAGE POINTS
+  // while Layers 1, 2a, 2b and 2c are log-odds, and its four terms ADD rather than taking
+  // the highest applicable. Both examined and both ACCEPTED, not deferred: the worst-case
+  // stack is 8.6 points and is attainable only in severe biventricular failure with
+  // pulmonary vascular disease, a patient already carrying a 5-10% baseline through low EF,
+  // raised PASP and circulatory support -- so 14-19% total, which reads correctly as very
+  // high risk to inoperable. Fires in ~3.5% of patients; calibration unaffected.
   layer3: { cpo_div:451, cpo:[{lt:0.6,c:2.5},{lt:0.9,c:0.8}], pvr:[{gt:5,c:2.8},{gt:3,c:1.2}],
             ci:[{lt:2.0,c:1.5}], tapse_pasp:[{lt:0.406,c:1.8}], cap_final:70 },
   // Companion 30-day outcome estimates. Each endpoint starts from the mortality risk

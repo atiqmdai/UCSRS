@@ -72,6 +72,19 @@ SPEC: Dict[str, Any] = {
         # for PCI-vs-CABG allocation, not operative mortality after CABG.
         "syntax": [("lte", 32, 0.00), ("lte", 40, 0.35), ("gt", 40, 0.70)],
     },
+    # LOCKED 20 September 2026, investigator ruling. Layer 3 stays in PERCENTAGE POINTS
+    # while Layers 1, 2a, 2b and 2c are log-odds, and its four terms ADD rather than
+    # taking the highest applicable (unlike Layer 1 circulatory support). Both were
+    # examined and both are ACCEPTED, not deferred:
+    #   - the worst-case stack is 8.6 points (CPO 2.5 + PVR 2.8 + CI 1.5 + TAPSE/PASP 1.8),
+    #     attainable only by a patient in severe biventricular failure with pulmonary
+    #     vascular disease. Such a patient already carries a Layer 1-2c baseline of roughly
+    #     5-10% through low EF, raised PASP and circulatory support, so the stack lands them
+    #     at 14-19% -- very high risk to inoperable, which is the correct reading.
+    #   - the flat-slab concern is therefore theoretical at the top of the range: the 1%
+    #     baseline used to illustrate it does not occur in a patient meeting these criteria.
+    # Fires in ~3.5% of patients; contributes under 2% of the population mean, so the
+    # registry calibration is unaffected either way. Revisit only if ATLAS shows otherwise.
     "layer3": {
         "cpo_div": 451,
         "cpo": [("lt", 0.6, 2.5), ("lt", 0.9, 0.8)],
