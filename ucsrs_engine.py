@@ -29,9 +29,17 @@ SPEC_VERSION = "3.1.0"
 SPEC: Dict[str, Any] = {
     # v3.0: Layer 1 is the physiology-derived baseline alone.
     "layer1": {"cap_br": 60},
-    # v3.0: MELD in log-odds. per_point = ln(1.09), the ADJUSTED OR per MELD point
-    # (95% CI 1.07-1.10) in a 10,882-patient cardiac surgical cohort. Adjusted is the
-    # correct estimate: MELD contains creatinine and Layer 1 carries a renal term.
+    # Layer 2a: MELD in log-odds, TWO-SEGMENT, 0.18 per point from MELD 9 to 20 and 0.08
+    # per point above 20.
+    #
+    # CORRECTED 20 Sep 2026. This block previously opened "per_point = ln(1.09), the
+    # ADJUSTED OR per MELD point (95% CI 1.07-1.10)... Adjusted is the correct estimate:
+    # MELD contains creatinine and Layer 1 carries a renal term." Three things were wrong
+    # with it by the time it was read: ln(1.09) is 0.0862 and the constant beside it is
+    # 0.18; the slope is no longer adjusted for the creatinine overlap but UNADJUSTED,
+    # as the derivation immediately below states; and the overlap is now handled by
+    # declaring it and calibrating jointly, not by discounting the slope. The 0.0862
+    # adjusted figure is the v2.x value and is kept only in the change note below.
     "layer2a_meld": {"cap_pre_cfs": 65, "threshold": 9, "meld_max": 40,
                      # TWO-SEGMENT (investigator, 15 Sep): the published cardiac
                      # gradient is steep to MELD 20 and flattens above it. A single
@@ -42,13 +50,25 @@ SPEC: Dict[str, Any] = {
     # v3.0 final: slope raised 0.0862 -> 0.18 per MELD point, extrapolated from a
     # 10,882-patient cardiac-surgery series on CPB (MELD <10 4.6%, 10-19 17.5%,
     # >=20 31.2%), which implies 0.198 log-odds/point below MELD ~15 flattening to
-    # 0.080 above 20. 0.18 is a single-segment compromise set by the investigator.
+    # 0.080 above 20. 0.18 was first set as a single-segment compromise by the
+    # investigator and was SPLIT into the two segments above on 15 Sep, so the layer now
+    # follows the published shape rather than averaging across it.
     # The published gradient is UNADJUSTED: creatinine is 24-43% of a sick patient's
     # MELD and is scored separately, and albumin/haemoglobin in the mEFT track the
     # same hepatic synthetic failure as INR. That overlap is DECLARED, not removed -
     # ATLAS resolves it by joint estimation. See UCSRS_v3.0_Calibration_Protocol.md.
-    # v2.0: the excess above 1.00 is reduced by 25% from the published ladder
-    # (1.15/1.35/1.60/1.90/2.30). A deliberate departure, not a correction.
+    # Layer 2b frailty multipliers.
+    #
+    # CORRECTED 20 Sep 2026 -- this described a construction abandoned at v3.0, and
+    # index.html has carried the right one since. The v2.1 ladder
+    # (1.1125/1.2625/1.45/1.675/1.975) WAS the published ladder with its excess above
+    # 1.00 reduced by 25%. v3.0 abandoned that and re-set the ladder against
+    # FRAILTY-AVR, where EFT frail vs not-frail carried an adjusted OR of 3.29
+    # (95% CI 1.73-6.26) for 30-day mortality -- at a 3% reference, a probability
+    # multiplier near 3.08. The ladder stops short of that point estimate deliberately:
+    # it comes from a median-age-82 AVR/TAVR cohort with a wide interval, and applying
+    # it whole to all-comers cardiac surgery would over-reach. A deliberate departure
+    # from the published model, not a correction.
     "layer2b_eft": {
         "mult": {0: 1.00, 1: 1.25, 2: 1.60, 3: 2.10, 4: 2.60, 5: 3.10, 6: 4.00},
         "cap": 70, "hgb_lo_m": 13.0, "hgb_lo_f": 12.0, "alb_lo": 3.5, "alb_crit": 3.0,
@@ -286,10 +306,18 @@ def creatinine_clearance(age, weight_kg, cr_mgdl, female: bool) -> Optional[floa
 # so feeding raw weight in continues to inflate the estimate the heavier a patient
 # gets -- a real patient at 200 kg with Cr 2.5 does not have materially better renal
 # function than the same patient at 124 kg. Devine ideal-body-weight + the standard
-# 0.4 adjustment factor (ASHP/kidney-dosing convention) caps that inflation. Applied
-# ONLY to UCSRS's own native renal term below -- the EuroSCORE II sub-computation
-# keeps raw actual weight, unmodified, since it must stay faithful to Nashef et al.
-# 2012's published methodology for the head-to-head comparator to remain valid.
+# 0.4 adjustment factor (ASHP/kidney-dosing convention) caps that inflation.
+#
+# NOT ON THE SCORED PATH as of v3.0. The two functions below are RETAINED BUT UNCALLED.
+# This note previously read "Applied ONLY to UCSRS's own native renal term below", which
+# stopped being true when v3.0 deleted Cockcroft-Gault from the scored path: UCSRS's
+# native renal term now reads serum creatinine directly, through
+# renal_k * ln(creatinine), and no weight of any kind enters it. EuroSCORE II's
+# sub-computation still uses Cockcroft-Gault on raw actual weight, unmodified, because
+# it must stay faithful to Nashef et al. 2012 for the comparator to remain valid -- and
+# raw weight is what that method specifies, so the adjustment below is not wanted there
+# either. Kept in both engines as the record of a correction that was built and then
+# rendered moot; see the dead-code note in the v3.1 review before removing.
 def ideal_body_weight(height_cm, female: bool) -> Optional[float]:
     h = _num(height_cm)
     if h is None:
@@ -393,8 +421,11 @@ def euroscore2(p: Dict[str, Any]) -> float:
 # ---------------------------------------------------------------- frailty
 def eft_score(chair: Optional[str], cog_impaired: Optional[bool],
               hgb, albumin, female: bool) -> Dict[str, Any]:
-    """Essential Frailty Toolset, 0-6 points (modified: graded haemoglobin). Missing chair rise or cognition gives a
-    partial EFT computed from the laboratory components."""
+    """Essential Frailty Toolset, 0-6 points. MODIFIED in two places, and must be
+    described as a modified EFT wherever it is cited: haemoglobin is graded (a second
+    point below 8.0 g/dL) and albumin is graded (2 points below 3.0, 1 below 3.5). The
+    published instrument scores both as single binary points. Missing chair rise or
+    cognition gives a partial EFT computed from the laboratory components."""
     S = SPEC["layer2b_eft"]
     pts, missing, any_component = 0, [], False
 
@@ -491,7 +522,7 @@ BASELINE_A2 = {
     # v3.1 final. calibration_shift is REGISTRY-ANCHORED: solved so that the median O/E
     # across the thirteen anchorable registries is 1.00, where O/E for each registry is
     # its published observed mortality divided by the mean UCSRS of a synthetic cohort
-    # tuned to that registry's published case mix. See UCSRS_v3.1_Calibration_Review.md.
+    # tuned to that registry's published case mix. See UCSRS_v3.1_Calibration_and_Architecture_Review.md.
     #
     # STALE COMMENT CORRECTED 20 Sep 2026. Through v3.0 this constant was described as
     # "solved so a normal-risk 70-year-old man having an isolated elective first-time
@@ -534,12 +565,19 @@ L1 = {
     "age_75_79": 0.55, "age_80_84": 0.85, "age_85_89": 1.10, "age_ge_90": 1.40,
     "female": 0.20,
     # Renal: serum creatinine only. Cockcroft-Gault is DELETED from the scored path
-    # (it survives inside euroscore2(), which needs it by published method).
+    # (it survives inside euroscore2(), which needs it by published method, and it
+    # also feeds the "cc" input of the COMPANION renal-failure estimate, which is not
+    # the mortality path).
     "renal_k": 1.30,   # v3.1 (was 1.10)
     "dialysis_cr_equiv": 4.0,   # dialysis scores AS IF creatinine 4.0, replacing the term
     "anuria": 0.00,             # calculated from creatinine; no separate weight
-    "lung_chronic": 0.25, "lung_chronic_o2": 0.60,   # CANDIDATE v3.1
-    "lung_acute": 0.50, "lung_acute_vent": 1.10,     # (was 0.50/0.40/0.95)
+    "lung_chronic": 0.25, "lung_chronic_o2": 0.60,
+    "lung_acute": 0.50, "lung_acute_vent": 1.10,
+    # v3.1 lifted the severe end: chronic_o2 0.50->0.60, acute 0.40->0.50,
+    # acute_vent 0.95->1.10. lung_chronic is unchanged at 0.25. EuroSCORE II carries one
+    # binary pulmonary term at 0.1886564, so a graded term reading below it at the
+    # severe end was the wrong direction for a term meant to discriminate inside a
+    # category the comparator treats as flat.
     # EF: UNCHANGED from v3.0, and deliberately so. A candidate departure above
     # EuroSCORE II (0.55/1.10/1.60) was proposed on 19 Sep and WITHDRAWN the same day.
     # The literature check found one usable adjusted estimate -- OR 2.761 (95% CI
@@ -615,8 +653,11 @@ _PROC_W = {
 
 
 def age_band(age):
-    """v3.0 final: banded age. Bands are EuroSCORE II's own log-odds delta at the band
-    midpoint, plus a deliberate acceleration above 80 (investigator, 15 Sep 2026)."""
+    """Banded age. Below 65 the bands are EuroSCORE II's own log-odds delta at the band
+    midpoint. From 65 up they are NOT: v3.1 steepened them (see the note on L1) after a
+    decomposition found the 70-74 band charging +0.06 where EuroSCORE II charges +0.314
+    at age 70, and the bands above 80 carry a deliberate acceleration on top of that,
+    justified by the KROK on-pump octogenarian arm."""
     a = _num(age) or 0.0
     if a < 60:  return L1["age_lt_60"]
     if a < 65:  return L1["age_60_64"]

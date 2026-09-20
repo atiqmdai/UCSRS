@@ -1,5 +1,5 @@
 {
-  "name": "UCSRS v3.0 — Universal Cardiac Surgical Risk Score",
+  "name": "UCSRS v3.1 — Universal Cardiac Surgical Risk Score",
   "short_name": "UCSRS",
   "description": "Physiology-informed cardiac surgical risk calculator: a single log-odds baseline, plus MELD, the modified Essential Frailty Toolset (mEFT), LV dimensions, SYNTAX and optional right-heart haemodynamics, with four 30-day companion estimates alongside mortality. EuroSCORE II is computed as a comparator and does not enter the score. Research tool; all computation runs locally in the browser.",
   "start_url": "/",
