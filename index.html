@@ -229,7 +229,7 @@
     <div class="row">
       <div><label id="biliLbl">Bilirubin (mg/dL)</label><input type="number" id="bili" step="0.1" min="0.1" max="60" oninput="calc()"></div>
       <div><label>INR</label><input type="number" id="inr" step="0.01" oninput="calc()"></div>
-      <div><label id="crmeldLbl">Creatinine for MELD (mg/dL)</label><input type="number" id="crmeld" step="0.01" min="0.2" max="20" placeholder="from Creatinine above" oninput="calc()"></div>
+      <div><label id="crmeldLbl">Creatinine for MELD (mg/dL)</label><input type="number" id="crmeld" step="0.01" min="0.2" max="20" oninput="calc()"></div>
     </div>
     <p class="note">MELD is computed from these three values.</p>
   </div>
@@ -1215,10 +1215,10 @@ function calc(){
   var euro = age ? euroscore2(patient) : null;
 
   var meld = null;
-  // One creatinine. The MELD field is an override; when it is blank the value entered above
-  // value is used, so Layer 2a can never fail silently for want of a repeated entry.
+  // v3.1: MELD creatinine is entered independently and is not taken from the Layer 1
+  // creatinine field above. If left blank, MELD is not calculated - same as bilirubin or INR.
   var b = labNum('bili'), i = num('inr');
-  var c = labNum('crmeld'); if (c === null) c = patient.creatinine;
+  var c = labNum('crmeld');
   if (b !== null && i !== null && c !== null)
     meld = meldFromLabs(b, i, c);
 
