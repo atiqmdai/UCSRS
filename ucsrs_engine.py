@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""UCSRS v3.0 — reference implementation in Python.
+"""UCSRS v3.1 — reference implementation in Python.
 
 This is a line-for-line port of the engine block in UCSRS_Calculator.index.html
 (between the ENGINE START and ENGINE END markers). The JavaScript file remains the
@@ -428,7 +428,7 @@ def eft_score(chair: Optional[str], cog_impaired: Optional[bool],
 
     a = _num(albumin)
     if a is not None:
-        # CANDIDATE v3.1: albumin GRADED. The standing open item ("grading albumin").
+        # v3.1 (committed 20 Sep 2026): albumin GRADED. The standing open item ("grading albumin").
         # A single point for anything below 3.5 gave an albumin of 3.0 the same weight
         # as 3.4 in a patient who is otherwise identical.
         if a < S["alb_crit"]:
@@ -439,7 +439,7 @@ def eft_score(chair: Optional[str], cog_impaired: Optional[bool],
     else:
         missing.append("albumin")
 
-    pts = min(pts, 6)   # CANDIDATE v3.1: graded albumin can reach 7 unclamped
+    pts = min(pts, 6)   # v3.1 (committed 20 Sep 2026): graded albumin can reach 7 unclamped
     return {"points": pts, "missing": missing,
             "partial": len(missing) > 0, "none": not any_component}
 
@@ -487,8 +487,19 @@ def valve_burden(valves: Optional[Dict[str, Dict[str, Any]]]) -> float:
 # patients in three for no measurable gain.
 
 BASELINE_A2 = {
-    # v3.0 final. Solved so a normal-risk 70-year-old man having an isolated elective
-    # first-time CABG reads 1.15x EuroSCORE II. See UCSRS_v3.0_Calibration_Protocol.md.
+    # v3.1 final. calibration_shift is REGISTRY-ANCHORED: solved so that the median O/E
+    # across the thirteen anchorable registries is 1.00, where O/E for each registry is
+    # its published observed mortality divided by the mean UCSRS of a synthetic cohort
+    # tuned to that registry's published case mix. See UCSRS_v3.1_Calibration_Review.md.
+    #
+    # STALE COMMENT CORRECTED 20 Sep 2026. Through v3.0 this constant was described as
+    # "solved so a normal-risk 70-year-old man having an isolated elective first-time
+    # CABG reads 1.15x EuroSCORE II". That design target is WITHDRAWN and the comment
+    # survived the v3.1 recalibration by oversight. The target is arithmetically
+    # incompatible with median O/E 1.00: EuroSCORE II's own median published O/E across
+    # these registries is 0.85, so a Layer 1 pinned 15% above it over-predicts observed
+    # mortality before any layer fires. UCSRS_v3.0_Calibration_Protocol.md documents the
+    # withdrawn target and is superseded on this point.
     "reference_risk": 0.03,
     "intercept": -6.0777,
     "calibration_shift": 0.433039,
@@ -514,7 +525,7 @@ L1 = {
     # v3.0 final: age is BANDED (creatinine carries no age signal, so the age term is
     # complete). Each band is EuroSCORE II's own log-odds delta at the band midpoint,
     # plus a deliberate acceleration above 80.
-    # CANDIDATE v3.1: steepened from 65 upward. The 19 Sep decomposition found the
+    # v3.1 (committed 20 Sep 2026): steepened from 65 upward. The 19 Sep decomposition found the
     # 70-74 band charging +0.06 against EuroSCORE II's +0.314 at age 70 -- a deficit of
     # 0.254 log-odds applying to every patient of that age regardless of physiology.
     # Bands below 65 are untouched, so the healthy end does not move.
@@ -523,7 +534,7 @@ L1 = {
     "female": 0.20,
     # Renal: serum creatinine only. Cockcroft-Gault is DELETED from the scored path
     # (it survives inside euroscore2(), which needs it by published method).
-    "renal_k": 1.30,   # CANDIDATE v3.1 (was 1.10)
+    "renal_k": 1.30,   # v3.1 (was 1.10)
     "dialysis_cr_equiv": 4.0,   # dialysis scores AS IF creatinine 4.0, replacing the term
     "anuria": 0.00,             # calculated from creatinine; no separate weight
     "lung_chronic": 0.25, "lung_chronic_o2": 0.60,   # CANDIDATE v3.1

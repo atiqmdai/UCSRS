@@ -603,8 +603,12 @@ function valveBurden(valves){
 // 1.00, and checked on two independent cohort realisations that took no part in the
 // fit. No performance claim is made: no simulated patient has an outcome.
 var BASELINE = {
-  // v3.0 final. calibration_shift solved so a normal-risk 70-year-old man having an
-  // isolated elective first-time CABG reads 1.15x EuroSCORE II.
+  // v3.1 final. calibration_shift is REGISTRY-ANCHORED: solved so the median O/E across
+  // the thirteen anchorable registries is 1.00. STALE COMMENT CORRECTED 20 Sep 2026 --
+  // this previously read "solved so a normal-risk 70-year-old man having an isolated
+  // elective first-time CABG reads 1.15x EuroSCORE II". That design target is WITHDRAWN
+  // (it is incompatible with median O/E 1.00, EuroSCORE II's own median published O/E
+  // across these registries being 0.85) and the comment survived v3.1 by oversight.
   intercept: -6.0777,
   reference_risk: 0.03,
   calibration_shift: 0.433039,   // v3.1: registry-anchored, 30M patients
