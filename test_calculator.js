@@ -270,10 +270,14 @@ console.log('\n7c. Layer 1 baseline behaviour');
 // to one.
 const REFPT = {age:60,weight:80,creatinine:0.9,female:false,dialysis:false,lvef:60,nyha:1,urgency:'elective',procedure:'cabg'};
 const refBase = ctx.physiologyBaseline(REFPT);
-check('reference 60M elective CABG sits strictly inside the Layer 1 clamps (0.30 / 50)',
-  refBase > 0.30 && refBase < 50, `got ${refBase.toFixed(3)}%`);
-check('the Layer 1 clamps are 0.30 and 50 in the shipped engine',
-  /Math\.min\(Math\.max\(100 \/ \(1 \+ Math\.exp\(-z\)\), 0\.30\), 50\)/.test(engine));
+// v3.1: the floor is 0.40 and this reference patient SITS ON IT, deliberately. At 0.40
+// a routine elective CABG patient reads the same 0.400% from 55 to 69; the ladder starts
+// separating at 70. Investigator ruling 20 Sep: clinically correct, nothing under ~0.5%
+// is differentiable. 18.9% of a representative case mix sits on this floor.
+check('reference 60M elective CABG sits at or inside the Layer 1 clamps (0.40 / 50)',
+  refBase >= 0.40 && refBase < 50, `got ${refBase.toFixed(3)}%`);
+check('the Layer 1 clamps are 0.40 and 50 in the shipped engine',
+  /Math\.min\(Math\.max\(100 \/ \(1 \+ Math\.exp\(-z\)\), 0\.40\), 50\)/.test(engine));
 check('a healthy 52-year-old can now score below 1.0 (real STS was 0.40)',
   ctx.physiologyBaseline({age:52,weight:85,creatinine:1.09,female:false,dialysis:false,lvef:65,nyha:1,urgency:'elective',procedure:'cabg',interventionWeight:'cabg'}) < 1.0);
 
@@ -817,9 +821,18 @@ console.log('\n7i. v2.1 baseline — log-odds form, continuity, and the removed 
   var jumpAge = Math.abs(ctx.physiologyBaseline(P({ age:70.001 })) - ctx.physiologyBaseline(P({ age:69.999 })));
   check('age is BANDED in v3.0 — a step exists at the 70-year band edge', jumpAge > 5e-4,
     `step ${jumpAge.toFixed(4)} pp`);
-  check('the age ladder is monotonic across every band edge',
+  // v3.1: NON-DECREASING, not strictly increasing. The 0.40 floor flattens the ladder
+  // below 70 for a normal-risk patient, so 59->60 and 64->65 return the same value. The
+  // ladder itself is still strictly increasing in log-odds - assert that on a patient
+  // sick enough to sit off the floor, and assert non-decreasing on the reference one.
+  check('the age ladder never decreases across a band edge',
     [59,64,69,74,79,84,89].every(function(e){
-      return ctx.physiologyBaseline(P({ age:e + 1 })) > ctx.physiologyBaseline(P({ age:e })); }));
+      return ctx.physiologyBaseline(P({ age:e + 1 })) >= ctx.physiologyBaseline(P({ age:e })); }));
+  check('off the floor, the age ladder is STRICTLY increasing at every band edge',
+    [59,64,69,74,79,84,89].every(function(e){
+      var sick = { creatinine:2.0, lvef:30 };
+      return ctx.physiologyBaseline(P(Object.assign({ age:e + 1 }, sick))) >
+             ctx.physiologyBaseline(P(Object.assign({ age:e },     sick))); }));
   // STS-style acceleration above 80, measured against the seventh decade rather than
   // against any single band edge.
   //
@@ -845,15 +858,32 @@ console.log('\n7i. v2.1 baseline — log-odds form, continuity, and the removed 
   // keeping: across the whole age range the banded ladder must track the comparator. A
   // band edge is a discrete approximation of a continuous curve, so single-edge steps
   // will differ; the RATIO is what must hold.
-  check('UCSRS tracks EuroSCORE II within 0.90-1.30x at every age from 52 to 87',
+  // v3.1 REPLACES the old 0.90-1.30x guard, which encoded the WITHDRAWN design target of
+  // Layer 1 reproducing EuroSCORE II at normal risk. That target was abandoned 19 Sep: it
+  // is arithmetically incompatible with median O/E 1.00, because EuroSCORE II's own median
+  // published O/E across the thirteen registries is 0.85. What v3.1 claims instead is that
+  // the UCSRS age ladder is STEEPER than EuroSCORE II's above 65 - the KROK on-pump
+  // octogenarian finding - so the ratio must RISE with age. That is what is guarded now,
+  // plus a wide sanity band to catch gross drift.
+  check('the UCSRS/EuroSCORE II ratio rises with age from 65 up (steeper age ladder)',
+    (function(){
+      var prev = null, ok = true;
+      [67, 72, 78, 82, 87, 92].forEach(function(a){
+        var r = ctx.physiologyBaseline(P({ age:a })) / ctx.euroscore2(P({ age:a }));
+        if (prev !== null && r < prev - 1e-9) ok = false;
+        prev = r;
+      });
+      return ok;
+    })(), 'v3.1 age ladder is deliberately steeper than the comparator above 65');
+  check('the UCSRS/EuroSCORE II ratio stays inside a 0.40-1.60 sanity band, ages 52-92',
     (function(){
       var worst = null;
-      [52, 58, 62, 67, 72, 78, 82, 87].forEach(function(a){
+      [52, 58, 62, 67, 72, 78, 82, 87, 92].forEach(function(a){
         var r = ctx.physiologyBaseline(P({ age:a })) / ctx.euroscore2(P({ age:a }));
         if (worst === null || Math.abs(r - 1) > Math.abs(worst - 1)) worst = r;
       });
-      return worst >= 0.90 && worst <= 1.30;
-    })(), 'guards the age ladder against drift in either direction');
+      return worst >= 0.40 && worst <= 1.60;
+    })(), 'catches gross drift in either direction');
 
   var jumpEf = Math.abs(ctx.physiologyBaseline(P({ lvef:30.001 })) - ctx.physiologyBaseline(P({ lvef:29.999 })));
   check('ejection fraction is BANDED in v3.0 — a step exists at the 30% band edge', jumpEf > 5e-4,

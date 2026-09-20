@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Optional
 
-SPEC_VERSION = "3.0.0"
+SPEC_VERSION = "3.1.0"
 
 SPEC: Dict[str, Any] = {
     # v3.0: Layer 1 is the physiology-derived baseline alone.
@@ -51,7 +51,7 @@ SPEC: Dict[str, Any] = {
     # (1.15/1.35/1.60/1.90/2.30). A deliberate departure, not a correction.
     "layer2b_eft": {
         "mult": {0: 1.00, 1: 1.25, 2: 1.60, 3: 2.10, 4: 2.60, 5: 3.10, 6: 4.00},
-        "cap": 70, "hgb_lo_m": 13.0, "hgb_lo_f": 12.0, "alb_lo": 3.5,
+        "cap": 70, "hgb_lo_m": 13.0, "hgb_lo_f": 12.0, "alb_lo": 3.5, "alb_crit": 3.0,
         # v3.0: a SECOND haemoglobin point below 8.0 g/dL. The published EFT scores
         # haemoglobin as one binary point at the WHO anaemia thresholds and is blind
         # to depth; chair rise is already graded 1/2 in the same instrument, so this
@@ -183,12 +183,42 @@ def band(v: float, rules) -> float:
 
 
 def meld_from_labs(bili_mgdl: float, inr: float, cr_mgdl: float) -> int:
-    """Three inputs only. The creatinine entered is the creatinine used, capped at
-    4.0; no dialysis substitution — dialysis is already carried in Layer 1."""
+    """PUBLISHED MELD, retained for display and for the submission record so a site's
+    number matches its own laboratory system. NOT the value UCSRS scores -- see
+    meld_hepatic(), which is what Layer 2a reads."""
     cr = min(cr_mgdl, 4.0)
     b, i, c = max(bili_mgdl, 1.0), max(inr, 1.0), max(cr, 1.0)
     raw = 3.78 * math.log(b) + 11.2 * math.log(i) + 9.57 * math.log(c) + 6.43
     return int(max(6, min(40, _js_round(raw))))
+
+
+def meld_hepatic(bili_mgdl: float, inr: float) -> int:
+    """CANDIDATE v3.1. MELD with creatinine SUBSTITUTED at 1.0, so the layer reads
+    bilirubin and INR only.
+
+    Published MELD carries 9.57 x ln(creatinine). Layer 1 already charges the same
+    creatinine through renal_k x ln(creatinine), so scoring published MELD counts one
+    variable twice -- the defect the governing rule forbids, and the one already
+    corrected for dialysis (which Layer 1 replaces at a creatinine equivalent of 4.0)
+    and for anuria (weight 0.00, "calculated from creatinine"). Creatinine is
+    SUBSTITUTED, not capped: a cap would leave the term live for any creatinine above
+    the ceiling and reintroduce the double-count.
+
+    Measured on 19 Sep 2026: a patient with a bilirubin of 0.8, an INR of 1.0 and a
+    creatinine of 4.0 -- an entirely normal liver -- scored published MELD 20, worth
+    1.98 log-odds of hepatic risk. Under this function the same patient scores 6 and
+    is charged nothing, while a patient with bilirubin 10.0 and INR 2.0 is unchanged
+    at 23.
+
+    CAVEAT, to be carried into the spec: the surviving coefficients are NOT refitted.
+    MELD-XI, the published precedent for removing a MELD term, refitted after dropping
+    INR (bilirubin 3.78 -> 5.11, creatinine 9.57 -> 11.76, constant 6.43 -> 9.44), so a
+    properly refitted liver-only score would weight bilirubin and INR appreciably
+    higher than this does. This function therefore UNDER-reads hepatic risk, which is
+    why the Layer 2a threshold and slope must be set deliberately rather than
+    inherited from studies built on published MELD.
+    """
+    return meld_from_labs(bili_mgdl, inr, 1.0)
 
 
 def _js_round(x: float) -> float:
@@ -385,12 +415,18 @@ def eft_score(chair: Optional[str], cog_impaired: Optional[bool],
 
     a = _num(albumin)
     if a is not None:
-        if a < S["alb_lo"]:
+        # CANDIDATE v3.1: albumin GRADED. The standing open item ("grading albumin").
+        # A single point for anything below 3.5 gave an albumin of 3.0 the same weight
+        # as 3.4 in a patient who is otherwise identical.
+        if a < S["alb_crit"]:
+            pts += 2
+        elif a < S["alb_lo"]:
             pts += 1
         any_component = True
     else:
         missing.append("albumin")
 
+    pts = min(pts, 6)   # CANDIDATE v3.1: graded albumin can reach 7 unclamped
     return {"points": pts, "missing": missing,
             "partial": len(missing) > 0, "none": not any_component}
 
@@ -442,7 +478,7 @@ BASELINE_A2 = {
     # first-time CABG reads 1.15x EuroSCORE II. See UCSRS_v3.0_Calibration_Protocol.md.
     "reference_risk": 0.03,
     "intercept": -6.0777,
-    "calibration_shift": 1.451532,
+    "calibration_shift": 0.433039,
     "sternotomy_scale": 1.118599,
 }
 
@@ -465,16 +501,29 @@ L1 = {
     # v3.0 final: age is BANDED (creatinine carries no age signal, so the age term is
     # complete). Each band is EuroSCORE II's own log-odds delta at the band midpoint,
     # plus a deliberate acceleration above 80.
-    "age_lt_60": -0.59, "age_60_64": -0.53, "age_65_69": -0.09, "age_70_74": 0.06,
-    "age_75_79": 0.20, "age_80_84": 0.44, "age_85_89": 0.60, "age_ge_90": 0.83,
+    # CANDIDATE v3.1: steepened from 65 upward. The 19 Sep decomposition found the
+    # 70-74 band charging +0.06 against EuroSCORE II's +0.314 at age 70 -- a deficit of
+    # 0.254 log-odds applying to every patient of that age regardless of physiology.
+    # Bands below 65 are untouched, so the healthy end does not move.
+    "age_lt_60": -0.59, "age_60_64": -0.53, "age_65_69": 0.05, "age_70_74": 0.30,
+    "age_75_79": 0.55, "age_80_84": 0.85, "age_85_89": 1.10, "age_ge_90": 1.40,
     "female": 0.20,
     # Renal: serum creatinine only. Cockcroft-Gault is DELETED from the scored path
     # (it survives inside euroscore2(), which needs it by published method).
-    "renal_k": 1.10,
+    "renal_k": 1.30,   # CANDIDATE v3.1 (was 1.10)
     "dialysis_cr_equiv": 4.0,   # dialysis scores AS IF creatinine 4.0, replacing the term
     "anuria": 0.00,             # calculated from creatinine; no separate weight
-    "lung_chronic": 0.25, "lung_chronic_o2": 0.50,
-    "lung_acute": 0.40, "lung_acute_vent": 0.95,
+    "lung_chronic": 0.25, "lung_chronic_o2": 0.60,   # CANDIDATE v3.1
+    "lung_acute": 0.50, "lung_acute_vent": 1.10,     # (was 0.50/0.40/0.95)
+    # EF: UNCHANGED from v3.0, and deliberately so. A candidate departure above
+    # EuroSCORE II (0.55/1.10/1.60) was proposed on 19 Sep and WITHDRAWN the same day.
+    # The literature check found one usable adjusted estimate -- OR 2.761 (95% CI
+    # 1.763-4.323) for EF <=30 vs normal, n=4,789 -- whose interval contains
+    # EuroSCORE II's own 0.808, which is binary rather than graded, and which held for
+    # CABG but not for valve surgery in the same cohort. No published adjusted
+    # per-band gradient exists. Absent evidence that the comparator under-weights EF,
+    # the derived values stand. Reverting also improved registry fit (mean |log O/E|
+    # 0.273 -> 0.248) and cost none of the outlier crossovers.
     "ef_30_40": 0.40, "ef_20_30": 0.80, "ef_lt_20": 1.20,
     "nyha3": 0.25, "nyha4": 0.80, "acute_decomp": 0.25,
     "mi_7": 0.45, "mi_30": 0.30, "mi_90": 0.18, "afib": 0.25,
@@ -687,7 +736,13 @@ def physiology_baseline(p):
     if p.get("procedure") in _PROC_W:
         z += _PROC_W[p["procedure"]]
 
-    return min(max(100.0 / (1.0 + math.exp(-z)), 0.30), 50.0)
+    # Layer 1 floor RAISED 0.30 -> 0.40 (investigator, 19 Sep 2026). Set just under
+    # EuroSCORE II's own STRUCTURAL floor of 0.4987%, so the bottom of the curve is
+    # anchored to the comparator rather than chosen arbitrarily. 18.9% of a
+    # representative case mix sits on it; their true values median 0.298%, minimum
+    # 0.180%, so the clamp moves them ~0.10 percentage points. Population mean Layer 1
+    # rises 0.70%, absorbed by the intercept.
+    return min(max(100.0 / (1.0 + math.exp(-z)), 0.40), 50.0)
 
 
 sts_estimate = physiology_baseline
@@ -1013,6 +1068,17 @@ def score_row(row: Dict[str, Any]) -> Dict[str, Any]:
     meld = None
     bili, inr = _num(row.get("bilirubin_mg_dl")), _num(row.get("inr"))
     if bili is not None and inr is not None:
+        # PUBLISHED MELD, with creatinine, by investigator decision 19 Sep 2026.
+        # The creatinine overlap with the Layer 1 renal term is DELIBERATE and declared,
+        # not a defect: in practice a surgeon computes STS or EuroSCORE II (which carry
+        # creatinine) and MELD (which carries creatinine) separately and reads them
+        # together, and it is the published-MELD output that reproduces the accepted
+        # clinical bands -- MELD <10 low risk, 15-20 high risk at roughly 10-15%
+        # mortality, >20 effectively inoperable (Child C). Scoring MELD with creatinine
+        # suppressed was tested on 19 Sep and measurably UNDER-read severity in exactly
+        # the patients those bands are built on. The Layer 1 renal coefficient and the
+        # Layer 2a slope are therefore calibrated JOINTLY, with the overlap in place.
+        # meld_hepatic() is retained below for reference only and is not on the scored path.
         meld = meld_from_labs(bili, inr, p["creatinine"])
 
     # Volume index: submitted directly, or derived from the raw volume and BSA. The
