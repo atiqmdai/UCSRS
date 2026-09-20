@@ -1,0 +1,56 @@
+
+==============================================================================================
+ARM A — AS SHIPPED, current data-availability rates
+==============================================================================================
+  re-solved calibration_shift 0.429768   (shipped 0.433039, difference -0.0033)
+  mean UCSRS 3.088%   mean EuroSCORE II 3.445%   n = 2,145,000
+    cut on EuroSCORE II              Q1 0.703   Q2 0.712   Q3 0.808   Q4 0.972
+    cut on UCSRS                     Q1 0.439   Q2 0.490   Q3 0.605   Q4 1.143
+    cut on RANK MEAN   <-- read this Q1 0.546   Q2 0.578   Q3 0.685   Q4 1.055
+
+==============================================================================================
+ARM B — COMPLETE mEFT + COMPLETE MELD data (the investigator's request)
+==============================================================================================
+  re-solved calibration_shift -0.080356   (shipped 0.433039, difference -0.5134)
+  mean UCSRS 3.201%   mean EuroSCORE II 3.516%   n = 2,145,000
+    cut on EuroSCORE II              Q1 0.679   Q2 0.595   Q3 0.702   Q4 1.045
+    cut on UCSRS                     Q1 0.386   Q2 0.394   Q3 0.479   Q4 1.240
+    cut on RANK MEAN   <-- read this Q1 0.502   Q2 0.467   Q3 0.565   Q4 1.136
+
+==============================================================================================
+ARM C — Layer 1 intercept +0.30, complete data (does raising Layer 1 uniformly change the SHAPE?)
+==============================================================================================
+  re-solved calibration_shift -0.380431   (shipped 0.433039, difference -0.8135)
+  mean UCSRS 3.201%   mean EuroSCORE II 3.516%   n = 2,145,000
+    cut on EuroSCORE II              Q1 0.679   Q2 0.595   Q3 0.702   Q4 1.045
+    cut on UCSRS                     Q1 0.386   Q2 0.394   Q3 0.479   Q4 1.240
+    cut on RANK MEAN   <-- read this Q1 0.502   Q2 0.467   Q3 0.565   Q4 1.136
+
+==============================================================================================
+ARM D — Layer 1 SLOPES steepened (renal 1.30->1.60, EF and age up), complete data
+==============================================================================================
+  re-solved calibration_shift -0.317085   (shipped 0.433039, difference -0.7501)
+  mean UCSRS 3.237%   mean EuroSCORE II 3.516%   n = 2,145,000
+    cut on EuroSCORE II              Q1 0.668   Q2 0.556   Q3 0.664   Q4 1.079
+    cut on UCSRS                     Q1 0.361   Q2 0.359   Q3 0.438   Q4 1.286
+    cut on RANK MEAN   <-- read this Q1 0.485   Q2 0.431   Q3 0.516   Q4 1.177
+
+==============================================================================================
+ARM E — mEFT ladder extended to 7 rungs (x5.00), albumin not absorbed by the 6-point clamp, complete data
+==============================================================================================
+  re-solved calibration_shift -0.080356   (shipped 0.433039, difference -0.5134)
+  mean UCSRS 3.201%   mean EuroSCORE II 3.516%   n = 2,145,000
+    cut on EuroSCORE II              Q1 0.679   Q2 0.595   Q3 0.702   Q4 1.045
+    cut on UCSRS                     Q1 0.386   Q2 0.394   Q3 0.479   Q4 1.240
+    cut on RANK MEAN   <-- read this Q1 0.502   Q2 0.467   Q3 0.565   Q4 1.137
+
+==============================================================================================
+ARM                                                             Q1      Q2      Q3      Q4   (rank-mean cut)
+==============================================================================================
+A — AS SHIPPED, current data-availability rates              0.546   0.578   0.685   1.055
+B — COMPLETE mEFT + COMPLETE MELD data (the investigator'    0.502   0.467   0.565   1.136
+C — Layer 1 intercept +0.30, complete data (does raising     0.502   0.467   0.565   1.136
+D — Layer 1 SLOPES steepened (renal 1.30->1.60, EF and ag    0.485   0.431   0.516   1.177
+E — mEFT ladder extended to 7 rungs (x5.00), albumin not     0.502   0.467   0.565   1.137
+
+written out_lock/quartile_experiment.json

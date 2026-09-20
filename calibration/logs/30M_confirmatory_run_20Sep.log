@@ -1,0 +1,53 @@
+[01:27:57] GATE 1  engine sha  shipped 05f90ae8ee0c0ea6  worker 05f90ae8ee0c0ea6
+[01:27:57] GATE 2  SPEC_VERSION 3.1.0  shift 0.433039
+[01:27:57] GATE 3  wrapper path == engine score_row() on 400/400 rows
+[01:27:57] dials carried forward from out/dials.json (EuroSCORE II unchanged v3.0 -> v3.1)
+[01:27:57] definitive - 30,000,000 patients, 2,307,692 per registry, shifts [0.433039, 0.438507]
+[01:28:45]   STS ACSD          n 2,307,692  ESII  3.338% (O/E 0.72 vs published 0.72)  UCSRS  2.875%  O/E 0.835  (48s)
+[01:29:33]   CMS Medicare      n 2,307,692  ESII  4.575% (O/E 0.68 vs published 0.68)  UCSRS  4.513%  O/E 0.687  (48s)
+[01:30:22]   SWEDEHEART        n 2,307,692  ESII  2.589% (O/E 0.58 vs published 0.58)  UCSRS  2.005%  O/E 0.748  (48s)
+[01:31:09]   KROK              n 2,307,692  ESII  3.721% (O/E 1.10 vs published 1.10)  UCSRS  3.355%  O/E 1.222  (48s)
+[01:31:56]   German Registry   n 2,307,692  ESII  3.261% (O/E 0.98 vs published 0.98)  UCSRS  2.778%  O/E 1.152  (47s)
+[01:32:44]   BCIS/NICOR        n 2,307,692  ESII  3.297% (O/E 0.85 vs published 0.85)  UCSRS  2.823%  O/E 0.992  (47s)
+[01:33:31]   ANZCTS            n 2,307,692  ESII  3.305% (O/E 0.79 vs published 0.79)  UCSRS  2.831%  O/E 0.918  (47s)
+[01:34:17]   JCVSD             n 2,307,692  ESII  2.889% (O/E 1.42 vs published 1.42)  UCSRS  2.338%  O/E 1.753  (47s)
+[01:35:02]   Indian cohort     n 2,307,692  ESII  1.894% (O/E 0.79 vs published 0.79)  UCSRS  1.308%  O/E 1.146  (45s)
+[01:35:48]   Brazilian         n 2,307,692  ESII  2.696% (O/E 1.59 vs published 1.59)  UCSRS  2.124%  O/E 2.025  (46s)
+[01:36:36]   Turkish cohort    n 2,307,692  ESII  6.382% (O/E 0.83 vs published 0.83)  UCSRS  7.300%  O/E 0.726  (48s)
+[01:37:23]   EuroHeart         n 2,307,692  ESII  3.840% (O/E 0.91 vs published 0.91)  UCSRS  3.508%  O/E 0.998  (48s)
+[01:38:10]   Korean Registry   n 2,307,692  ESII  2.958% (O/E 1.28 vs published 1.28)  UCSRS  2.421%  O/E 1.569  (47s)
+[01:38:10]   >> shift 0.433039: median O/E 0.998  mean|log O/E| 0.266  in band 7/13
+[01:38:10]   >> shift 0.438507: median O/E 0.993  mean|log O/E| 0.266  in band 7/13
+[01:38:10] holdout_1 - 2,600,000 patients, 200,000 per registry, shifts [0.433039, 0.438507]
+[01:38:15]   STS ACSD          n   200,000  ESII  3.334% (O/E 0.72 vs published 0.72)  UCSRS  2.842%  O/E 0.845  (5s)
+[01:38:20]   CMS Medicare      n   200,000  ESII  4.572% (O/E 0.68 vs published 0.68)  UCSRS  4.510%  O/E 0.687  (5s)
+[01:38:24]   SWEDEHEART        n   200,000  ESII  2.594% (O/E 0.58 vs published 0.58)  UCSRS  2.016%  O/E 0.744  (5s)
+[01:38:29]   KROK              n   200,000  ESII  3.723% (O/E 1.10 vs published 1.10)  UCSRS  3.349%  O/E 1.224  (5s)
+[01:38:34]   German Registry   n   200,000  ESII  3.261% (O/E 0.98 vs published 0.98)  UCSRS  2.780%  O/E 1.151  (5s)
+[01:38:38]   BCIS/NICOR        n   200,000  ESII  3.275% (O/E 0.86 vs published 0.85)  UCSRS  2.804%  O/E 0.999  (5s)
+[01:38:43]   ANZCTS            n   200,000  ESII  3.316% (O/E 0.78 vs published 0.79)  UCSRS  2.853%  O/E 0.911  (5s)
+[01:38:48]   JCVSD             n   200,000  ESII  2.873% (O/E 1.43 vs published 1.42)  UCSRS  2.317%  O/E 1.770  (5s)
+[01:38:53]   Indian cohort     n   200,000  ESII  1.899% (O/E 0.79 vs published 0.79)  UCSRS  1.311%  O/E 1.144  (5s)
+[01:38:57]   Brazilian         n   200,000  ESII  2.703% (O/E 1.59 vs published 1.59)  UCSRS  2.131%  O/E 2.018  (5s)
+[01:39:02]   Turkish cohort    n   200,000  ESII  6.365% (O/E 0.83 vs published 0.83)  UCSRS  7.256%  O/E 0.730  (5s)
+[01:39:07]   EuroHeart         n   200,000  ESII  3.835% (O/E 0.91 vs published 0.91)  UCSRS  3.491%  O/E 1.002  (5s)
+[01:39:11]   Korean Registry   n   200,000  ESII  2.977% (O/E 1.28 vs published 1.28)  UCSRS  2.445%  O/E 1.554  (5s)
+[01:39:11]   >> shift 0.433039: median O/E 1.002  mean|log O/E| 0.265  in band 7/13
+[01:39:11]   >> shift 0.438507: median O/E 0.998  mean|log O/E| 0.265  in band 7/13
+[01:39:11] holdout_2 - 2,600,000 patients, 200,000 per registry, shifts [0.433039, 0.438507]
+[01:39:16]   STS ACSD          n   200,000  ESII  3.337% (O/E 0.72 vs published 0.72)  UCSRS  2.874%  O/E 0.835  (5s)
+[01:39:21]   CMS Medicare      n   200,000  ESII  4.567% (O/E 0.68 vs published 0.68)  UCSRS  4.519%  O/E 0.686  (5s)
+[01:39:26]   SWEDEHEART        n   200,000  ESII  2.589% (O/E 0.58 vs published 0.58)  UCSRS  2.008%  O/E 0.747  (5s)
+[01:39:30]   KROK              n   200,000  ESII  3.719% (O/E 1.10 vs published 1.10)  UCSRS  3.362%  O/E 1.219  (5s)
+[01:39:35]   German Registry   n   200,000  ESII  3.264% (O/E 0.98 vs published 0.98)  UCSRS  2.777%  O/E 1.152  (5s)
+[01:39:40]   BCIS/NICOR        n   200,000  ESII  3.275% (O/E 0.86 vs published 0.85)  UCSRS  2.802%  O/E 0.999  (5s)
+[01:39:44]   ANZCTS            n   200,000  ESII  3.305% (O/E 0.79 vs published 0.79)  UCSRS  2.839%  O/E 0.916  (5s)
+[01:39:49]   JCVSD             n   200,000  ESII  2.892% (O/E 1.42 vs published 1.42)  UCSRS  2.354%  O/E 1.742  (5s)
+[01:39:53]   Indian cohort     n   200,000  ESII  1.905% (O/E 0.79 vs published 0.79)  UCSRS  1.315%  O/E 1.141  (4s)
+[01:39:58]   Brazilian         n   200,000  ESII  2.706% (O/E 1.59 vs published 1.59)  UCSRS  2.142%  O/E 2.007  (5s)
+[01:40:03]   Turkish cohort    n   200,000  ESII  6.377% (O/E 0.83 vs published 0.83)  UCSRS  7.257%  O/E 0.730  (5s)
+[01:40:08]   EuroHeart         n   200,000  ESII  3.844% (O/E 0.91 vs published 0.91)  UCSRS  3.515%  O/E 0.996  (5s)
+[01:40:12]   Korean Registry   n   200,000  ESII  2.969% (O/E 1.28 vs published 1.28)  UCSRS  2.437%  O/E 1.559  (5s)
+[01:40:12]   >> shift 0.433039: median O/E 0.999  mean|log O/E| 0.263  in band 7/13
+[01:40:12]   >> shift 0.438507: median O/E 0.995  mean|log O/E| 0.264  in band 7/13
+[01:40:12] DONE in 12.3 min
