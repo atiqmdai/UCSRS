@@ -196,9 +196,21 @@ def band(v: float, rules) -> float:
 
 
 def meld_from_labs(bili_mgdl: float, inr: float, cr_mgdl: float) -> int:
-    """PUBLISHED MELD, retained for display and for the submission record so a site's
-    number matches its own laboratory system. NOT the value UCSRS scores -- see
-    meld_hepatic(), which is what Layer 2a reads."""
+    """PUBLISHED MELD. THIS IS WHAT LAYER 2a SCORES, and it is also the number
+    displayed and written to the submission record, so a site's number matches its own
+    laboratory system.
+
+    It carries creatinine, and Layer 1 charges the same creatinine through
+    renal_k x ln(creatinine). That overlap is DELIBERATE and DECLARED -- see the ruling
+    in meld_hepatic() below and in UCSRS_v3.1_Calibration_and_Architecture_Review.md.
+
+    CORRECTED 20 Sep 2026. This docstring previously read "NOT the value UCSRS scores --
+    see meld_hepatic(), which is what Layer 2a reads." That was true only during the
+    19 September period when the creatinine-suppressed variant was the intended
+    architecture; it was left behind when the investigator ruled for published MELD, and
+    it directly contradicted the scored path at line ~1106. A stale docstring of exactly
+    this kind is what let the 19 September calibration wrapper call the wrong MELD
+    through two 30M runs."""
     cr = min(cr_mgdl, 4.0)
     b, i, c = max(bili_mgdl, 1.0), max(inr, 1.0), max(cr, 1.0)
     raw = 3.78 * math.log(b) + 11.2 * math.log(i) + 9.57 * math.log(c) + 6.43
@@ -206,8 +218,22 @@ def meld_from_labs(bili_mgdl: float, inr: float, cr_mgdl: float) -> int:
 
 
 def meld_hepatic(bili_mgdl: float, inr: float) -> int:
-    """CANDIDATE v3.1. MELD with creatinine SUBSTITUTED at 1.0, so the layer reads
-    bilirubin and INR only.
+    """NOT ON THE SCORED PATH. Retained as a documented record of a variant that was
+    built, tested and REJECTED by investigator ruling on 19 September 2026. Nothing in
+    the engine calls it. Do not wire it in without reopening that ruling.
+
+    THE RULING. Published MELD is scored, creatinine and all, and the overlap with the
+    Layer 1 renal term is deliberate and declared rather than removed. The reasoning is
+    clinical: in practice a surgeon computes STS or EuroSCORE II and MELD separately,
+    each carrying creatinine, and reads them together, and it is the published form that
+    reproduces the accepted bands -- MELD under 10 low risk, 15-20 high risk, above 20
+    effectively inoperable. This function was measured against those bands and
+    UNDER-read severity in exactly the patients they are built on. The Layer 1 renal
+    coefficient and the Layer 2a slope are calibrated JOINTLY with the overlap in place;
+    ATLAS resolves it by joint estimation.
+
+    What it does, for the record: MELD with creatinine SUBSTITUTED at 1.0, so the layer
+    would read bilirubin and INR only.
 
     Published MELD carries 9.57 x ln(creatinine). Layer 1 already charges the same
     creatinine through renal_k x ln(creatinine), so scoring published MELD counts one
