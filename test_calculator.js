@@ -30,7 +30,7 @@ const RENDERED = (HTML.slice(0, i) + HTML.slice(j + END.length))
   .split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
 
 const ctx = {};
-new Function('exports', engine + '\nexports.ucsrs=ucsrs;exports.euroscore2=euroscore2;' +
+new Function('exports', engine + '\nexports.ucsrs=ucsrs;' +
   'exports.meldCorrection=meldCorrection;exports.meldFromLabs=meldFromLabs;' +
   'exports.creatinineClearance=creatinineClearance;exports.UCSRS_SPEC=UCSRS_SPEC;' +
   'exports.riskCategory=riskCategory;exports.selfTest=selfTest;exports.physiologyBaseline=physiologyBaseline;exports.eftScore=eftScore;exports.ucsrsOutcomes=ucsrsOutcomes;exports.bsaMosteller=bsaMosteller;')(ctx);
@@ -82,8 +82,8 @@ check('Layer 1 takes no EuroSCORE II component (w_euro removed)',
   ctx.UCSRS_SPEC.layer1.w_euro === undefined, `is ${ctx.UCSRS_SPEC.layer1.w_euro}`);
 check('Layer 1 takes no blend weight at all (w_baseline removed)',
   ctx.UCSRS_SPEC.layer1.w_baseline === undefined, `is ${ctx.UCSRS_SPEC.layer1.w_baseline}`);
-check('EuroSCORE II is still computed, as the comparator only',
-  typeof ctx.euroscore2 === 'function');
+check('EuroSCORE II is no longer computed internally (removed 20 Sep 2026)',
+  typeof ctx.euroscore2 === 'undefined');
 check('no morbidity index anywhere in the file', !/morbIdx|morbidity_index|morbIndex/i.test(HTML));
 check('no STS input field — score is free-standing', !/id="sts"/.test(HTML));
 check('STS computed internally by physiologyBaseline', /function\s+physiologyBaseline/.test(engine) && /physiologyBaseline\(patient\)/.test(HTML));
@@ -183,85 +183,6 @@ const h3 = ctx.ucsrs({ baselinePct: 4, euroPct: 4, eft: 0, meld: null, tier: 0,
   map: 60, co: 3.0, pvr: 6.0, ci: 1.8, tapse: 14, pasprhc: 50 });
 check('Layer 3 not applied below Tier 3', near(h3.hemo, 0));
 
-console.log('\n7. EuroSCORE II coefficients vs Nashef 2012 Table 6');
-const E = ctx.UCSRS_SPEC.euroscore2;
-const TABLE6 = {
-  constant: -5.324537, age: 0.0285181, female: 0.2196434, cc_51_85: 0.303553,
-  cc_le50: 0.8592256, dialysis: 0.6421508, arteriopathy: 0.5360268, mobility: 0.2407181,
-  prev_cardiac: 1.118599, pulmonary: 0.1886564, endocarditis: 0.6194522, critical: 1.086517,
-  iddm: 0.3542749, nyha2: 0.1070545, nyha3: 0.2958358, nyha4: 0.5597929, ccs4: 0.2226147,
-  lv_moderate: 0.3150652, lv_poor: 0.8084096, lv_verypoor: 0.9346919, recent_mi: 0.1528943,
-  pasp_31_55: 0.1788899, pasp_gt55: 0.3491475, urgent: 0.3174673, emergency: 0.7039121,
-  salvage: 1.362947, single_non_cabg: 0.0062118, two_procedures: 0.5521478,
-  three_plus: 0.9724533, thoracic_aorta: 0.6527205,
-};
-let coefBad = [];
-for (const k of Object.keys(TABLE6)) if (E[k] !== TABLE6[k]) coefBad.push(k);
-check(`all ${Object.keys(TABLE6).length} coefficients match Table 6`, coefBad.length === 0,
-  coefBad.length ? 'mismatched: ' + coefBad.join(', ') : '');
-
-const BASE = { age: 60, weight: 80, creatinine: 0.9, female: false, dialysis: false,
-  lvef: 60, pasp: 20, nyha: 1, ccs4: false, arteriopathy: false, mobility: false,
-  prevCardiac: false, pulmonary: false, endocarditis: false, critical: false, iddm: false,
-  recentMI: false, urgency: 'elective', thoracicAorta: false, interventionWeight: 'cabg' };
-const E2 = (o) => ctx.euroscore2(Object.assign({}, BASE, o));
-
-const ref = E2({});
-const expectRef = Math.exp(-5.324537 + 0.0285181) / (1 + Math.exp(-5.324537 + 0.0285181)) * 100;
-check('reference patient (60M, elective isolated CABG, no risk factors) = 0.499%',
-  near(ref, expectRef, 0.005) && near(ref, 0.499, 0.005), `got ${ref.toFixed(3)}%`);
-
-console.log('\n7b. EuroSCORE II structural behaviour');
-const logit = (pct) => Math.log((pct / 100) / (1 - pct / 100));
-const delta = (o) => logit(E2(o)) - logit(ref);
-
-check('age <=60 uses Xi=1, not 0', near(delta({ age: 45 }), 0, 1e-9), 'age 45 identical to age 60');
-check('age 61 adds one age unit', near(delta({ age: 61 }), 0.0285181, 1e-6));
-check('age 70 adds eleven age units', near(delta({ age: 70 }), 0.0285181 * 10, 1e-6));
-
-// renal: one 4-level variable; dialysis REPLACES the clearance band
-const ccOf = (o) => ctx.creatinineClearance(
-  Object.assign({}, BASE, o).age, Object.assign({}, BASE, o).weight,
-  Object.assign({}, BASE, o).creatinine, Object.assign({}, BASE, o).female);
-check('Cockcroft-Gault: 60y 80kg Cr 0.9 mg/dL ~ 99 mL/min', ccOf({}) > 95 && ccOf({}) < 102,
-  `${ccOf({}).toFixed(1)} mL/min`);
-check('CC >85 adds nothing', near(delta({}), 0, 1e-9));
-check('CC 51-85 adds 0.303553', near(delta({ creatinine: 1.5 }), 0.303553, 1e-6),
-  `CC ${ccOf({ creatinine: 1.5 }).toFixed(0)}`);
-check('CC <=50 adds 0.8592256', near(delta({ creatinine: 2.8 }), 0.8592256, 1e-6),
-  `CC ${ccOf({ creatinine: 2.8 }).toFixed(0)}`);
-check('dialysis REPLACES the band, does not add to it',
-  near(delta({ dialysis: true, creatinine: 2.8 }), 0.6421508, 1e-6));
-
-check('LV 31-50% adds 0.3150652', near(delta({ lvef: 40 }), 0.3150652, 1e-6));
-check('LV 21-30% adds 0.8084096', near(delta({ lvef: 25 }), 0.8084096, 1e-6));
-check('LV <=20% adds 0.9346919', near(delta({ lvef: 18 }), 0.9346919, 1e-6));
-check('PASP 31-55 adds 0.1788899', near(delta({ pasp: 40 }), 0.1788899, 1e-6));
-check('PASP >55 adds 0.3491475', near(delta({ pasp: 60 }), 0.3491475, 1e-6));
-check('PASP exactly 55 stays in the 31-55 band', near(delta({ pasp: 55 }), 0.1788899, 1e-6));
-
-check('isolated CABG is the reference (no weight term)', near(delta({ interventionWeight: 'cabg' }), 0, 1e-9));
-check('single non-CABG adds 0.0062118', near(delta({ interventionWeight: 'single' }), 0.0062118, 1e-6));
-check('two procedures adds 0.5521478', near(delta({ interventionWeight: 'two' }), 0.5521478, 1e-6));
-check('three or more adds 0.9724533', near(delta({ interventionWeight: 'three' }), 0.9724533, 1e-6));
-check('thoracic aorta is independent of procedure count',
-  near(delta({ thoracicAorta: true }), 0.6527205, 1e-6));
-check('CABG+AVR scores as two procedures, not single non-CABG',
-  !near(delta({ interventionWeight: 'two' }), 0.0062118, 1e-4));
-
-check('mobility uses 0.2407181, not the NYHA IV value',
-  near(delta({ mobility: true }), 0.2407181, 1e-6));
-check('NYHA IV uses 0.5597929', near(delta({ nyha: 4 }), 0.5597929, 1e-6));
-check('mobility and NYHA IV are separate variables',
-  near(delta({ mobility: true, nyha: 4 }), 0.2407181 + 0.5597929, 1e-6));
-check('critical preoperative state is ONE variable at 1.086517',
-  near(delta({ critical: true }), 1.086517, 1e-6));
-check('CCS 4 uses 0.2226147', near(delta({ ccs4: true }), 0.2226147, 1e-6));
-
-check('body weight and weight-of-intervention are separate fields (regression)',
-  /interventionWeight/.test(engine) && !/p\.weight\s*===/.test(engine));
-
-console.log('\n7c. Layer 1 baseline behaviour');
 // v3.0 re-anchored the intercept (calibration_shift +1.451532), so the reference patient
 // no longer sits ON the 0.30 clamp as it did in v2.1 — it sits above it. The clamp is a
 // guard against the logistic tail, not the score's starting point. Investigator ruling of
@@ -452,9 +373,7 @@ check('heart failure is one field — no separate congestive-failure term',
     return new RegExp('<option value="' + v + '"').test(HTML); }));
 check('none and NYHA I are both the published reference class',
   ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:1 })) ===
-  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:1, heartFailure:'none' })) &&
-  ctx.euroscore2(Object.assign({}, BASE, { nyha:1 })) ===
-  ctx.euroscore2(Object.assign({}, BASE, { nyha:1, heartFailure:'none' })));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:1, heartFailure:'none' })));
 check('acute decompensation scores as class IV plus an increment',
   /nyha: hfVal === 'acute' \? 4/.test(HTML) &&
   ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:4, acuteDecomp:true })) >
@@ -463,9 +382,7 @@ check('a class and acute decompensation cannot both be chosen',
   (HTML.match(/<select id="nyha"[\s\S]*?<\/select>/)[0].match(/<option/g) || []).length === 6);
 check('NYHA carries heart-failure severity in both halves, once each',
   ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:4 })) >
-  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:3 })) &&
-  ctx.euroscore2(Object.assign({}, BASE, { nyha:4 })) >
-  ctx.euroscore2(Object.assign({}, BASE, { nyha:3 })));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { nyha:3 })));
 check('infarct recency is graded 7 / 30 / 90 days',
   /<select id="mi"/.test(HTML) &&
   ctx.physiologyBaseline(Object.assign(PROC('cabg'), { miDays:7 })) >
@@ -629,12 +546,7 @@ check('acute renal failure feeds the critical pre-operative state composite',
   /renalVal === 'acute'/.test(HTML));
 check('chronic renal impairment is carried by the creatinine, not a category',
   ctx.physiologyBaseline(Object.assign(PROC('cabg'), { creatinine:3.5 })) >
-  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { creatinine:1.0 })) &&
-  ctx.euroscore2(Object.assign({}, BASE, { creatinine:3.5 })) >
-  ctx.euroscore2(Object.assign({}, BASE, { creatinine:1.0 })));
-check('the published dialysis term still supersedes the clearance bands',
-  ctx.euroscore2(Object.assign({}, BASE, { dialysis:true })) >
-  ctx.euroscore2(Object.assign({}, BASE, { dialysis:false })));
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { creatinine:1.0 })));
 check('a dialysis patient reports no new renal-failure estimate',
   ctx.ucsrsOutcomes(5, { dialysis:true }).renal === null);
 check('cardiogenic shock is one graded field, not four checkboxes',
@@ -675,9 +587,6 @@ check('ventilation does not fire the chronic pulmonary term',
 check('poor mobility lives in the frailty card and follows the chair rise',
   /<select id="mob"/.test(HTML) &&
   /mobility: document\.getElementById\('mob'\)\.value === '1' \|\| chairVal === 'unable'/.test(HTML));
-check('the published mobility term still fires',
-  ctx.euroscore2(Object.assign({}, BASE, { mobility:true })) >
-  ctx.euroscore2(Object.assign({}, BASE, { mobility:false })));
 check('anemia is derived from the mandatory frailty hemoglobin, not asked twice',
   !/id="anemia"/.test(HTML) && !/anemiaLbl/.test(HTML) &&
   /UCSRS_SPEC\.layer2b_eft\.hgb_lo_f : UCSRS_SPEC\.layer2b_eft\.hgb_lo_m/.test(HTML));
@@ -719,9 +628,7 @@ check('weight of intervention is derived, not asked — the field is hidden',
   !/<label>Weight of intervention<\/label>/.test(HTML) &&
   /interventionWeight: document\.getElementById\('weight'\)\.value/.test(HTML));
 check('a concomitant tricuspid repair never raises the weight of intervention',
-  /cabg_tv_repair:'cabg'/.test(HTML) &&
-  ctx.euroscore2(Object.assign({}, BASE, { interventionWeight:'cabg' })) ===
-  ctx.euroscore2(Object.assign({}, BASE, { interventionWeight:'cabg' })));
+  /cabg_tv_repair:'cabg'/.test(HTML));
 check('every dropdown procedure has a weight-of-intervention mapping', (function(){
   var opts = HTML.match(/<select id="proc"[\s\S]*?<\/select>/)[0].match(/value="([a-z_]+)"/g)
                .map(function(x){ return x.slice(7, -1); });
@@ -735,9 +642,6 @@ check('within a valve family, replacement always outscores repair',
   ctx.physiologyBaseline(PROC('cabg_avr_mvr_tv_repair')) > ctx.physiologyBaseline(PROC('cabg_avr_mv_repair')));
 check('thoracic aorta is a procedure, not a comorbidity checkbox',
   !/id="aorta"/.test(HTML) && /value="asc_aorta"/.test(HTML) && /function onThoracicAorta/.test(HTML));
-check('the thoracic aorta term still fires from the procedure',
-  ctx.euroscore2(Object.assign({}, BASE, { thoracicAorta: true })) >
-  ctx.euroscore2(Object.assign({}, BASE, { thoracicAorta: false })));
 check('no procedure produces a negative internal component',
   ['cabg','avr','avr_are','tavr_explant','av_repair','mvr','mv_repair','tv_repair','tvr','avr_mvr','avr_mvr_tvr','avr_mv_repair_tv_repair','cabg_avr','cabg_avr_mv_repair','cabg_avr_mv_repair_tv_repair','cabg_avr_mvr_tv_repair','cabg_mvr','cabg_mv_repair','cabg_tv_repair','asc_aorta','avr_asc_aorta','avr_root_asc_aorta','other']
     .every(function(pr){ return ctx.physiologyBaseline(PROC(pr)) > 0; }));
@@ -796,9 +700,6 @@ check('any significant lung disease feeds the internal component and the ventila
   /lungAny: pulmVal !== 'none'/.test(HTML) && /copd: patient\.lungAny/.test(HTML));
 check('cardiogenic shock is graded by the support the patient is on',
   /shockLevel: shockVal/.test(HTML) && !/shockLevel/.test(engine));
-check('critical state remains ONE variable — shock plus inotropes does not double count',
-  near(ctx.euroscore2(Object.assign({}, BASE, { critical: true })),
-       ctx.euroscore2(Object.assign({}, BASE, { critical: true })), 1e-12));
 
 console.log('\n7i. v2.1 baseline — log-odds form, continuity, and the removed weight');
 (function(){
@@ -854,36 +755,10 @@ console.log('\n7i. v2.1 baseline — log-odds form, continuity, and the removed 
   var eighties  = (step(79) + step(84) + step(89)) / 3;
   check('age accelerates above 80 — mean step above 80 exceeds the 70-79 mean',
     eighties > seventies, `70s ${seventies.toFixed(4)} pp vs 80+ ${eighties.toFixed(4)} pp`);
-  // The invariant that actually matters, and the one that made the 64->65 step worth
-  // keeping: across the whole age range the banded ladder must track the comparator. A
-  // band edge is a discrete approximation of a continuous curve, so single-edge steps
-  // will differ; the RATIO is what must hold.
-  // v3.1 REPLACES the old 0.90-1.30x guard, which encoded the WITHDRAWN design target of
-  // Layer 1 reproducing EuroSCORE II at normal risk. That target was abandoned 19 Sep: it
-  // is arithmetically incompatible with median O/E 1.00, because EuroSCORE II's own median
-  // published O/E across the thirteen registries is 0.85. What v3.1 claims instead is that
-  // the UCSRS age ladder is STEEPER than EuroSCORE II's above 65 - the KROK on-pump
-  // octogenarian finding - so the ratio must RISE with age. That is what is guarded now,
-  // plus a wide sanity band to catch gross drift.
-  check('the UCSRS/EuroSCORE II ratio rises with age from 65 up (steeper age ladder)',
-    (function(){
-      var prev = null, ok = true;
-      [67, 72, 78, 82, 87, 92].forEach(function(a){
-        var r = ctx.physiologyBaseline(P({ age:a })) / ctx.euroscore2(P({ age:a }));
-        if (prev !== null && r < prev - 1e-9) ok = false;
-        prev = r;
-      });
-      return ok;
-    })(), 'v3.1 age ladder is deliberately steeper than the comparator above 65');
-  check('the UCSRS/EuroSCORE II ratio stays inside a 0.40-1.60 sanity band, ages 52-92',
-    (function(){
-      var worst = null;
-      [52, 58, 62, 67, 72, 78, 82, 87, 92].forEach(function(a){
-        var r = ctx.physiologyBaseline(P({ age:a })) / ctx.euroscore2(P({ age:a }));
-        if (worst === null || Math.abs(r - 1) > Math.abs(worst - 1)) worst = r;
-      });
-      return worst >= 0.40 && worst <= 1.60;
-    })(), 'catches gross drift in either direction');
+  // The UCSRS/EuroSCORE II ratio guards that lived here (age ladder steepness above 65,
+  // and a 0.40-1.60 sanity band) were removed 20 Sep 2026 along with euroscore2() itself
+  // -- both compared UCSRS against the internally-computed EuroSCORE II value, which no
+  // longer exists. The age ladder's own monotonicity (below) is still directly asserted.
 
   var jumpEf = Math.abs(ctx.physiologyBaseline(P({ lvef:30.001 })) - ctx.physiologyBaseline(P({ lvef:29.999 })));
   check('ejection fraction is BANDED in v3.0 — a step exists at the 30% band edge', jumpEf > 5e-4,

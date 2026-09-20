@@ -137,19 +137,19 @@ SPEC: Dict[str, Any] = {
         },
     },
     "valve_severity": {"untreated_severe": {"aortic_s": 0.4, "mitral_r": 0.4}},
-    "euroscore2": {
-        "constant": -5.324537, "age": 0.0285181, "female": 0.2196434,
-        "cc_51_85": 0.303553, "cc_le50": 0.8592256, "dialysis": 0.6421508,
-        "arteriopathy": 0.5360268, "mobility": 0.2407181, "prev_cardiac": 1.118599,
-        "pulmonary": 0.1886564, "endocarditis": 0.6194522, "critical": 1.086517,
-        "iddm": 0.3542749, "nyha2": 0.1070545, "nyha3": 0.2958358, "nyha4": 0.5597929,
-        "ccs4": 0.2226147, "lv_moderate": 0.3150652, "lv_poor": 0.8084096,
-        "lv_verypoor": 0.9346919, "recent_mi": 0.1528943, "pasp_31_55": 0.1788899,
-        "pasp_gt55": 0.3491475, "urgent": 0.3174673, "emergency": 0.7039121,
-        "salvage": 1.362947, "single_non_cabg": 0.0062118, "two_procedures": 0.5521478,
-        "three_plus": 0.9724533, "thoracic_aorta": 0.6527205,
-    },
 }
+
+# REMOVED 20 Sep 2026 (investigator instruction): the internal EuroSCORE II
+# sub-computation (SPEC["euroscore2"], euroscore2()) has been deleted. It was never
+# read by physiology_baseline() or any other part of the score -- it existed solely to
+# report a comparator value (euroscore2_computed_pct) alongside UCSRS. Sites already
+# submit their own independently-run EuroSCORE II (euroscore2_pct) as the trial's actual
+# comparator; a second, internally-computed EuroSCORE II duplicated that arms-length
+# value and served no purpose the site's own number didn't already serve. This does not
+# touch the v3.1 calibration_shift constant, which was solved offline against published
+# EuroSCORE II registry statistics (see UCSRS_Independence_Claim_Amendment_20Sep) --
+# that is a historical calibration fact baked into a fixed number, not a live dependency,
+# and is unaffected by removing this function.
 
 # Which valves each procedure addresses, and how EuroSCORE II counts it.
 PROC_VALVES = {
@@ -308,82 +308,6 @@ def creatinine_clearance(age, weight_kg, cr_mgdl, female: bool) -> Optional[floa
 # Nashef et al. 2012, so the correction had nowhere left to apply. Nothing called them.
 
 
-# ---------------------------------------------------------------- EuroSCORE II
-def euroscore2(p: Dict[str, Any]) -> float:
-    E = SPEC["euroscore2"]
-    lp = E["constant"]
-    age = p["age"]
-    lp += E["age"] * max(1, 1 if age <= 60 else age - 59)
-    if p.get("female"):
-        lp += E["female"]
-
-    if p.get("dialysis"):
-        lp += E["dialysis"]
-    else:
-        cc = creatinine_clearance(age, p.get("weight"), p.get("creatinine"), p.get("female", False))
-        if cc is not None:
-            if cc <= 50:
-                lp += E["cc_le50"]
-            elif cc <= 85:
-                lp += E["cc_51_85"]
-
-    for flag, key in (("arteriopathy", "arteriopathy"), ("mobility", "mobility"),
-                      ("prevCardiac", "prev_cardiac"), ("pulmonary", "pulmonary"),
-                      ("endocarditis", "endocarditis"), ("critical", "critical"),
-                      ("iddm", "iddm")):
-        if p.get(flag):
-            lp += E[key]
-
-    nyha = p.get("nyha")
-    if nyha == 2:
-        lp += E["nyha2"]
-    elif nyha == 3:
-        lp += E["nyha3"]
-    elif nyha == 4:
-        lp += E["nyha4"]
-    if p.get("ccs4"):
-        lp += E["ccs4"]
-
-    lvef = _num(p.get("lvef"))
-    if lvef is not None:
-        if lvef <= 20:
-            lp += E["lv_verypoor"]
-        elif lvef <= 30:
-            lp += E["lv_poor"]
-        elif lvef <= 50:
-            lp += E["lv_moderate"]
-    if p.get("recentMI"):
-        lp += E["recent_mi"]
-
-    pasp = _num(p.get("pasp"))
-    if pasp is not None and pasp > 0:
-        if pasp > 55:
-            lp += E["pasp_gt55"]
-        elif pasp >= 31:
-            lp += E["pasp_31_55"]
-
-    urgency = p.get("urgency")
-    if urgency == "urgent":
-        lp += E["urgent"]
-    elif urgency == "emergency":
-        lp += E["emergency"]
-    elif urgency == "salvage":
-        lp += E["salvage"]
-
-    iw = p.get("interventionWeight")
-    if iw == "single":
-        lp += E["single_non_cabg"]
-    elif iw == "two":
-        lp += E["two_procedures"]
-    elif iw == "three":
-        lp += E["three_plus"]
-
-    if p.get("thoracicAorta"):
-        lp += E["thoracic_aorta"]
-
-    return (math.exp(lp) / (1 + math.exp(lp))) * 100
-
-
 # ---------------------------------------------------------------- frailty
 def eft_score(chair: Optional[str], cog_impaired: Optional[bool],
               hgb, albumin, female: bool) -> Dict[str, Any]:
@@ -527,9 +451,9 @@ L1 = {
     "age_75_79": 0.55, "age_80_84": 0.85, "age_85_89": 1.10, "age_ge_90": 1.40,
     "female": 0.20,
     # Renal: serum creatinine only. Cockcroft-Gault is DELETED from the scored path
-    # (it survives inside euroscore2(), which needs it by published method, and it
-    # also feeds the "cc" input of the COMPANION renal-failure estimate, which is not
-    # the mortality path).
+    # (it feeds only the "cc" input of the COMPANION renal-failure estimate, which is
+    # not the mortality path; the internal EuroSCORE II sub-computation that also used
+    # to call it was removed 20 Sep 2026 -- see the note above SPEC's definition).
     "renal_k": 1.30,   # v3.1 (was 1.10)
     "dialysis_cr_equiv": 4.0,   # dialysis scores AS IF creatinine 4.0, replacing the term
     "anuria": 0.00,             # calculated from creatinine; no separate weight
@@ -1066,10 +990,12 @@ def patient_from_row(row: Dict[str, Any]) -> Dict[str, Any]:
 def score_row(row: Dict[str, Any]) -> Dict[str, Any]:
     """Score one submission row end to end.
 
-    Returns the layer decomposition, the companion outcome estimates, the internally
-    computed EuroSCORE II, and a list of reasons the row could not be scored. A row
-    missing any of age, weight, height, creatinine, hemoglobin or albumin returns
-    ucsrs=None with the reason named — it is not silently dropped and not imputed.
+    Returns the layer decomposition, the companion outcome estimates, and a list of
+    reasons the row could not be scored. A row missing any of age, weight, height,
+    creatinine, hemoglobin or albumin returns ucsrs=None with the reason named -- it
+    is not silently dropped and not imputed. The trial's EuroSCORE II comparator is
+    the site's own independently-entered euroscore2_pct; this engine no longer
+    computes an internal EuroSCORE II of its own (removed 20 Sep 2026).
     """
     p = patient_from_row(row)
 
@@ -1093,7 +1019,6 @@ def score_row(row: Dict[str, Any]) -> Dict[str, Any]:
                 "eft_partial": eft["partial"]}
 
     baseline = physiology_baseline(p)
-    euro = euroscore2(p)
 
     meld = None
     bili, inr = _num(row.get("bilirubin_mg_dl")), _num(row.get("inr"))
@@ -1145,7 +1070,7 @@ def score_row(row: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         "ucsrs": r["final"], "blockers": [],
-        "baseline_pct": baseline, "euroscore2_computed_pct": euro,
+        "baseline_pct": baseline,
         "br": r["br"], "meld": meld, "meld_correction": r["meldCorr"],
         "pre_frailty": r["preCfs"], "eft": eft["points"], "eft_partial": eft["partial"],
         "eft_multiplier": r["mult"], "post_frailty": r["base"],

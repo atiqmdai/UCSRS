@@ -169,10 +169,6 @@ def check_constants():
     js_mult = {int(k): v for k, v in jspec["layer2b_eft"]["mult"].items()}
     if js_mult != E.SPEC["layer2b_eft"]["mult"]:
         problems.append(("frailty ladder", E.SPEC["layer2b_eft"]["mult"], js_mult))
-    if jspec["euroscore2"] != E.SPEC["euroscore2"]:
-        diff = {k for k in jspec["euroscore2"]
-                if jspec["euroscore2"][k] != E.SPEC["euroscore2"].get(k)}
-        problems.append(("EuroSCORE II coefficients", sorted(diff), ""))
     if jspec["outcomes"] != E.SPEC["outcomes"]:
         diff = [k for k in ("anchor_mort", "slopes", "anchors", "modifiers")
                 if jspec["outcomes"].get(k) != E.SPEC["outcomes"].get(k)]
@@ -206,7 +202,7 @@ def main():
     # keys compared: every layer, the final score, both derived quantities and all
     # four companion outcomes
     COMPARE = [
-        ("baseline", "baseline_pct"), ("euro", "euroscore2_computed_pct"),
+        ("baseline", "baseline_pct"),
         ("br", "br"), ("meldCorr", "meld_correction"), ("preCfs", "pre_frailty"),
         ("mult", "eft_multiplier"), ("base", "post_frailty"),
         ("lv", "lv_increment"), ("syntax", "syntax_increment"), ("hemo", "rhc_increment"),
@@ -245,7 +241,7 @@ def main():
             print(f"  {name}: python={a}  javascript={b}")
         return 1
     print("constant tables agree: procedure maps, layer 1 weights, frailty ladder, "
-          "EuroSCORE II coefficients, valve weights, spec version.")
+          "valve weights, spec version.")
 
     if failures:
         print(f"\nFAILED — {len(failures)} disagreement(s); first 20:")

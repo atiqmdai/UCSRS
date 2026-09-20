@@ -282,9 +282,10 @@
 // Single source of truth for all model constants.
 var UCSRS_SPEC = {
   spec_version: "3.1.0",
-  // v3.0: Layer 1 is the physiology-derived baseline alone. EuroSCORE II is no
-  // longer a component; it is computed separately and reported as an external
-  // comparator only, alongside the site's STS-PROM.
+  // v3.0: Layer 1 is the physiology-derived baseline alone. EuroSCORE II is not a
+  // component of it. This calculator no longer computes EuroSCORE II internally at
+  // all (removed 20 Sep 2026) -- the trial's comparator is the site's own
+  // independently-run EuroSCORE II, alongside the site's own STS-PROM.
   layer1: { cap_br: 60 },
   // v3.0: MELD moves from additive percentage points to log-odds. per_point is
   // ln(1.09) from the adjusted OR of 1.09 per MELD point (95% CI 1.07-1.10) in a
@@ -374,20 +375,18 @@ var UCSRS_SPEC = {
   // otherwise.
   valve_severity: {
     untreated_severe: { aortic_s: 0.4, mitral_r: 0.4 }
-  },
-  euroscore2: {
-    constant:-5.324537, age:0.0285181, female:0.2196434,
-    cc_51_85:0.303553, cc_le50:0.8592256, dialysis:0.6421508,
-    arteriopathy:0.5360268, mobility:0.2407181, prev_cardiac:1.118599,
-    pulmonary:0.1886564, endocarditis:0.6194522, critical:1.086517, iddm:0.3542749,
-    nyha2:0.1070545, nyha3:0.2958358, nyha4:0.5597929, ccs4:0.2226147,
-    lv_moderate:0.3150652, lv_poor:0.8084096, lv_verypoor:0.9346919,
-    recent_mi:0.1528943, pasp_31_55:0.1788899, pasp_gt55:0.3491475,
-    urgent:0.3174673, emergency:0.7039121, salvage:1.362947,
-    single_non_cabg:0.0062118, two_procedures:0.5521478, three_plus:0.9724533,
-    thoracic_aorta:0.6527205
   }
 };
+
+// REMOVED 20 Sep 2026 (investigator instruction): the internal EuroSCORE II
+// sub-computation (UCSRS_SPEC.euroscore2, euroscore2()) has been deleted. It was
+// never read by physiologyBaseline() or any other part of the score -- it existed
+// solely to display a comparator value alongside UCSRS. The trial's EuroSCORE II
+// comparator is the site's own independently-run value; this calculator no longer
+// computes a second, internal one. This does not touch the v3.1 calibration_shift
+// constant, which was solved offline against published EuroSCORE II registry
+// statistics (see UCSRS_Independence_Claim_Amendment_20Sep) -- a historical
+// calibration fact baked into a fixed number, unaffected by removing this function.
 
 function band(v, rules){
   for (var i=0;i<rules.length;i++){
@@ -459,55 +458,6 @@ function creatinineClearance(age, weightKg, cr_mgdl, female){
 // deleted Cockcroft-Gault from the scored path -- the renal term reads serum creatinine
 // directly and no weight enters it, and EuroSCORE II's sub-computation must keep RAW
 // actual weight to stay faithful to Nashef et al. 2012. Nothing called them.
-
-function euroscore2(p){
-  var E = UCSRS_SPEC.euroscore2, lp = E.constant;
-  lp += E.age * Math.max(p.age <= 60 ? 1 : p.age - 59, 1);
-  if (p.female) lp += E.female;
-
-  if (p.dialysis) lp += E.dialysis;
-  else {
-    var cc = creatinineClearance(p.age, p.weight, p.creatinine, p.female);
-    if (cc !== null){ if (cc <= 50) lp += E.cc_le50; else if (cc <= 85) lp += E.cc_51_85; }
-  }
-
-  if (p.arteriopathy)  lp += E.arteriopathy;
-  if (p.mobility)      lp += E.mobility;
-  if (p.prevCardiac)   lp += E.prev_cardiac;
-  if (p.pulmonary)     lp += E.pulmonary;
-  if (p.endocarditis)  lp += E.endocarditis;
-  if (p.critical)      lp += E.critical;
-  if (p.iddm)          lp += E.iddm;
-
-  if (p.nyha === 2) lp += E.nyha2; else if (p.nyha === 3) lp += E.nyha3; else if (p.nyha === 4) lp += E.nyha4;
-  if (p.ccs4) lp += E.ccs4;
-
-  if (p.lvef != null && !isNaN(p.lvef)){
-    if (p.lvef <= 20) lp += E.lv_verypoor;
-    else if (p.lvef <= 30) lp += E.lv_poor;
-    else if (p.lvef <= 50) lp += E.lv_moderate;
-  }
-  if (p.recentMI) lp += E.recent_mi;
-
-  if (p.pasp != null && !isNaN(p.pasp) && p.pasp > 0){
-    if (p.pasp > 55) lp += E.pasp_gt55; else if (p.pasp >= 31) lp += E.pasp_31_55;
-  }
-
-  if (p.urgency === 'urgent') lp += E.urgent;
-  else if (p.urgency === 'emergency') lp += E.emergency;
-  else if (p.urgency === 'salvage') lp += E.salvage;
-
-  // Weight of intervention: isolated CABG is the reference category and carries no term.
-  // NB: named interventionWeight, not weight — p.weight is body weight in kg.
-  if      (p.interventionWeight === 'single') lp += E.single_non_cabg;
-  else if (p.interventionWeight === 'two')    lp += E.two_procedures;
-  else if (p.interventionWeight === 'three')  lp += E.three_plus;
-
-  // Thoracic aorta is an independent additive term, not a procedure count.
-  if (p.thoracicAorta) lp += E.thoracic_aorta;
-
-  return (Math.exp(lp) / (1 + Math.exp(lp))) * 100;
-}
 
 // Essential Frailty Toolset, 0-5 points:
 // chair rise >=15 s = 1 (unable = 2); cognitive impairment = 1;
@@ -1176,9 +1126,10 @@ function calc(){
     endocarditis: chk('endo'), critical: critical,
     iddm: dmVal === 'insulin',            // published term applies to insulin treatment only
     dmOral: dmVal === 'oral',             // captured; carries no weight in this version
-    // v3.0: the UCSRS baseline reads the four-level pulmonary status directly. The three
-    // derived flags below remain because the EuroSCORE II comparator and the companion
-    // outcome model still consume them.
+    // v3.0: the UCSRS baseline reads the four-level pulmonary status directly.
+    // mobility/pulmonary below are now unused (their only consumer, the internal
+    // EuroSCORE II sub-computation, was removed 20 Sep 2026); left in place as
+    // harmless captured fields rather than restructuring patient object shape.
     pulmStatus: pulmVal,
     pulmonary: pulmVal === 'chronic' || pulmVal === 'chronic_o2',  // chronic dysfunction term
     lungAny: pulmVal !== 'none',          // any significant lung disease, incl. acute
@@ -1212,8 +1163,6 @@ function calc(){
   if (lvesviValue === null && num('lvesv') !== null && bsa !== null)
     lvesviValue = num('lvesv') / bsa;
 
-  var euro = age ? euroscore2(patient) : null;
-
   var meld = null;
   // v3.1: MELD creatinine is entered independently and is not taken from the Layer 1
   // creatinine field above. If left blank, MELD is not calculated - same as bilirubin or INR.
@@ -1238,7 +1187,7 @@ function calc(){
   // body surface area, without which an entered ventricular volume cannot be indexed.
   var required = (num('wt') === null || num('ht') === null ||
                   labNum('hgb') === null || labNum('alb') === null);
-  if (baseline === null || euro === null || required){
+  if (baseline === null || required){
     scoreEl.textContent = '—';
     catEl.textContent = 'enter patient details to calculate';
     catEl.style.color = 'var(--muted)';

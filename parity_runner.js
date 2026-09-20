@@ -26,7 +26,7 @@ if (a < 0 || b < 0) throw new Error("engine markers not found in " + HTML);
 const engine = src.slice(a, b + END.length);
 
 const sandbox = {};
-new Function("global", engine + "\nObject.assign(global, {UCSRS_SPEC, ucsrs, euroscore2, " +
+new Function("global", engine + "\nObject.assign(global, {UCSRS_SPEC, ucsrs, " +
   "physiologyBaseline, eftScore, meldFromLabs, meldCorrection, bsaMosteller, " +
   "creatinineClearance, valveBurden, ucsrsOutcomes, band});")(sandbox);
 
@@ -56,19 +56,18 @@ const input = JSON.parse(fs.readFileSync(0, "utf8"));
 const out = input.map(function (c) {
   const p = c.patient;
   const baseline = sandbox.physiologyBaseline(p);
-  const euro = sandbox.euroscore2(p);
   const eft = sandbox.eftScore(c.frailty);
   const meld = c.meld === null || c.meld === undefined
     ? null
     : sandbox.meldFromLabs(c.meld.bili, c.meld.inr, c.meld.cr);
   const r = sandbox.ucsrs({
-    baselinePct: baseline, euroPct: euro, eft: eft.points, meld: meld,
+    baselinePct: baseline, eft: eft.points, meld: meld,
     lvesvi: c.lvesvi, lvedd: c.lvedd, syntax: c.syntax, tier: c.tier,
     map: c.map, co: c.co, pvr: c.pvr, ci: c.ci, tapse: c.tapse, pasprhc: c.pasprhc,
   });
   const oc = sandbox.ucsrsOutcomes(r.final, c.outcomeContext || {});
   return {
-    baseline: baseline, euro: euro, eft: eft.points, meld: meld,
+    baseline: baseline, eft: eft.points, meld: meld,
     br: r.br, meldCorr: r.meldCorr, preCfs: r.preCfs, mult: r.mult, base: r.base,
     lv: r.lv, syntax: r.syntax, hemo: r.hemo, final: r.final,
     stroke: oc.stroke, renal: oc.renal, vent: oc.vent, reop: oc.reop,
