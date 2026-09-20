@@ -1,0 +1,35 @@
+
+======================================================================================
+FLOOR 0.30   re-solved shift 0.436710   n=2,145,000   5.3% of patients sit on the floor
+  mean UCSRS 3.089%   mean EuroSCORE II 3.445%
+  cut on EuroSCORE II
+    Q1   UCSRS   0.542%   ESII   0.846%   ratio 0.640
+    Q2   UCSRS   1.047%   ESII   1.475%   ratio 0.710
+    Q3   UCSRS   2.131%   ESII   2.622%   ratio 0.813
+    Q4   UCSRS   8.635%   ESII   8.837%   ratio 0.977
+  cut on RANK MEAN
+    Q1   UCSRS   0.432%   ESII   0.886%   ratio 0.487
+    Q2   UCSRS   0.882%   ESII   1.533%   ratio 0.576
+    Q3   UCSRS   1.865%   ESII   2.708%   ratio 0.689
+    Q4   UCSRS   9.176%   ESII   8.653%   ratio 1.060
+
+======================================================================================
+FLOOR 0.40   re-solved shift 0.429768   n=2,145,000   10.2% of patients sit on the floor
+  mean UCSRS 3.088%   mean EuroSCORE II 3.445%
+  cut on EuroSCORE II
+    Q1   UCSRS   0.595%   ESII   0.846%   ratio 0.703
+    Q2   UCSRS   1.051%   ESII   1.475%   ratio 0.712
+    Q3   UCSRS   2.119%   ESII   2.622%   ratio 0.808
+    Q4   UCSRS   8.589%   ESII   8.837%   ratio 0.972
+  cut on RANK MEAN
+    Q1   UCSRS   0.487%   ESII   0.892%   ratio 0.546
+    Q2   UCSRS   0.885%   ESII   1.530%   ratio 0.578
+    Q3   UCSRS   1.855%   ESII   2.706%   ratio 0.685
+    Q4   UCSRS   9.126%   ESII   8.653%   ratio 1.055
+
+======================================================================================
+WHAT THE FLOOR DID (ratio, floor 0.30 -> floor 0.40)
+  cut on EuroSCORE II   Q1 0.640->0.703 (+0.063)   Q2 0.710->0.712 (+0.002)   Q3 0.813->0.808 (-0.005)   Q4 0.977->0.972 (-0.005)
+  cut on RANK MEAN      Q1 0.487->0.546 (+0.059)   Q2 0.576->0.578 (+0.003)   Q3 0.689->0.685 (-0.004)   Q4 1.060->1.055 (-0.006)
+
+written out_lock/floor_experiment.json

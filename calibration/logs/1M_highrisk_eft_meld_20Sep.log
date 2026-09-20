@@ -1,0 +1,29 @@
+[04:04:32] GATE  engine sha shipped fb35c0ba2c967e1f  worker fb35c0ba2c967e1f
+[04:04:32] GATE  SPEC_VERSION 3.1.0, calibration_shift 0.433039 (locked)
+[04:04:32] EXACT CELLS — the investigator's specification, no spread
+[04:04:32]    age  sex    Cr  MELD  mEFT   xEFT   Layer1    UCSRS    ESII   ratio
+[04:04:32]     70    M   2.0    24     4   2.60     1.17    27.43    1.56    17.6x
+[04:04:32]     70    M   4.0    31     4   2.60     2.83    70.00    1.56    44.9x
+[04:04:32]     70    F   2.0    24     4   2.60     1.42    32.74    1.93    16.9x
+[04:04:32]     70    F   4.0    31     4   2.60     3.43    70.00    1.93    36.2x
+[04:04:32]     80    M   2.0    24     4   2.60     2.01    44.14    2.06    21.4x
+[04:04:32]     80    M   4.0    31     4   2.60     4.81    70.00    2.06    33.9x
+[04:04:32]     80    F   2.0    24     4   2.60     2.44    51.96    2.56    20.3x
+[04:04:32]     80    F   4.0    31     4   2.60     5.81    70.00    2.56    27.4x
+[04:04:32] 
+[04:04:32] POPULATION RUN — 1,000,000 patients around the specified profile
+[04:04:38]   scored 200,000 / 1,000,000  (6s)
+[04:04:44]   scored 400,000 / 1,000,000  (12s)
+[04:04:50]   scored 600,000 / 1,000,000  (18s)
+[04:04:56]   scored 800,000 / 1,000,000  (24s)
+[04:05:02]   scored 1,000,000 / 1,000,000  (30s)
+[04:05:02] 
+[04:05:02] POPULATION RESULT, n = 1,000,000
+[04:05:02]   MELD mean 26.5, median 27, >=20 in 95.2%
+[04:05:02]   mEFT mean 4.68 points, >=4 points in 90.1%
+[04:05:02]   EuroSCORE II  mean   2.22%  p10   1.52  p50   2.12  p90   3.01   spread 2.0x
+[04:05:02]   UCSRS         mean  52.26%  p10  22.27  p50  59.13  p90  70.00   spread 3.1x
+[04:05:02]   UCSRS / EuroSCORE II: ratio of means 23.5x, median ratio 24.3x
+[04:05:02]   AT THE 70% CAP: 40.1%   >=50%: 59.4%   >=30%: 82.0%
+[04:05:02]   excluding capped (n=598,815): p10 17.61%  p50 40.54%  p90 63.25%
+[04:05:02] DONE in 0.5 min — out_lock/highrisk_1M.json

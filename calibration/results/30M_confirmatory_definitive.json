@@ -1,0 +1,337 @@
+{
+ "tag": "definitive",
+ "total_n": 30000000,
+ "per_registry": 2307692,
+ "shifts": [
+  "0.433039",
+  "0.438507"
+ ],
+ "registries": [
+  {
+   "name": "STS ACSD",
+   "n": 2307692,
+   "mean_esii": 3.3379670962484993,
+   "oe_esii_realised": 0.7190004966487928,
+   "oe_esii_published": 0.72,
+   "target_mean_esii": 3.3333333333333335,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 2.8749712210792038,
+     "oe_ucsrs": 0.8347909650028046,
+     "geo_mean_ucsrs": 1.4171479988727465,
+     "cap_hit_pct": 0.13689001825200242,
+     "baseline_clamp_pct": 0.045630006084000814
+    },
+    "0.438507": {
+     "mean_ucsrs": 2.8879794527331777,
+     "oe_ucsrs": 0.8310308432868679,
+     "geo_mean_ucsrs": 1.4232534906697212,
+     "cap_hit_pct": 0.13780001837333578,
+     "baseline_clamp_pct": 0.04602000613600082
+    }
+   }
+  },
+  {
+   "name": "CMS Medicare",
+   "n": 2307692,
+   "mean_esii": 4.574869590039515,
+   "oe_esii_realised": 0.6776149437678779,
+   "oe_esii_published": 0.68,
+   "target_mean_esii": 4.5588235294117645,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 4.513352213527355,
+     "oe_ucsrs": 0.68685089338003,
+     "geo_mean_ucsrs": 2.013321126446884,
+     "cap_hit_pct": 0.41925005590000747,
+     "baseline_clamp_pct": 0.12562335008311334
+    },
+    "0.438507": {
+     "mean_ucsrs": 4.5326526306517865,
+     "oe_ucsrs": 0.6839262243562279,
+     "geo_mean_ucsrs": 2.0224668654844002,
+     "cap_hit_pct": 0.42202338960311864,
+     "baseline_clamp_pct": 0.1266200168826689
+    }
+   }
+  },
+  {
+   "name": "SWEDEHEART",
+   "n": 2307692,
+   "mean_esii": 2.589133277650191,
+   "oe_esii_realised": 0.5793444520404715,
+   "oe_esii_published": 0.58,
+   "target_mean_esii": 2.586206896551724,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 2.0054367131309654,
+     "oe_ucsrs": 0.7479667596481476,
+     "geo_mean_ucsrs": 1.1040430181378709,
+     "cap_hit_pct": 0.04680000624000083,
+     "baseline_clamp_pct": 0.016856668914222522
+    },
+    "0.438507": {
+     "mean_ucsrs": 2.014706579482852,
+     "oe_ucsrs": 0.7445252898241043,
+     "geo_mean_ucsrs": 1.1085067443091994,
+     "cap_hit_pct": 0.047233339631111954,
+     "baseline_clamp_pct": 0.01707333560977808
+    }
+   }
+  },
+  {
+   "name": "KROK",
+   "n": 2307692,
+   "mean_esii": 3.7214525232743663,
+   "oe_esii_realised": 1.1017203563281155,
+   "oe_esii_published": 1.1,
+   "target_mean_esii": 3.7272727272727266,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 3.355168074119026,
+     "oe_ucsrs": 1.2219954140677576,
+     "geo_mean_ucsrs": 1.5899221531030934,
+     "cap_hit_pct": 0.20011336001511468,
+     "baseline_clamp_pct": 0.06556334207511227
+    },
+    "0.438507": {
+     "mean_ucsrs": 3.370114723607811,
+     "oe_ucsrs": 1.2165757952627867,
+     "geo_mean_ucsrs": 1.5969192523349125,
+     "cap_hit_pct": 0.20163002688400358,
+     "baseline_clamp_pct": 0.06617000882266784
+    }
+   }
+  },
+  {
+   "name": "German Registry",
+   "n": 2307692,
+   "mean_esii": 3.2610620099939713,
+   "oe_esii_realised": 0.9812754219923331,
+   "oe_esii_published": 0.98,
+   "target_mean_esii": 3.2653061224489797,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 2.7775992274188215,
+     "oe_ucsrs": 1.1520740531648652,
+     "geo_mean_ucsrs": 1.3824991438403775,
+     "cap_hit_pct": 0.12393334985777998,
+     "baseline_clamp_pct": 0.041383338851111846
+    },
+    "0.438507": {
+     "mean_ucsrs": 2.7902034968007756,
+     "oe_ucsrs": 1.1468697547218667,
+     "geo_mean_ucsrs": 1.3884249599747527,
+     "cap_hit_pct": 0.12501668333555777,
+     "baseline_clamp_pct": 0.04190333892044519
+    }
+   }
+  },
+  {
+   "name": "BCIS/NICOR",
+   "n": 2307692,
+   "mean_esii": 3.2969539801573395,
+   "oe_esii_realised": 0.849268754387156,
+   "oe_esii_published": 0.85,
+   "target_mean_esii": 3.2941176470588234,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 2.8233167389243508,
+     "oe_ucsrs": 0.9917413662438617,
+     "geo_mean_ucsrs": 1.3974242919954865,
+     "cap_hit_pct": 0.12883001717733564,
+     "baseline_clamp_pct": 0.045456672727556366
+    },
+    "0.438507": {
+     "mean_ucsrs": 2.8361039035355056,
+     "oe_ucsrs": 0.9872698939236682,
+     "geo_mean_ucsrs": 1.4034263577819144,
+     "cap_hit_pct": 0.12969668395955786,
+     "baseline_clamp_pct": 0.045630006084000814
+    }
+   }
+  },
+  {
+   "name": "ANZCTS",
+   "n": 2307692,
+   "mean_esii": 3.304981792108495,
+   "oe_esii_realised": 0.7866911721596099,
+   "oe_esii_published": 0.79,
+   "target_mean_esii": 3.291139240506329,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 2.8313899916540346,
+     "oe_ucsrs": 0.9182768914433925,
+     "geo_mean_ucsrs": 1.4026657101657927,
+     "cap_hit_pct": 0.12688001691733558,
+     "baseline_clamp_pct": 0.041946672259556304
+    },
+    "0.438507": {
+     "mean_ucsrs": 2.844231660867562,
+     "oe_ucsrs": 0.9141308831387295,
+     "geo_mean_ucsrs": 1.4086973001675993,
+     "cap_hit_pct": 0.12757335034311337,
+     "baseline_clamp_pct": 0.04264000568533409
+    }
+   }
+  },
+  {
+   "name": "JCVSD",
+   "n": 2307692,
+   "mean_esii": 2.88927319896105,
+   "oe_esii_realised": 1.4190419934931433,
+   "oe_esii_published": 1.42,
+   "target_mean_esii": 2.8873239436619715,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 2.338197736984753,
+     "oe_ucsrs": 1.7534872843077836,
+     "geo_mean_ucsrs": 1.2250010439237144,
+     "cap_hit_pct": 0.07483667664489022,
+     "baseline_clamp_pct": 0.02578333677111157
+    },
+    "0.438507": {
+     "mean_ucsrs": 2.348941944004025,
+     "oe_ucsrs": 1.7454667240566648,
+     "geo_mean_ucsrs": 1.2301039752184941,
+     "cap_hit_pct": 0.07527001003600134,
+     "baseline_clamp_pct": 0.026086670144889353
+    }
+   }
+  },
+  {
+   "name": "Indian cohort",
+   "n": 2307692,
+   "mean_esii": 1.8943871395540757,
+   "oe_esii_realised": 0.7918128077838876,
+   "oe_esii_published": 0.79,
+   "target_mean_esii": 1.8987341772151898,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 1.3084835644448636,
+     "oe_ucsrs": 1.1463651823830046,
+     "geo_mean_ucsrs": 0.840606858505089,
+     "cap_hit_pct": 0.01014000135200018,
+     "baseline_clamp_pct": 0.0039000005200000693
+    },
+    "0.438507": {
+     "mean_ucsrs": 1.3144397684887563,
+     "oe_ucsrs": 1.1411705853396286,
+     "geo_mean_ucsrs": 0.8436492051883725,
+     "cap_hit_pct": 0.010313334708444628,
+     "baseline_clamp_pct": 0.003943333859111181
+    }
+   }
+  },
+  {
+   "name": "Brazilian",
+   "n": 2307692,
+   "mean_esii": 2.696067923948961,
+   "oe_esii_realised": 1.5949153067708106,
+   "oe_esii_published": 1.59,
+   "target_mean_esii": 2.7044025157232703,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 2.123964227934353,
+     "oe_ucsrs": 2.024516205803492,
+     "geo_mean_ucsrs": 1.146347047826022,
+     "cap_hit_pct": 0.05655000754000101,
+     "baseline_clamp_pct": 0.020410002721333698
+    },
+    "0.438507": {
+     "mean_ucsrs": 2.1337611329182424,
+     "oe_ucsrs": 2.015220885628888,
+     "geo_mean_ucsrs": 1.1510364008095146,
+     "cap_hit_pct": 0.056983340931112125,
+     "baseline_clamp_pct": 0.02071333609511148
+    }
+   }
+  },
+  {
+   "name": "Turkish cohort",
+   "n": 2307692,
+   "mean_esii": 6.382354859324032,
+   "oe_esii_realised": 0.8304144969716293,
+   "oe_esii_published": 0.83,
+   "target_mean_esii": 6.385542168674699,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 7.300197146154994,
+     "oe_ucsrs": 0.7260077904596733,
+     "geo_mean_ucsrs": 3.0886023126681406,
+     "cap_hit_pct": 1.2070934942791325,
+     "baseline_clamp_pct": 0.35576671410222854
+    },
+    "0.438507": {
+     "mean_ucsrs": 7.328616462086185,
+     "oe_ucsrs": 0.7231924371290249,
+     "geo_mean_ucsrs": 3.10298878475569,
+     "cap_hit_pct": 1.2148068286409104,
+     "baseline_clamp_pct": 0.3581933810924508
+    }
+   }
+  },
+  {
+   "name": "EuroHeart",
+   "n": 2307692,
+   "mean_esii": 3.840388628407338,
+   "oe_esii_realised": 0.9113660982408174,
+   "oe_esii_published": 0.91,
+   "target_mean_esii": 3.846153846153846,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 3.5084412755583454,
+     "oe_ucsrs": 0.9975940097338519,
+     "geo_mean_ucsrs": 1.648907299106857,
+     "cap_hit_pct": 0.21974336263244834,
+     "baseline_clamp_pct": 0.07085000944666793
+    },
+    "0.438507": {
+     "mean_ucsrs": 3.52401008584576,
+     "oe_ucsrs": 0.9931867147763859,
+     "geo_mean_ucsrs": 1.6562112656780539,
+     "cap_hit_pct": 0.2214333628577817,
+     "baseline_clamp_pct": 0.07154334287244572
+    }
+   }
+  },
+  {
+   "name": "Korean Registry",
+   "n": 2307692,
+   "mean_esii": 2.9580383993722608,
+   "oe_esii_realised": 1.284635115219064,
+   "oe_esii_published": 1.28,
+   "target_mean_esii": 2.96875,
+   "shifts": {
+    "0.433039": {
+     "mean_ucsrs": 2.4213975384579323,
+     "oe_ucsrs": 1.5693416465682999,
+     "geo_mean_ucsrs": 1.2540654939731284,
+     "cap_hit_pct": 0.08194334425911257,
+     "baseline_clamp_pct": 0.029596670612889415
+    },
+    "0.438507": {
+     "mean_ucsrs": 2.4324980071774225,
+     "oe_ucsrs": 1.562180108179975,
+     "geo_mean_ucsrs": 1.2593196012378314,
+     "cap_hit_pct": 0.08289667771955703,
+     "baseline_clamp_pct": 0.029813337308444973
+    }
+   }
+  }
+ ],
+ "metrics": {
+  "0.433039": {
+   "median_oe": 0.9975940097338519,
+   "mean_abs_log_oe": 0.2660769269240237,
+   "in_band_0p80_1p25": 7,
+   "n_registries": 13
+  },
+  "0.438507": {
+   "median_oe": 0.9931867147763859,
+   "mean_abs_log_oe": 0.2663443158467398,
+   "in_band_0p80_1p25": 7,
+   "n_registries": 13
+  }
+ }
+}

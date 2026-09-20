@@ -1,0 +1,106 @@
+[
+ {
+  "name": "STS ACSD",
+  "dial": -0.492878611233741,
+  "target": 3.3333333333333335,
+  "pilot_mean_esii": 3.333020949206424,
+  "pilot_n": 250000,
+  "seed": 1000000
+ },
+ {
+  "name": "CMS Medicare",
+  "dial": 0.06735756117036817,
+  "target": 4.5588235294117645,
+  "pilot_mean_esii": 4.558771312842263,
+  "pilot_n": 250000,
+  "seed": 1007919
+ },
+ {
+  "name": "SWEDEHEART",
+  "dial": -0.9601603500041147,
+  "target": 2.586206896551724,
+  "pilot_mean_esii": 2.586849900843694,
+  "pilot_n": 250000,
+  "seed": 1015838
+ },
+ {
+  "name": "KROK",
+  "dial": -0.299159959610005,
+  "target": 3.7272727272727266,
+  "pilot_mean_esii": 3.726759606053647,
+  "pilot_n": 250000,
+  "seed": 1023757
+ },
+ {
+  "name": "German Registry",
+  "dial": -0.5324290476311442,
+  "target": 3.2653061224489797,
+  "pilot_mean_esii": 3.265797287607325,
+  "pilot_n": 250000,
+  "seed": 1031676
+ },
+ {
+  "name": "BCIS/NICOR",
+  "dial": -0.5180607044938995,
+  "target": 3.2941176470588234,
+  "pilot_mean_esii": 3.29423489067744,
+  "pilot_n": 250000,
+  "seed": 1039595
+ },
+ {
+  "name": "ANZCTS",
+  "dial": -0.5106913924026109,
+  "target": 3.291139240506329,
+  "pilot_mean_esii": 3.291138743164532,
+  "pilot_n": 250000,
+  "seed": 1047514
+ },
+ {
+  "name": "JCVSD",
+  "dial": -0.7543358293312903,
+  "target": 2.8873239436619715,
+  "pilot_mean_esii": 2.886870856274298,
+  "pilot_n": 250000,
+  "seed": 1055433
+ },
+ {
+  "name": "Indian cohort",
+  "dial": -1.60261430333678,
+  "target": 1.8987341772151898,
+  "pilot_mean_esii": 1.8991424314678456,
+  "pilot_n": 250000,
+  "seed": 1063352
+ },
+ {
+  "name": "Brazilian",
+  "dial": -0.8832519033044021,
+  "target": 2.7044025157232703,
+  "pilot_mean_esii": 2.704533657311135,
+  "pilot_n": 250000,
+  "seed": 1071271
+ },
+ {
+  "name": "Turkish cohort",
+  "dial": 0.6578835538505825,
+  "target": 6.385542168674699,
+  "pilot_mean_esii": 6.385976638363301,
+  "pilot_n": 250000,
+  "seed": 1079190
+ },
+ {
+  "name": "EuroHeart",
+  "dial": -0.23998261673021837,
+  "target": 3.846153846153846,
+  "pilot_mean_esii": 3.8462702209314457,
+  "pilot_n": 250000,
+  "seed": 1087109
+ },
+ {
+  "name": "Korean Registry",
+  "dial": -0.7088672920219083,
+  "target": 2.96875,
+  "pilot_mean_esii": 2.9687119834277733,
+  "pilot_n": 250000,
+  "seed": 1095028
+ }
+]

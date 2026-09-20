@@ -1,0 +1,137 @@
+{
+ "engine_sha256_16": "fb35c0ba2c967e1f",
+ "spec_version": "3.1.0",
+ "calibration_shift": 0.433039,
+ "exact_cells": [
+  {
+   "age": 70,
+   "sex": "M",
+   "creatinine": 2.0,
+   "meld": 24,
+   "eft": 4,
+   "eft_multiplier": 2.6,
+   "layer1_pct": 1.1688902170870146,
+   "ucsrs_pct": 27.434816442326614,
+   "euroscore2_pct": 1.5590188674521162,
+   "at_cap": false
+  },
+  {
+   "age": 70,
+   "sex": "M",
+   "creatinine": 4.0,
+   "meld": 31,
+   "eft": 4,
+   "eft_multiplier": 2.6,
+   "layer1_pct": 2.8297772097685363,
+   "ucsrs_pct": 70.0,
+   "euroscore2_pct": 1.5590188674521162,
+   "at_cap": true
+  },
+  {
+   "age": 70,
+   "sex": "F",
+   "creatinine": 2.0,
+   "meld": 24,
+   "eft": 4,
+   "eft_multiplier": 2.6,
+   "layer1_pct": 1.4240004857025184,
+   "ucsrs_pct": 32.74399229791765,
+   "euroscore2_pct": 1.934556206643912,
+   "at_cap": false
+  },
+  {
+   "age": 70,
+   "sex": "F",
+   "creatinine": 4.0,
+   "meld": 31,
+   "eft": 4,
+   "eft_multiplier": 2.6,
+   "layer1_pct": 3.4347781007729212,
+   "ucsrs_pct": 70.0,
+   "euroscore2_pct": 1.934556206643912,
+   "at_cap": true
+  },
+  {
+   "age": 80,
+   "sex": "M",
+   "creatinine": 2.0,
+   "meld": 24,
+   "eft": 4,
+   "eft_multiplier": 2.6,
+   "layer1_pct": 2.008765522123692,
+   "ucsrs_pct": 44.13655473454845,
+   "euroscore2_pct": 2.062886213323115,
+   "at_cap": false
+  },
+  {
+   "age": 80,
+   "sex": "M",
+   "creatinine": 4.0,
+   "meld": 31,
+   "eft": 4,
+   "eft_multiplier": 2.6,
+   "layer1_pct": 4.805018508949797,
+   "ucsrs_pct": 70.0,
+   "euroscore2_pct": 2.062886213323115,
+   "at_cap": true
+  },
+  {
+   "age": 80,
+   "sex": "F",
+   "creatinine": 2.0,
+   "meld": 24,
+   "eft": 4,
+   "eft_multiplier": 2.6,
+   "layer1_pct": 2.442648163669799,
+   "ucsrs_pct": 51.95578065701884,
+   "euroscore2_pct": 2.5566432130422454,
+   "at_cap": false
+  },
+  {
+   "age": 80,
+   "sex": "F",
+   "creatinine": 4.0,
+   "meld": 31,
+   "eft": 4,
+   "eft_multiplier": 2.6,
+   "layer1_pct": 5.807084519232562,
+   "ucsrs_pct": 70.0,
+   "euroscore2_pct": 2.5566432130422454,
+   "at_cap": true
+  }
+ ],
+ "population": {
+  "n": 1000000,
+  "seed": 20260920,
+  "meld_mean": 26.485336,
+  "meld_median": 27.0,
+  "meld_ge20_pct": 95.15639999999999,
+  "eft_mean": 4.680801,
+  "eft_ge4_pct": 90.1085,
+  "esii": {
+   "mean": 2.2204274027163153,
+   "p10": 1.5244079948915923,
+   "p50": 2.1241119656512444,
+   "p90": 3.0100591960577563
+  },
+  "ucsrs": {
+   "mean": 52.26276731069548,
+   "p10": 22.27266071383519,
+   "p50": 59.13446975215629,
+   "p90": 70.0
+  },
+  "layer1_mean": 2.310962396326163,
+  "ratio_of_means": 23.53725559626983,
+  "median_ratio": 24.2590831163057,
+  "at_cap_pct": 40.118500000000004,
+  "ge50_pct": 59.414,
+  "ge30_pct": 82.0166,
+  "uncapped": {
+   "n": 598815,
+   "p10": 17.605757944892357,
+   "p50": 40.537206325452566,
+   "p90": 63.24720465174533
+  }
+ },
+ "finished": "2026-09-20 04:05:02"
+}
