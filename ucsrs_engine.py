@@ -300,46 +300,12 @@ def creatinine_clearance(age, weight_kg, cr_mgdl, female: bool) -> Optional[floa
 
 
 
-# Cockcroft-Gault was derived and validated on actual body weight in populations
-# that were not morbidly obese. Above roughly 120% of ideal body weight the added
-# mass is overwhelmingly adipose, not the lean/muscle mass that generates creatinine,
-# so feeding raw weight in continues to inflate the estimate the heavier a patient
-# gets -- a real patient at 200 kg with Cr 2.5 does not have materially better renal
-# function than the same patient at 124 kg. Devine ideal-body-weight + the standard
-# 0.4 adjustment factor (ASHP/kidney-dosing convention) caps that inflation.
-#
-# NOT ON THE SCORED PATH as of v3.0. The two functions below are RETAINED BUT UNCALLED.
-# This note previously read "Applied ONLY to UCSRS's own native renal term below", which
-# stopped being true when v3.0 deleted Cockcroft-Gault from the scored path: UCSRS's
-# native renal term now reads serum creatinine directly, through
-# renal_k * ln(creatinine), and no weight of any kind enters it. EuroSCORE II's
-# sub-computation still uses Cockcroft-Gault on raw actual weight, unmodified, because
-# it must stay faithful to Nashef et al. 2012 for the comparator to remain valid -- and
-# raw weight is what that method specifies, so the adjustment below is not wanted there
-# either. Kept in both engines as the record of a correction that was built and then
-# rendered moot; see the dead-code note in the v3.1 review before removing.
-def ideal_body_weight(height_cm, female: bool) -> Optional[float]:
-    h = _num(height_cm)
-    if h is None:
-        return None
-    height_in = h / 2.54
-    base = 45.5 if female else 50.0
-    return base + 2.3 * max(0.0, height_in - 60.0)
-
-
-def renal_weight(height_cm, weight_kg, female: bool) -> Optional[float]:
-    """Actual body weight, unless it exceeds 120% of ideal body weight -- then the
-    Devine adjusted body weight (IBW + 0.4 * (actual - IBW)) is used instead, so the
-    renal term stops treating excess adipose mass as if it were excess lean mass."""
-    w = _num(weight_kg)
-    if w is None:
-        return None
-    ibw = ideal_body_weight(height_cm, female)
-    if ibw is None or ibw <= 0:
-        return w
-    if w <= 1.20 * ibw:
-        return w
-    return ibw + 0.4 * (w - ibw)
+# REMOVED 20 Sep 2026: ideal_body_weight() and renal_weight(), the Devine adjusted-body-
+# weight correction for Cockcroft-Gault above 120% of ideal weight. They were stranded
+# when v3.0 deleted Cockcroft-Gault from the scored path -- UCSRS's renal term reads
+# serum creatinine directly through renal_k * ln(creatinine) and no weight enters it,
+# and EuroSCORE II's sub-computation must keep RAW actual weight to stay faithful to
+# Nashef et al. 2012, so the correction had nowhere left to apply. Nothing called them.
 
 
 # ---------------------------------------------------------------- EuroSCORE II
@@ -538,13 +504,9 @@ BASELINE_A2 = {
     "sternotomy_scale": 1.118599,
 }
 
-_REF = BASELINE_A2["reference_risk"]
-
-
-def _pp_to_logodds(pp):
-    """Convert a percentage-point increment to a log-odds increment at the reference."""
-    p2 = min(0.60, _REF + pp / 100.0)
-    return math.log(p2 / (1 - p2)) - math.log(_REF / (1 - _REF))
+# REMOVED 20 Sep 2026: _REF and _pp_to_logodds(), a v2.x helper that converted a
+# percentage-point increment to log-odds at the 3% reference. Every layer that needed
+# it was converted to native log-odds by v3.0. Nothing called it.
 
 
 # v3.0 Layer 1: one coefficient per variable, log-odds, set from clinical and
@@ -811,11 +773,13 @@ def physiology_baseline(p):
     return min(max(100.0 / (1.0 + math.exp(-z)), 0.40), 50.0)
 
 
-sts_estimate = physiology_baseline
+# REMOVED 20 Sep 2026: the alias sts_estimate = physiology_baseline, left from the
+# v2.2.0 rename. Nothing in the engine, the suites, the calibration harness or the site
+# analysis script referenced it.
 
 
 # ---------------------------------------------------------------- the score
-def ucsrs(baseline_pct: float, euro_pct: float, eft: int, meld: Optional[float],
+def ucsrs(baseline_pct: float, eft: int, meld: Optional[float],
           lvesvi=None, lvedd=None, syntax=None, tier: int = 0,
           map_mmhg=None, co=None, pvr=None, ci=None, tapse=None,
           pasp_rhc=None) -> Dict[str, Any]:
@@ -1161,7 +1125,7 @@ def score_row(row: Dict[str, Any]) -> Dict[str, Any]:
                   "rhc_tapse_mm", "rhc_pasp_mmhg")
     tier = 2 if any(_num(row.get(c)) is not None for c in rhc_fields) else 0
 
-    r = ucsrs(baseline, euro, eft["points"], meld,
+    r = ucsrs(baseline, eft["points"], meld,
               lvesvi=lvesvi, lvedd=_num(row.get("lvedd_mm")),
               syntax=_num(row.get("syntax_score")), tier=tier,
               map_mmhg=_num(row.get("rhc_map_mmhg")), co=_num(row.get("rhc_co_l_min")),

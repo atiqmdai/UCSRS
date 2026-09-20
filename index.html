@@ -312,8 +312,10 @@ var UCSRS_SPEC = {
                  // and is blind to depth; chair rise is already graded 1/2 in the same
                  // instrument, so this follows its own internal logic. This makes it a
                  // MODIFIED EFT and must be described as such.
-                 hgb_lo_m: 13.0, hgb_lo_f: 12.0, hgb_crit: 8.0, alb_lo: 3.5, alb_crit: 3.0,
-                 chair_slow_s: 15 },
+                 hgb_lo_m: 13.0, hgb_lo_f: 12.0, hgb_crit: 8.0, alb_lo: 3.5, alb_crit: 3.0 },
+  // REMOVED 20 Sep 2026: chair_slow_s: 15. Declared here but read nowhere -- chair
+  // rise is taken categorically ('fast'/'slow'/'unable'), so no threshold is used.
+  // It also had no counterpart in ucsrs_engine.py, the only spec divergence found.
   // v3.0 final: Layer 2c converted from PERCENTAGE POINTS to LOG-ODDS and re-weighted.
   // Cohort 4 (318,162,816 cells) measured LVEDD moving the score 1.1 points across its
   // whole range and SYNTAX 3.2 - both inert. SYNTAX is OPTIONAL and frequently
@@ -452,31 +454,11 @@ function creatinineClearance(age, weightKg, cr_mgdl, female){
   return female ? cc * 0.85 : cc;
 }
 
-// Cockcroft-Gault was derived and validated on actual body weight in populations
-// that were not morbidly obese. Above roughly 120% of ideal body weight the added
-// mass is overwhelmingly adipose, not the lean/muscle mass that generates creatinine,
-// so feeding raw weight in continues to inflate the estimate the heavier a patient
-// gets -- a real patient at 200 kg with Cr 2.5 does not have materially better renal
-// function than the same patient at 124 kg. An ideal-body-weight estimate plus the standard
-// 0.4 adjustment factor, as used in renal drug dosing, caps that inflation. Applied
-// ONLY to UCSRS's own native renal term (physiologyBaseline) below -- the EuroSCORE II
-// sub-computation keeps raw actual weight, unmodified, since it must stay faithful
-// to the comparator's own published methodology for the head-to-head comparison to
-// remain valid.
-function idealBodyWeight(heightCm, female){
-  if (heightCm == null || isNaN(heightCm)) return null;
-  var heightIn = heightCm / 2.54;
-  var base = female ? 45.5 : 50.0;
-  return base + 2.3 * Math.max(0, heightIn - 60);
-}
-
-function renalWeight(heightCm, weightKg, female){
-  if (weightKg == null || isNaN(weightKg)) return null;
-  var ibw = idealBodyWeight(heightCm, female);
-  if (ibw == null || ibw <= 0) return weightKg;
-  if (weightKg <= 1.20 * ibw) return weightKg;
-  return ibw + 0.4 * (weightKg - ibw);
- }
+// REMOVED 20 Sep 2026: idealBodyWeight() and renalWeight(), the Devine adjusted-body-
+// weight correction for Cockcroft-Gault above 120% of ideal weight. Stranded when v3.0
+// deleted Cockcroft-Gault from the scored path -- the renal term reads serum creatinine
+// directly and no weight enters it, and EuroSCORE II's sub-computation must keep RAW
+// actual weight to stay faithful to Nashef et al. 2012. Nothing called them.
 
 function euroscore2(p){
   var E = UCSRS_SPEC.euroscore2, lp = E.constant;
@@ -704,12 +686,9 @@ var L1 = {
   // an EFT component and has no separate Layer 1 term.
 };
 
-// A percentage-point increment at the reference risk, expressed in log-odds.
-function ppToLogOdds(pp){
-  var ref = BASELINE.reference_risk;
-  var p2 = Math.min(0.60, ref + pp / 100);
-  return Math.log(p2 / (1 - p2)) - Math.log(ref / (1 - ref));
-}
+// REMOVED 20 Sep 2026: ppToLogOdds(), a v2.x helper converting a percentage-point
+// increment to log-odds at the 3% reference. Every layer that needed it was converted
+// to native log-odds by v3.0. Nothing called it.
 
 // Procedure increments relative to isolated CABG. Repair preserves native tissue and
 // carries less risk than replacement at every valve position; a concomitant tricuspid
@@ -974,10 +953,10 @@ function selfTest(){
   // Case 1: no MELD, so PRE_CFS is the baseline unchanged and Layer 2b multiplies the
   // percentage by the mEFT ladder. Case 2: MELD 17 is a log-odds shift of
   // per_point x (17 - threshold) applied to the baseline, with the ladder at 1.00.
-  var c1 = ucsrs({baselinePct:2.8, euroPct:3.2, eft:3, meld:null, lvedd:52, tier:0});
+  var c1 = ucsrs({baselinePct:2.8, eft:3, meld:null, lvedd:52, tier:0});
   out.push({name:'Case 1 (mEFT 3 ladder)', got:c1.final,
             want:2.8 * UCSRS_SPEC.layer2b_eft.mult[3]});
-  var c2 = ucsrs({baselinePct:3.5, euroPct:2.0, eft:0, meld:17, lvedd:50, tier:0});
+  var c2 = ucsrs({baselinePct:3.5, eft:0, meld:17, lvedd:50, tier:0});
   var c2shift = UCSRS_SPEC.layer2a_meld.per_point * (17 - UCSRS_SPEC.layer2a_meld.threshold);
   var c2odds  = Math.log(0.035 / 0.965) + c2shift;
   out.push({name:'Case 2 (MELD 17 log-odds shift)', got:c2.final,
@@ -1268,7 +1247,7 @@ function calc(){
   }
 
   var r = ucsrs({
-    baselinePct: baseline, euroPct: euro, eft: eft.points, meld: meld,
+    baselinePct: baseline, eft: eft.points, meld: meld,
     lvesvi: lvesviValue, lvedd: num('lvedd'), syntax: num('syntax'),
     tier: tier, map: num('map'), co: num('co'), pvr: num('pvr'),
     ci: num('ci'), tapse: num('tapse'), pasprhc: num('pasprhc')
