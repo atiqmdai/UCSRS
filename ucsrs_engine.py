@@ -209,12 +209,12 @@ def meld_from_labs(bili_mgdl: float, inr: float, cr_mgdl: float) -> int:
     The reasoning is clinical. In practice a surgeon computes STS or EuroSCORE II and
     MELD separately, each carrying creatinine, and reads them together; it is the
     PUBLISHED form that reproduces the accepted bands -- MELD under 10 low risk, 15-20
-    high risk, above 20 effectively inoperable. A creatinine-suppressed variant was
-    built and tested (meld_hepatic(), creatinine substituted at 1.0 so the layer read
-    bilirubin and INR only) and measured against those bands: it UNDER-read severity in
-    exactly the patients the bands are built on, producing a number that is internally
-    tidier and clinically wrong. It was rejected and DELETED on 20 September 2026 at the
-    investigator's instruction. Do not reintroduce it without reopening that ruling.
+    high risk, above 20 effectively inoperable. A creatinine-suppressed variant was built
+    and tested -- creatinine substituted at 1.0 so the layer read bilirubin and INR only
+    -- and measured against those bands: it UNDER-read severity in exactly the patients
+    the bands are built on, producing a number that is internally tidier and clinically
+    wrong. It was rejected and deleted. Do not reintroduce it without reopening the
+    ruling.
 
     Two consequences that must not be lost:
       - the Layer 1 renal coefficient and the Layer 2a slope are calibrated JOINTLY with
@@ -228,13 +228,6 @@ def meld_from_labs(bili_mgdl: float, inr: float, cr_mgdl: float) -> int:
     log-odds at the Layer 2a slope. Under the rejected variant the same patient scored 6
     and was charged nothing. That is the size of what is being double-counted, and it is
     accepted with the bands, not in spite of them.
-
-    DOCSTRING HISTORY, kept as a caution. Through 19 September this read "NOT the value
-    UCSRS scores -- see meld_hepatic(), which is what Layer 2a reads." It was true for
-    about a day, was left behind when the ruling went the other way, and then sat
-    contradicting the scored path below it. A stale comment of exactly this kind is what
-    let the 19 September calibration wrapper call the wrong MELD through two
-    30,000,000-patient runs before anyone noticed.
     """
     cr = min(cr_mgdl, 4.0)
     b, i, c = max(bili_mgdl, 1.0), max(inr, 1.0), max(cr, 1.0)
