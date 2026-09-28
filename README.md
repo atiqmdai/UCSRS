@@ -15,10 +15,12 @@ v1.0 architecture, made at two different times for two different reasons:
 
 - **v3.0 (19 September 2026) — architecture.** Layer 1 stopped blending with EuroSCORE II
   and became a single log-odds baseline computed only from the patient's own clinical
-  variables; EuroSCORE II is still computed, but solely as an external comparator that never
-  enters the UCSRS score. The renal term moved from creatinine clearance to serum creatinine
-  read directly. The frailty instrument became the modified Essential Frailty Toolset (mEFT,
-  0–6), adding a second haemoglobin point below 8.0 g/dL to the published EFT (0–5). Dialysis
+  variables. This calculator does not compute EuroSCORE II at all; the trial's EuroSCORE II
+  comparator is the site's own, independently-run EuroSCORE II calculation, submitted
+  separately. The renal term moved from creatinine clearance to serum creatinine
+  read directly. The frailty instrument became the Frailty Test (FT, 0–6) -- a distinct
+  instrument from the published Essential Frailty Toolset (EFT), adding a second haemoglobin
+  point below 8.0 g/dL to the published EFT (0–5). Dialysis
   patients are scored, centrally, as if creatinine were 4.0 mg/dL, in both Layer 1 and MELD —
   sites/users submit the actual measured value; the substitution is applied by the engine.
 - **v3.1 (20 September 2026) — calibration.** No architectural change. The single constant
@@ -55,9 +57,9 @@ reaches 5,000 enrolled patients.
   2026) rather than removed, and it sets a structural floor on achievable MELD at high
   creatinine (roughly 15 at Cr 2.0 mg/dL, roughly 22 at Cr 4.0 mg/dL).
 - **High-risk behaviour is unresolved.** A 1,000,000-patient high-risk validation run (complete
-  mEFT and MELD) produced UCSRS estimates 17–45× EuroSCORE II's, with 40.1% of patients
+  FT and MELD) produced UCSRS estimates 17–45× EuroSCORE II's, with 40.1% of patients
   reaching the engine's 70% cap — most likely multiplicative compounding between the MELD and
-  mEFT layers. This is disclosed as an open item, not corrected, pending ATLAS data.
+  FT layers. This is disclosed as an open item, not corrected, pending ATLAS data.
 
 ## Departures from published v1.0 (v1.1 – v2.1, superseded by v3.0/v3.1 above)
 
@@ -71,7 +73,8 @@ clinical variables instead. STS-PROM is **not an input**, in any version since.
 
 **2. Frailty instrument** (v1.1). Layer 2b uses the Essential Frailty Toolset (EFT, 0–5)
 rather than the Clinical Frailty Scale, at the request of participating sites, for
-objectivity and inter-rater reliability. Extended to mEFT (0–6) at v3.0 — see above.
+objectivity and inter-rater reliability. Renamed the Frailty Test (FT) and extended to
+0–6 at v3.0 — see above.
 
 **3. Weights reduced** (v2.0). The frailty ladder and the MELD slopes were each reduced by
 25% from the published values, inside the v2.0/v2.1 blended architecture. Superseded at v3.0,
@@ -108,7 +111,7 @@ assertion.
 | File | Purpose |
 |---|---|
 | `index.html` | The calculator. Self-contained; all computation in the browser; no data transmitted. |
-| `test_calculator.js` | Acceptance test against the specification, including the worked cases, the mEFT scoring rules, and every EuroSCORE II coefficient (Nashef et al., EJCTS 2012, Table 6). |
+| `test_calculator.js` | Acceptance test against the specification, including the worked cases, the Frailty Test (FT) scoring rules, and every EuroSCORE II coefficient (Nashef et al., EJCTS 2012, Table 6). |
 | `ucsrs_engine.py` | Python port of the engine block, for the ATLAS analysis. The JavaScript is normative. `SPEC_VERSION` is written into every result. |
 | `test_engine_parity.py`, `parity_runner.js` | Prove the port agrees with the calculator to within 0.005 percentage points on all reported quantities, over 4,000 random patients. Requires node. |
 | `sw.js`, `manifest.json`, icons | Progressive-web-app shell for offline use. |
@@ -119,15 +122,18 @@ assertion.
 - **Layer 1** — a single log-odds baseline computed from the patient's own clinical
   variables; band-derived age term, direct-creatinine renal term (`renal_k × ln(creatinine)`),
   pulmonary and ejection-fraction terms as specified in the Algorithm Specification of Record.
-  Clamped to 0.40–50%. EuroSCORE II is computed in parallel from the published coefficients
-  (Nashef et al. 2012, Table 6), unmodified, purely as a comparator — it never enters the
-  UCSRS score.
+  Clamped to 0.40–50%. This calculator does not compute EuroSCORE II. The trial's EuroSCORE II
+  comparator (Nashef et al. 2012, Table 6) is calculated on the site's own EuroSCORE II
+  calculator and submitted independently — it never enters the UCSRS score.
 - **Layer 2a** — MELD, additive, optional. Computed from bilirubin, INR and creatinine, with
   creatinine capped at 4.0 mg/dL; dialysis patients are substituted to creatinine 4.0
   centrally in both this layer and Layer 1.
-- **Layer 2b** — modified Essential Frailty Toolset (mEFT, 0–6), multiplicative, mandatory
-  (labs required; chair-rise and cognition may be deferred in urgent cases → partial-mEFT
-  alert). Adds a second haemoglobin point below 8.0 g/dL to the published EFT.
+- **Layer 2b** — the Frailty Test (FT, 0–6), multiplicative, mandatory (labs required;
+  chair-rise and cognition may be deferred in urgent cases → partial-FT alert). A distinct
+  instrument from the published Essential Frailty Toolset (EFT); adds a second haemoglobin
+  point below 8.0 g/dL to the published EFT. Cognition is a clinician bedside ('eyeball')
+  judgment of normal vs. impaired -- no formal instrument (Mini-Cog, MMSE, or Clinical
+  Frailty Scale) is used.
 - **Layer 2c** — LV dimensions (LVESVI preferred, LVEDD fallback) and SYNTAX, additive,
   optional.
 - **Layer 3** — RHC haemodynamic corrections, additive, optional. Final cap 70%.
@@ -153,11 +159,13 @@ reaches 5,000 enrolled patients.
   disclosed as an open item, not corrected. Dead code removed from both engines; user-facing
   version labels and stale comments corrected throughout.
 - **v3.0.0** (19 Sep 2026) — Architectural release. Layer 1's 50/50 blend with EuroSCORE II
-  removed; Layer 1 is now a single log-odds baseline, and EuroSCORE II is computed only as a
-  comparator. Renal term moved from creatinine clearance to direct serum creatinine, with a
+  removed; Layer 1 is now a single log-odds baseline. EuroSCORE II is no longer computed by
+  this calculator at all; the comparator is the site's own separately-run EuroSCORE II.
+  Renal term moved from creatinine clearance to direct serum creatinine, with a
   centrally-applied creatinine = 4.0 mg/dL substitution for dialysis patients in both Layer 1
   and MELD (a declared, deliberate double-count with MELD, kept by investigator ruling).
-  Frailty instrument extended to the modified Essential Frailty Toolset (mEFT, 0–6). The
+  Frailty instrument extended and renamed the Frailty Test (FT, 0–6), a distinct instrument
+  from the published Essential Frailty Toolset (EFT). The
   "independent of EuroSCORE II" claim was reframed: UCSRS does not take EuroSCORE II as a
   per-patient input, but (from v3.1) its calibration constant does depend on EuroSCORE II's
   published statistics — these are stated as two separate claims.

@@ -54,8 +54,8 @@ SPEC: Dict[str, Any] = {
     # investigator and was SPLIT into the two segments above on 15 Sep, so the layer now
     # follows the published shape rather than averaging across it.
     # The published gradient is UNADJUSTED: creatinine is 24-43% of a sick patient's
-    # MELD and is scored separately, and albumin/haemoglobin in the mEFT track the
-    # same hepatic synthetic failure as INR. That overlap is DECLARED, not removed -
+    # MELD and is scored separately, and albumin/haemoglobin in the Frailty Test track
+    # the same hepatic synthetic failure as INR. That overlap is DECLARED, not removed -
     # ATLAS resolves it by joint estimation. See UCSRS_v3.0_Calibration_Protocol.md.
     # Layer 2b frailty multipliers.
     #
@@ -72,11 +72,12 @@ SPEC: Dict[str, Any] = {
     "layer2b_eft": {
         "mult": {0: 1.00, 1: 1.25, 2: 1.60, 3: 2.10, 4: 2.60, 5: 3.10, 6: 4.00},
         "cap": 70, "hgb_lo_m": 13.0, "hgb_lo_f": 12.0, "alb_lo": 3.5, "alb_crit": 3.0,
-        # v3.0: a SECOND haemoglobin point below 8.0 g/dL. The published EFT scores
-        # haemoglobin as one binary point at the WHO anaemia thresholds and is blind
-        # to depth; chair rise is already graded 1/2 in the same instrument, so this
-        # follows its own internal logic. This makes the instrument a MODIFIED EFT
-        # and it must be described as such.
+        # v3.0: a SECOND haemoglobin point below 8.0 g/dL. The published Essential
+        # Frailty Toolset scores haemoglobin as one binary point at the WHO anaemia
+        # thresholds and is blind to depth; chair rise is already graded 1/2 in the
+        # same instrument, so this follows its own internal logic. This makes the
+        # instrument a distinct instrument from the published EFT -- the Frailty Test
+        # (FT) -- and it must be described as such.
         "hgb_crit": 8.0,
     },
     # v3.0 final: Layer 2c converted from PERCENTAGE POINTS to LOG-ODDS, so the whole
@@ -311,11 +312,15 @@ def creatinine_clearance(age, weight_kg, cr_mgdl, female: bool) -> Optional[floa
 # ---------------------------------------------------------------- frailty
 def eft_score(chair: Optional[str], cog_impaired: Optional[bool],
               hgb, albumin, female: bool) -> Dict[str, Any]:
-    """Essential Frailty Toolset, 0-6 points. MODIFIED in two places, and must be
-    described as a modified EFT wherever it is cited: haemoglobin is graded (a second
-    point below 8.0 g/dL) and albumin is graded (2 points below 3.0, 1 below 3.5). The
-    published instrument scores both as single binary points. Missing chair rise or
-    cognition gives a partial EFT computed from the laboratory components."""
+    """Frailty Test (FT), 0-6 points. A distinct instrument from the published
+    Essential Frailty Toolset (EFT) -- must be described as the Frailty Test (FT)
+    wherever it is cited, not as EFT or a modification of it: haemoglobin is graded
+    (a second point below 8.0 g/dL) and albumin is graded (2 points below 3.0, 1
+    below 3.5), vs. the published instrument's single binary points for both.
+    Cognition is a clinician bedside ('eyeball') judgment of normal vs. impaired --
+    no formal instrument (Mini-Cog, MMSE, or Clinical Frailty Scale) is used. Missing
+    chair rise or cognition gives a partial FT computed from the remaining
+    components."""
     S = SPEC["layer2b_eft"]
     pts, missing, any_component = 0, [], False
 
@@ -949,7 +954,12 @@ def patient_from_row(row: Dict[str, Any]) -> Dict[str, Any]:
         "arteriopathy": arterio != "none",
         "aorticAtheroma": arterio in ("ascending", "arch"),
         "carotidDisease": arterio == "carotid",
-        "mobility": _flag(row.get("poor_mobility")) or chair == "unable",
+        # RETIRED 2026-09: the standalone poor_mobility field has been removed from the
+        # ATLAS submission format (it duplicated the chair-rise assessment and was never
+        # part of the Frailty Test). EuroSCORE II's own published "mobility" criterion
+        # (severe neurologic/musculoskeletal impairment of ambulation) is now read only
+        # from the chair-rise "unable" code, which is the closest available proxy.
+        "mobility": chair == "unable",
         "sternotomy": sternotomy,
         "prevCardiac": sternotomy >= 2,
         "endocarditis": _flag(row.get("endocarditis_active")),

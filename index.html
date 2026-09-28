@@ -211,8 +211,6 @@
         <option value="fast">Under 15 seconds</option>
         <option value="slow">15 seconds or more</option>
         <option value="unable">Unable</option></select></div>
-      <div><label>Poor mobility</label><select id="mob" onchange="calc()">
-        <option value="0">No</option><option value="1">Yes</option></select></div>
       <div><label>Cognition</label><select id="cog" onchange="calc()">
         <option value="">Not assessed</option>
         <option value="0">Normal</option>
@@ -632,8 +630,8 @@ var L1 = {
   radiation:              0.40
 
   // anaemia and albumin carry NO Layer 1 weight in v3.0. Both are counted once, in
-  // the Essential Frailty Toolset at Layer 2b. Mobility likewise: the chair rise is
-  // an EFT component and has no separate Layer 1 term.
+  // the Frailty Test at Layer 2b. Mobility likewise: the chair rise is
+  // a Frailty Test component and has no separate Layer 1 term.
 };
 
 // REMOVED 20 Sep 2026: ppToLogOdds(), a v2.x helper converting a percentage-point
@@ -1116,9 +1114,9 @@ function calc(){
     arteriopathySite: pvdVal,
     aorticAtheroma: pvdVal === 'ascending' || pvdVal === 'arch',
     carotidDisease: pvdVal === 'carotid',
-    // Poor mobility sits with frailty, where it belongs clinically. A patient who cannot
-    // rise from a chair is immobile by definition, so the chair-rise sets it too.
-    mobility: document.getElementById('mob').value === '1' || chairVal === 'unable',
+    // RETIRED 2026-09: the standalone Poor mobility control has been removed. It
+    // duplicated the chair-rise assessment and was never part of the Frailty Test.
+    mobility: chairVal === 'unable',
     // First / second / third open heart. The published term is binary — any previous
     // cardiac surgery — so a second or third operation sets it; the third is weighted
     // further in the internal component only.

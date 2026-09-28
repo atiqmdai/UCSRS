@@ -79,7 +79,6 @@ def random_row(rng):
         "albumin_g_dl": round(rng.uniform(1.8, 5.2), 1),
         "chair_rise": rng.choice(CHAIR),
         "cog_impaired": rng.choice(["", "0", "1"]),
-        "poor_mobility": rng.choice([0, 1]),
         "bilirubin_mg_dl": maybe(rng, round(rng.uniform(0.2, 25), 1), 0.7),
         "inr": maybe(rng, round(rng.uniform(0.9, 5.0), 2), 0.7),
         "lvesv_ml": maybe(rng, round(rng.uniform(15, 300)), 0.35),

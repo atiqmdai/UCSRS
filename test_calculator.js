@@ -411,8 +411,8 @@ check('chair rise scores 0 / 1 / 2 and unable outranks slow',
   ctx.eftScore({chair:'unable',cogImpaired:false, hgb:14, albumin:4}).points === 2);
 check('an unassessed chair rise still yields a partial EFT',
   ctx.eftScore({chair:'', cogImpaired:false, hgb:14, albumin:4}).partial === true);
-check('unable to rise also sets poor mobility',
-  /chairVal === 'unable'/.test(HTML));
+check('unable to rise sets mobility impairment',
+  /mobility: chairVal === 'unable'/.test(HTML));
 check('cognition is not assessed / normal / impaired, with no instrument names on screen',
   /<select id="cog"/.test(HTML) && /<option value="1">Impaired<\/option>/.test(HTML) &&
   !/Mini-Cog/.test(HTML) && !/MMSE/.test(HTML));
@@ -584,9 +584,9 @@ check('pre-operative ventilation sets the critical pre-operative state',
   /var ventilated = pulmVal === 'acute_vent'/.test(HTML));
 check('ventilation does not fire the chronic pulmonary term',
   /pulmonary: pulmVal === 'chronic' \|\| pulmVal === 'chronic_o2'/.test(HTML));
-check('poor mobility lives in the frailty card and follows the chair rise',
-  /<select id="mob"/.test(HTML) &&
-  /mobility: document\.getElementById\('mob'\)\.value === '1' \|\| chairVal === 'unable'/.test(HTML));
+check('the retired poor-mobility control is gone and mobility follows chair rise only',
+  !/<select id="mob"/.test(HTML) &&
+  /mobility: chairVal === 'unable'/.test(HTML));
 check('anemia is derived from the mandatory frailty hemoglobin, not asked twice',
   !/id="anemia"/.test(HTML) && !/anemiaLbl/.test(HTML) &&
   /UCSRS_SPEC\.layer2b_eft\.hgb_lo_f : UCSRS_SPEC\.layer2b_eft\.hgb_lo_m/.test(HTML));
