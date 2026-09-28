@@ -204,7 +204,7 @@
   </div>
 
   <div class="card">
-    <h2>Layer 2b — Essential Frailty Toolset <span class="req">(required)</span></h2>
+    <h2>Layer 2b — Frailty Test (FT) <span class="req">(required)</span></h2>
     <div class="row">
       <div><label>5× sit-to-stand</label><select id="chair" onchange="calc()">
         <option value="">Not assessed</option>
@@ -218,8 +218,8 @@
       <div><label id="hgbLbl">Hemoglobin (g/dL) <span class="req">*</span></label><input type="number" id="hgb" step="0.1" min="4" max="22" oninput="calc()"></div>
       <div><label id="albLbl">Albumin (g/dL) <span class="req">*</span></label><input type="number" id="alb" step="0.1" min="1" max="6" oninput="calc()"></div>
     </div>
-    <div class="eftbadge" id="eftBadge">EFT —</div>
-    <p class="note">EFT will calculate as long as hemoglobin and albumin are available.</p>
+    <div class="eftbadge" id="eftBadge">FT —</div>
+    <p class="note">FT will calculate as long as hemoglobin and albumin are available.</p>
   </div>
 
   <div class="card">
@@ -306,11 +306,13 @@ var UCSRS_SPEC = {
   // wide, so applying it whole to all-comers cardiac surgery would over-reach.
   // This is a deliberate departure from the published model, not a correction.
   layer2b_eft: { mult: {0:1.00,1:1.25,2:1.60,3:2.10,4:2.60,5:3.10,6:4.00}, cap: 70,
-                 // v3.0: a SECOND haemoglobin point below 8.0 g/dL. The published EFT
-                 // scores haemoglobin as one binary point at the WHO anaemia thresholds
-                 // and is blind to depth; chair rise is already graded 1/2 in the same
-                 // instrument, so this follows its own internal logic. This makes it a
-                 // MODIFIED EFT and must be described as such.
+                 // v3.0: a SECOND haemoglobin point below 8.0 g/dL. The published
+                 // Essential Frailty Toolset scores haemoglobin as one binary point at
+                 // the WHO anaemia thresholds and is blind to depth; chair rise is
+                 // already graded 1/2 in the same instrument, so this follows its own
+                 // internal logic. This makes it a distinct instrument from the
+                 // published EFT -- the Frailty Test (FT) -- and must be described as
+                 // such.
                  hgb_lo_m: 13.0, hgb_lo_f: 12.0, hgb_crit: 8.0, alb_lo: 3.5, alb_crit: 3.0 },
   // REMOVED 20 Sep 2026: chair_slow_s: 15. Declared here but read nowhere -- chair
   // rise is taken categorically ('fast'/'slow'/'unable'), so no threshold is used.
@@ -457,10 +459,13 @@ function creatinineClearance(age, weightKg, cr_mgdl, female){
 // directly and no weight enters it, and EuroSCORE II's sub-computation must keep RAW
 // actual weight to stay faithful to Nashef et al. 2012. Nothing called them.
 
-// Essential Frailty Toolset, 0-5 points:
-// chair rise >=15 s = 1 (unable = 2); cognitive impairment = 1;
-// Hgb <13 g/dL men / <12 women = 1; albumin <3.5 g/dL = 1.
-// Missing chair-rise or cognition -> partial EFT from the remaining components.
+// Frailty Test (FT), 0-6 points. A distinct instrument from the published Essential
+// Frailty Toolset (EFT) -- must be described as the Frailty Test (FT), not as EFT or
+// a modification of it. chair rise >=15 s = 1 (unable = 2); cognitive impairment = 1
+// (clinician bedside judgment, no formal instrument used); Hgb <13 g/dL men / <12
+// women = 1 (a second point below 8.0 g/dL); albumin <3.5 g/dL = 1 (a second point
+// below 3.0 g/dL). Missing chair-rise or cognition -> partial FT from the remaining
+// components.
 function eftScore(f){
   var S = UCSRS_SPEC.layer2b_eft;
   var pts = 0, missing = [], any = false;
@@ -1178,8 +1183,8 @@ function calc(){
     hgb: labNum('hgb'), albumin: labNum('alb'), female: patient.female
   });
   var badge = document.getElementById('eftBadge');
-  badge.textContent = eft.none ? 'EFT —'
-    : 'EFT ' + eft.points + ' / 5' + (eft.partial ? ' (partial)' : '');
+  badge.textContent = eft.none ? 'FT —'
+    : 'FT ' + eft.points + ' / 6' + (eft.partial ? ' (partial)' : '');
 
   // Weight and height are required: weight drives creatinine clearance and both drive
   // body surface area, without which an entered ventricular volume cannot be indexed.
@@ -1231,7 +1236,7 @@ function calc(){
 
   // Missing-data alerts.
   var alerts = [];
-  if (eft.partial) alerts.push('Partial EFT — ' + eft.missing.join(' and ') + ' not assessed. Frailty may be underestimated; complete the missing component(s) when the patient\'s condition allows.');
+  if (eft.partial) alerts.push('Partial FT — ' + eft.missing.join(' and ') + ' not assessed. Frailty may be underestimated; complete the missing component(s) when the patient\'s condition allows.');
   if (meld === null) alerts.push('MELD not calculated. If liver disease is clinically present, the score may underestimate risk.');
   if (r.lvSource === null) alerts.push('LV dimensions not entered. Score may underestimate risk in patients with LV enlargement (LVESVI &gt;100 mL/m² or LVEDD &gt;65 mm). Enter from echo report if available.');
   if (!r.syntaxGiven) alerts.push('SYNTAX score not entered. It can be calculated from the existing catheterization report. Enter if available; enter 0 for normal or non-obstructive coronaries.');
