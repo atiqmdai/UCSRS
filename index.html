@@ -164,6 +164,7 @@
         <option value="tv_repair">Isolated TV repair</option>
         <option value="tvr">Isolated TVR</option>
         <option value="avr_mvr">AVR + MVR</option>
+        <option value="avr_mv_repair">AVR + MV repair</option>
         <option value="avr_mvr_tvr">AVR + MVR + TVR</option>
         <option value="avr_mv_repair_tv_repair">AVR + MV repair + TV repair</option>
         <option value="cabg_avr">CABG + AVR</option>
@@ -191,6 +192,11 @@
         <option value="ticagrelor">Ticagrelor &lt; 3 days</option>
         <option value="prasugrel">Prasugrel &lt; 7 days</option>
         <option value="apixaban">Apixaban &lt; 2 days</option></select></div>
+      <div><label title="Collected for description only. Neither EuroSCORE II nor STS-PROM weights number of diseased vessels as a separate predictor, so this carries no mortality weight here.">Coronary artery disease</label><select id="cad_vessels" onchange="calc()">
+        <option value="none">None</option>
+        <option value="one">One vessel</option>
+        <option value="two">Two vessel</option>
+        <option value="three">Three vessel</option></select></div>
     </div>
     <div class="checks" style="margin-top:11px">
       <label title="Collected for description. From v2.1 hypertension carries no mortality weight: neither parent model weights it for operative mortality."><input type="checkbox" id="htn" onchange="calc()"> Hypertension</label>
@@ -649,7 +655,7 @@ var L1 = {
 var PROC_INCREMENT = {
   cabg: 0.0, avr: 0.0, avr_are: 0.3, tavr_explant: 5.0, av_repair: -0.2,
   mvr: 1.5, mv_repair: -0.5, tv_repair: 2.0, tvr: 3.0,
-  avr_mvr: 2.5, avr_mvr_tvr: 4.0, avr_mv_repair_tv_repair: 1.5,
+  avr_mvr: 2.5, avr_mv_repair: 1.5, avr_mvr_tvr: 4.0, avr_mv_repair_tv_repair: 1.5,
   cabg_avr: 1.2, cabg_avr_mv_repair: 2.0, cabg_avr_mv_repair_tv_repair: 2.0,
   cabg_avr_mvr_tv_repair: 3.0, cabg_mvr: 2.0, cabg_mv_repair: 1.0,
   cabg_tv_repair: 0.0, asc_aorta: 2.5, cabg_asc_aorta: 3.0,
@@ -667,6 +673,7 @@ var PW = {
   "avr": 0.006212,
   "avr_are": 0.055416,
   "avr_asc_aorta": 1.204868,
+ "avr_mv_repair": 0.588212,
   "avr_mv_repair_tv_repair": 0.588212,
   "avr_mvr": 0.693811,
   "avr_mvr_tvr": 1.151328,
@@ -1023,7 +1030,7 @@ var PROC_WEIGHT = {
   mvr:'single', mv_repair:'single', tv_repair:'single', tvr:'single',
   asc_aorta:'single', other:'single',
   cabg_asc_aorta:'two',
-  avr_mvr:'two', avr_mv_repair_tv_repair:'two', cabg_avr:'two',
+  avr_mvr:'two', avr_mv_repair:'two', avr_mv_repair_tv_repair:'two', cabg_avr:'two',
   cabg_mvr:'two', cabg_mv_repair:'two',
   avr_asc_aorta:'two', avr_root_asc_aorta:'two',
   avr_mvr_tvr:'three', cabg_avr_mv_repair:'three',
@@ -1038,7 +1045,7 @@ function syncWeight(){
 var PROC_VALVES = {
   avr:['aortic'], avr_are:['aortic'], tavr_explant:['aortic'], av_repair:['aortic'],
   mvr:['mitral'], mv_repair:['mitral'], tv_repair:['tricuspid'], tvr:['tricuspid'],
-  avr_mvr:['aortic','mitral'], avr_mvr_tvr:['aortic','mitral','tricuspid'],
+  avr_mvr:['aortic','mitral'], avr_mv_repair:['aortic','mitral'], avr_mvr_tvr:['aortic','mitral','tricuspid'],
   avr_mv_repair_tv_repair:['aortic','mitral','tricuspid'],
   cabg_avr:['aortic'], cabg_avr_mv_repair:['aortic','mitral'],
   cabg_avr_mv_repair_tv_repair:['aortic','mitral','tricuspid'],
