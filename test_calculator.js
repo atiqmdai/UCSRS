@@ -615,7 +615,7 @@ check('CABG plus tricuspid repair is a procedure, not a comorbidity checkbox',
 check('the procedure list is in the specified order', (function(){
   var opts = HTML.match(/<select id="proc"[\s\S]*?<\/select>/)[0].match(/value="([a-z_]+)"/g)
                .map(function(x){ return x.slice(7, -1); });
-  var want = ['cabg','avr','avr_are','tavr_explant','av_repair','mvr','mv_repair','tv_repair','tvr','avr_mvr','avr_mvr_tvr','avr_mv_repair_tv_repair','cabg_avr','cabg_avr_mv_repair','cabg_avr_mv_repair_tv_repair','cabg_avr_mvr_tv_repair','cabg_mvr','cabg_mv_repair','cabg_tv_repair','asc_aorta','cabg_asc_aorta','avr_asc_aorta','avr_root_asc_aorta','other'];
+  var want = ['cabg','avr','avr_are','tavr_explant','av_repair','mvr','mv_repair','tv_repair','tvr','avr_mvr','avr_mv_repair','avr_mvr_tvr','avr_mv_repair_tv_repair','cabg_avr','cabg_avr_mv_repair','cabg_avr_mv_repair_tv_repair','cabg_avr_mvr_tv_repair','cabg_mvr','cabg_mv_repair','cabg_tv_repair','asc_aorta','cabg_asc_aorta','avr_asc_aorta','avr_root_asc_aorta','other'];
   return opts.join(',') === want.join(',');
 })());
 check('CABG plus tricuspid repair scores exactly as isolated CABG',
