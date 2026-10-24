@@ -1,0 +1,14 @@
+{
+ "spec_version": "3.2.0",
+ "calibration_shift": 0.581,
+ "engine_sha256": "7e2b7c18e81250b4e9981d1e3f28e812d2cb0f8099b5123f77d512c139b839f3",
+ "engine_sha256_16": "7e2b7c18e81250b4",
+ "date": "2026-10-24",
+ "runs": [
+  "lock_v32_30M.json",
+  "holdout_v32_1.json",
+  "holdout_v32_2.json",
+  "highrisk_1M_v32.json"
+ ],
+ "note": "Engine hash is of the working tree at the time of recording; run before commit."
+}
