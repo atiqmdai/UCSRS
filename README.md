@@ -8,10 +8,10 @@ Reference implementation of UCSRS, developed from the architecture specified in 
 
 **Calculator:** https://ucsrs-calculator.netlify.app · Free for non-commercial (clinical, research, academic) use, [CC BY-NC 4.0](LICENSE)
 
-## What is deployed: UCSRS v3.1 (SPEC_VERSION 3.1.0)
+## What is deployed: UCSRS v3.2 (SPEC_VERSION 3.2.0)
 
-The deployed calculator implements **UCSRS v3.1**. Two changes sit on top of the published
-v1.0 architecture, made at two different times for two different reasons:
+The deployed calculator implements **UCSRS v3.2**. Three changes sit on top of the published
+v1.0 architecture, made at three different times for three different reasons:
 
 - **v3.0 (19 September 2026) — architecture.** Layer 1 stopped blending with EuroSCORE II
   and became a single log-odds baseline computed only from the patient's own clinical
@@ -31,6 +31,15 @@ v1.0 architecture, made at two different times for two different reasons:
   median observed/expected ratio of 1.00. This is a real dependency on EuroSCORE II's
   published statistics, distinct from and in addition to Layer 1 no longer taking EuroSCORE II
   as a per-patient input; both are stated because they are different claims.
+- **v3.2 (24 October 2026) — correction of stacked terms, new operation, re-calibration.** Aortic
+  disease is counted once (ascending/arch atheroma carries no separate Layer 1 weight beyond
+  the arteriopathy term). The MELD slopes were lowered to 0.086 per point from MELD 9 to 20
+  and 0.038 above 20. The Frailty Test ladder is applied to the odds rather than to the
+  percentage, which removes the stacking at the top of the range. A CABG + AVR + MVR operation
+  was added. The calibration shift was re-solved for these changes (0.581) by the same
+  registry-anchored method: a 30,000,000-patient locking run (median O/E 1.0011) and two
+  2,600,000-patient hold-outs (0.9968, 0.9936). The creatinine overlap between Layer 1 and MELD is
+  unchanged and remains a declared item. Records are in `calibration/`.
 
 Two development runs at this step were found defective and discarded rather than corrected in
 place: one where the synthetic-cohort generator emitted MI codes the engine's code list did
@@ -56,12 +65,14 @@ reaches 5,000 enrolled patients.
   creatinine. This was considered and kept deliberately (investigator ruling, 19 September
   2026) rather than removed, and it sets a structural floor on achievable MELD at high
   creatinine (roughly 15 at Cr 2.0 mg/dL, roughly 22 at Cr 4.0 mg/dL).
-- **High-risk behaviour is unresolved.** A 1,000,000-patient high-risk validation run (complete
-  FT and MELD) produced UCSRS estimates 17–45× EuroSCORE II's, with 40.1% of patients
-  reaching the engine's 70% cap — most likely multiplicative compounding between the MELD and
-  FT layers. This is disclosed as an open item, not corrected, pending ATLAS data.
+- **High-risk behaviour was reduced at v3.2 and is still under observation.** In v3.1 the
+  1,000,000-patient high-risk validation run produced UCSRS estimates 17–45× EuroSCORE II's, with
+  40.1% of patients at the engine's 70% cap, from multiplicative compounding between the MELD and
+  FT layers. v3.2 re-ran the same profile and seed: mean 20.8% (v3.1 52.3%), 0.003% at the cap,
+  10.1× EuroSCORE II (v3.1 23.5×). Whether the remaining difference reflects real risk is a
+  question for ATLAS; no performance claim is made.
 
-## Departures from published v1.0 (v1.1 – v2.1, superseded by v3.0/v3.1 above)
+## Departures from published v1.0 (v1.1 – v2.1, superseded by v3.0 – v3.2 above)
 
 Retained here as the dated development record; the architecture these entries describe is no
 longer what is deployed — see "What is deployed" above.
@@ -115,20 +126,20 @@ assertion.
 | `ucsrs_engine.py` | Python port of the engine block, for the ATLAS analysis. The JavaScript is normative. `SPEC_VERSION` is written into every result. |
 | `test_engine_parity.py`, `parity_runner.js` | Prove the port agrees with the calculator to within 0.005 percentage points on all reported quantities, over 4,000 random patients. Requires node. |
 | `sw.js`, `manifest.json`, icons | Progressive-web-app shell for offline use. |
-| `calibration/` | The v3.1 calibration run scripts, logs, and results — the auditable evidence for the registry-anchored calibration, including the two voided runs. |
+| `calibration/` | The v3.1 and v3.2 calibration run scripts, logs, and results — the auditable evidence for the registry-anchored calibration, including the two voided runs. |
 
-## Model notes (current, v3.1)
+## Model notes (current, v3.2)
 
 - **Layer 1** — a single log-odds baseline computed from the patient's own clinical
   variables; band-derived age term, direct-creatinine renal term (`renal_k × ln(creatinine)`),
   pulmonary and ejection-fraction terms as specified in the Algorithm Specification of Record.
-  Clamped to 0.40–50%. This calculator does not compute EuroSCORE II. The trial's EuroSCORE II
+  Clamped to 0.40–50%. Aortic disease is counted once. This calculator does not compute EuroSCORE II. The trial's EuroSCORE II
   comparator (Nashef et al. 2012, Table 6) is calculated on the site's own EuroSCORE II
   calculator and submitted independently — it never enters the UCSRS score.
-- **Layer 2a** — MELD, additive, optional. Computed from bilirubin, INR and creatinine, with
+- **Layer 2a** — MELD, additive, optional (0.086 per point from MELD 9 to 20, 0.038 above 20). Computed from bilirubin, INR and creatinine, with
   creatinine capped at 4.0 mg/dL; dialysis patients are substituted to creatinine 4.0
   centrally in both this layer and Layer 1.
-- **Layer 2b** — the Frailty Test (FT, 0–6), multiplicative, mandatory (labs required;
+- **Layer 2b** — the Frailty Test (FT, 0–6), an odds multiplier (1.00 to 4.00), mandatory (labs required;
   chair-rise and cognition may be deferred in urgent cases → partial-FT alert). A distinct
   instrument from the published Essential Frailty Toolset (EFT); adds a second haemoglobin
   point below 8.0 g/dL to the published EFT. Cognition is a clinician bedside ('eyeball')
@@ -137,8 +148,9 @@ assertion.
 - **Layer 2c** — LV dimensions (LVESVI preferred, LVEDD fallback) and SYNTAX, additive,
   optional.
 - **Layer 3** — RHC haemodynamic corrections, additive, optional. Final cap 70%.
-- **Calibration** — a single `calibration_shift` intercept, locked at v3.1 by a
-  registry-anchored run against thirteen published surgical registries (median O/E ≈ 1.00).
+- **Calibration** — a single `calibration_shift` intercept (0.581), locked at v3.2 by a
+  registry-anchored run against thirteen published surgical registries (median O/E ≈ 1.00 on a
+  30,000,000-patient locking run, confirmed on two 2,600,000-patient hold-outs).
   See `calibration/README.md` for the full run history, including both voided runs.
 
 ## Status
@@ -151,6 +163,11 @@ reaches 5,000 enrolled patients.
 
 ## Version history
 
+- **v3.2.0** (24 Oct 2026) — Aortic disease counted once; MELD slopes 0.086 (MELD 9–20) and
+  0.038 (above 20); Frailty Test ladder applied to the odds; CABG + AVR + MVR operation added;
+  `calibration_shift` re-solved to 0.581 (30,000,000-patient locking run, two hold-outs).
+  High-risk validation re-run on the same profile and seed: mean 20.8% (v3.1 52.3%), 0.003% at
+  the cap (v3.1 40.1%). Calculator, engine and tests updated together.
 - **v3.1.0** (20 Sep 2026) — Registry-anchored calibration lock. `calibration_shift` re-derived
   and locked against thirteen published surgical registries (median O/E ≈ 1.00), after two
   development runs were found defective and discarded (an MI-code mismatch, and a
