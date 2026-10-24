@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UCSRS v3.1 — Universal Cardiac Surgical Risk Score</title>
+<title>UCSRS v3.2 — Universal Cardiac Surgical Risk Score</title>
 <style>
  :root{
    --ink:#1a2230; --muted:#5d6b80; --line:#d7dee8; --bg:#f4f6f9; --card:#fff;
@@ -62,7 +62,7 @@
 </head>
 <body>
 <header>
-  <h1>UCSRS v3.1 — Universal Cardiac Surgical Risk Score</h1>
+  <h1>UCSRS v3.2 — Universal Cardiac Surgical Risk Score</h1>
   <p>Research tool — not for sole clinical decision-making · all computation occurs locally in your browser</p>
 </header>
 
@@ -169,6 +169,7 @@
         <option value="avr_mv_repair_tv_repair">AVR + MV repair + TV repair</option>
         <option value="cabg_avr">CABG + AVR</option>
         <option value="cabg_avr_mv_repair">CABG + AVR + MV repair</option>
+        <option value="cabg_avr_mvr">CABG + AVR + MVR</option>
         <option value="cabg_avr_mv_repair_tv_repair">CABG + AVR + MV repair + TV repair</option>
         <option value="cabg_avr_mvr_tv_repair">CABG + AVR + MVR + TV repair</option>
         <option value="cabg_mvr">CABG + MVR</option>
@@ -278,14 +279,14 @@
 </div>
 
 <footer>
-  UCSRS v3.1 · No patient data are transmitted or stored.
+  UCSRS v3.2 · No patient data are transmitted or stored.
 </footer>
 
 <script>
 // ===== UCSRS ENGINE START =====
 // Single source of truth for all model constants.
 var UCSRS_SPEC = {
-  spec_version: "3.1.0",
+  spec_version: "3.2.0",
   // v3.0: Layer 1 is the physiology-derived baseline alone. EuroSCORE II is not a
   // component of it. This calculator no longer computes EuroSCORE II internally at
   // all (removed 20 Sep 2026) -- the trial's comparator is the site's own
@@ -299,7 +300,7 @@ var UCSRS_SPEC = {
   // v3.0 final: TWO-SEGMENT. The published cardiac gradient is steep to MELD 20 and
   // flattens above it. Lower segment 0.18 sits below the published ~0.198 as the
   // declared allowance for the creatinine overlap that cannot be removed.
-  layer2a_meld: { cap_pre_cfs: 65, per_point: 0.18, per_point_hi: 0.08, breakpoint: 20, threshold: 9, meld_max: 40 },
+  layer2a_meld: { cap_pre_cfs: 65, per_point: 0.086, per_point_hi: 0.038, breakpoint: 20, threshold: 9, meld_max: 40 },
   // v2.0: Layer 2b frailty instrument is the Essential Frailty Toolset (EFT, 0-5).
   // Multiplier ladder retained from v1.0; only the instrument mapping changed.
   // Frailty multipliers. The v2.1 ladder (1.1125/1.2625/1.45/1.675/1.975) was the
@@ -552,7 +553,7 @@ var BASELINE = {
   // across these registries being 0.85) and the comment survived v3.1 by oversight.
   intercept: -6.0777,
   reference_risk: 0.03,
-  calibration_shift: 0.433039,   // v3.1: registry-anchored, 30M patients
+  calibration_shift: 0.581,   // v3.1: registry-anchored, 30M patients
   sternotomy_scale: 1.118599
 };
 
@@ -634,7 +635,7 @@ var L1 = {
   iddm:                   0.25,
   endocarditis:           0.58,
   arteriopathy:           0.35,
-  aortic_atheroma:        0.30,
+  aortic_atheroma:        0.00,   // v3.2: aortopathy counted once, via arteriopathy
   neuro:                  0.28,
   valve_burden_per_04:    0.25,
   immuno:                 0.40,
@@ -657,7 +658,7 @@ var PROC_INCREMENT = {
   mvr: 1.5, mv_repair: -0.5, tv_repair: 2.0, tvr: 3.0,
   avr_mvr: 2.5, avr_mv_repair: 1.5, avr_mvr_tvr: 4.0, avr_mv_repair_tv_repair: 1.5,
   cabg_avr: 1.2, cabg_avr_mv_repair: 2.0, cabg_avr_mv_repair_tv_repair: 2.0,
-  cabg_avr_mvr_tv_repair: 3.0, cabg_mvr: 2.0, cabg_mv_repair: 1.0,
+  cabg_avr_mvr_tv_repair: 3.0, cabg_avr_mvr: 3.0, cabg_mvr: 2.0, cabg_mv_repair: 1.0,
   cabg_tv_repair: 0.0, asc_aorta: 2.5, cabg_asc_aorta: 3.0,
   avr_asc_aorta: 3.2, avr_root_asc_aorta: 4.2, other: 1.5
 };
@@ -683,6 +684,7 @@ var PW = {
   "cabg_avr": 0.552148,
   "cabg_avr_mv_repair": 0.972453,
   "cabg_avr_mv_repair_tv_repair": 0.972453,
+  "cabg_avr_mvr": 1.068905,
   "cabg_avr_mvr_tv_repair": 1.068905,
   "cabg_mv_repair": 0.52671,
   "cabg_mvr": 0.643517,
@@ -798,8 +800,9 @@ function ucsrs(input){
   var meldCorr = meldCorrection(input.meld);
   var preCfs = Math.min(shiftLogOdds(br, meldCorr), S.layer2a_meld.cap_pre_cfs);
 
+  // v3.2: the Frailty Test ladder is an ODDS multiplier (= adding ln(mult) log-odds).
   var mult = S.layer2b_eft.mult[input.eft];
-  var base = Math.min(preCfs * mult, S.layer2b_eft.cap);
+  var base = Math.min(shiftLogOdds(preCfs, Math.log(mult)), S.layer2b_eft.cap);
 
   var lv = 0, lvSource = null;
   if (input.lvesvi != null && !isNaN(input.lvesvi)){ lv = band(input.lvesvi, S.layer2c.lvesvi); lvSource='LVESVI'; }
@@ -911,11 +914,11 @@ function selfTest(){
   // engine instead of silently breaking a number nobody can re-derive.
   //
   // Case 1: no MELD, so PRE_CFS is the baseline unchanged and Layer 2b multiplies the
-  // percentage by the mEFT ladder. Case 2: MELD 17 is a log-odds shift of
+  // percentage by the FT ladder. Case 2: MELD 17 is a log-odds shift of
   // per_point x (17 - threshold) applied to the baseline, with the ladder at 1.00.
   var c1 = ucsrs({baselinePct:2.8, eft:3, meld:null, lvedd:52, tier:0});
-  out.push({name:'Case 1 (mEFT 3 ladder)', got:c1.final,
-            want:2.8 * UCSRS_SPEC.layer2b_eft.mult[3]});
+  out.push({name:'Case 1 (FT 3 ladder)', got:c1.final,
+            want:100 * (2.8/97.2 * UCSRS_SPEC.layer2b_eft.mult[3]) / (1 + 2.8/97.2 * UCSRS_SPEC.layer2b_eft.mult[3])});
   var c2 = ucsrs({baselinePct:3.5, eft:0, meld:17, lvedd:50, tier:0});
   var c2shift = UCSRS_SPEC.layer2a_meld.per_point * (17 - UCSRS_SPEC.layer2a_meld.threshold);
   var c2odds  = Math.log(0.035 / 0.965) + c2shift;
@@ -1033,7 +1036,7 @@ var PROC_WEIGHT = {
   avr_mvr:'two', avr_mv_repair:'two', avr_mv_repair_tv_repair:'two', cabg_avr:'two',
   cabg_mvr:'two', cabg_mv_repair:'two',
   avr_asc_aorta:'two', avr_root_asc_aorta:'two',
-  avr_mvr_tvr:'three', cabg_avr_mv_repair:'three',
+  avr_mvr_tvr:'three', cabg_avr_mv_repair:'three', cabg_avr_mvr:'three',
   cabg_avr_mv_repair_tv_repair:'three', cabg_avr_mvr_tv_repair:'three' };
 function syncWeight(){
   var pr = document.getElementById('proc').value;
@@ -1047,7 +1050,7 @@ var PROC_VALVES = {
   mvr:['mitral'], mv_repair:['mitral'], tv_repair:['tricuspid'], tvr:['tricuspid'],
   avr_mvr:['aortic','mitral'], avr_mv_repair:['aortic','mitral'], avr_mvr_tvr:['aortic','mitral','tricuspid'],
   avr_mv_repair_tv_repair:['aortic','mitral','tricuspid'],
-  cabg_avr:['aortic'], cabg_avr_mv_repair:['aortic','mitral'],
+  cabg_avr:['aortic'], cabg_avr_mv_repair:['aortic','mitral'], cabg_avr_mvr:['aortic','mitral'],
   cabg_avr_mv_repair_tv_repair:['aortic','mitral','tricuspid'],
   cabg_avr_mvr_tv_repair:['aortic','mitral','tricuspid'],
   cabg_mvr:['mitral'], cabg_mv_repair:['mitral'], cabg_tv_repair:['tricuspid'],

@@ -55,14 +55,14 @@ const shiftLogOdds = (pct, d) => {
 console.log('\n1. Worked cases — v3.0 vector, derived from the spec constants');
 
 // Case 1: no MELD, so PRE_CFS is the baseline unchanged; Layer 2b multiplies the
-// percentage by the mEFT ladder (G1: still on the percentage scale, deliberately).
-const c1want = 2.8 * SPEC.layer2b_eft.mult[3];
+// percentage by the FT ladder (G1: still on the percentage scale, deliberately).
+const c1want = shiftLogOdds(2.8, Math.log(SPEC.layer2b_eft.mult[3]));  // v3.2: ladder is an odds multiplier
 const c1 = ctx.ucsrs({ baselinePct: 2.8, euroPct: 3.2, eft: 3, meld: null, lvedd: 52, tier: 0 });
-check(`Case 1 — 2.8% x mEFT-3 ladder ${SPEC.layer2b_eft.mult[3]} = ${c1want.toFixed(2)}%`,
+check(`Case 1 — 2.8% odds x FT-3 ladder ${SPEC.layer2b_eft.mult[3]} = ${c1want.toFixed(2)}%`,
   near(c1.final, c1want), `got ${c1.final.toFixed(2)}%`);
 
 // Case 2: MELD 17 is a log-odds shift of per_point x (17 - threshold), applied to the
-// baseline; mEFT 0 leaves the ladder at 1.00.
+// baseline; FT 0 leaves the ladder at 1.00.
 const c2shift = SPEC.layer2a_meld.per_point * (17 - SPEC.layer2a_meld.threshold);
 const c2want = shiftLogOdds(3.5, c2shift);
 const c2 = ctx.ucsrs({ baselinePct: 3.5, euroPct: 2.0, eft: 0, meld: 17, lvedd: 50, tier: 0 });
@@ -202,15 +202,15 @@ check('the Layer 1 clamps are 0.40 and 50 in the shipped engine',
 check('a healthy 52-year-old can now score below 1.0 (real STS was 0.40)',
   ctx.physiologyBaseline({age:52,weight:85,creatinine:1.09,female:false,dialysis:false,lvef:65,nyha:1,urgency:'elective',procedure:'cabg',interventionWeight:'cabg'}) < 1.0);
 
-console.log('\n7d. Layer 2b — modified Essential Frailty Toolset (mEFT, 0-6)');
+console.log('\n7d. Layer 2b — Frailty Test (FT, 0-6)');
 // v3.0: the published EFT is 0-5. UCSRS adds a SIXTH rung — a second haemoglobin point
-// below 8.0 g/dL — and renames the instrument mEFT wherever it is referenced (D3). The
+// below 8.0 g/dL — and renames the instrument FT wherever it is referenced (D3). The
 // "published ladder reduced 25%" construction of v2.1 is gone; the ladder was re-set
 // against FRAILTY-AVR rather than derived from the published one.
 const M = ctx.UCSRS_SPEC.layer2b_eft.mult;
-check('mEFT is 0-6 — seven multiplier levels, one more than the published instrument',
+check('FT is 0-6 — seven multiplier levels, one more than the published instrument',
   Object.keys(M).length === 7, JSON.stringify(M));
-check('the ladder starts at 1.00 — mEFT 0 is no penalty', M[0] === 1.00, `is ${M[0]}`);
+check('the ladder starts at 1.00 — FT 0 is no penalty', M[0] === 1.00, `is ${M[0]}`);
 check('the ladder is strictly increasing across all seven rungs',
   [1,2,3,4,5,6].every(i => M[i] > M[i-1]), JSON.stringify(M));
 check('the sixth rung exists and is the largest step on the ladder',
@@ -331,8 +331,10 @@ check('no layer breakdown or component score names are displayed',
   !/line\('STS component'/.test(HTML) && !/line\('EuroSCORE II component'/.test(HTML));
 check('the calculation-detail toggle is gone',
   !/toggleDetail/.test(HTML) && !/show calculation detail/.test(HTML) && !/showDetail/.test(HTML));
-check('one creatinine — the MELD field falls back to the Layer 1 value',
-  /if \(c === null\) c = patient\.creatinine/.test(HTML));
+check('MELD creatinine is its own field and is not taken from the Layer 1 creatinine (investigator decision, v3.1)',
+  /id="crmeld"/.test(HTML) && /var c = labNum\('crmeld'\)/.test(HTML) &&
+  !/if \(c === null\) c = patient\.creatinine/.test(HTML) &&
+  /if \(b !== null && i !== null && c !== null\)/.test(HTML));
 check('BSA is computed by the Mosteller formula',
   /function bsaMosteller/.test(HTML) && /Math\.sqrt\(\(heightCm \* weightKg\) \/ 3600\)/.test(HTML));
 check('height is collected',
@@ -594,8 +596,8 @@ check('the derived anemia thresholds match the frailty instrument',
   ctx.UCSRS_SPEC.layer2b_eft.hgb_lo_m === 13.0 && ctx.UCSRS_SPEC.layer2b_eft.hgb_lo_f === 12.0);
 
 
-check('ascending or arch atheroma adds beyond peripheral disease',
-  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { arteriopathy:true, aorticAtheroma:true })) >
+check('v3.2: ascending or arch atheroma is counted once (scores the same as arteriopathy alone)',
+  ctx.physiologyBaseline(Object.assign(PROC('cabg'), { arteriopathy:true, aorticAtheroma:true })) ===
   ctx.physiologyBaseline(Object.assign(PROC('cabg'), { arteriopathy:true })));
 check('aortic atheroma raises the stroke estimate',
   ctx.ucsrsOutcomes(5, { arteriopathy:true, aorticAtheroma:true }).stroke >
@@ -615,7 +617,7 @@ check('CABG plus tricuspid repair is a procedure, not a comorbidity checkbox',
 check('the procedure list is in the specified order', (function(){
   var opts = HTML.match(/<select id="proc"[\s\S]*?<\/select>/)[0].match(/value="([a-z_]+)"/g)
                .map(function(x){ return x.slice(7, -1); });
-  var want = ['cabg','avr','avr_are','tavr_explant','av_repair','mvr','mv_repair','tv_repair','tvr','avr_mvr','avr_mv_repair','avr_mvr_tvr','avr_mv_repair_tv_repair','cabg_avr','cabg_avr_mv_repair','cabg_avr_mv_repair_tv_repair','cabg_avr_mvr_tv_repair','cabg_mvr','cabg_mv_repair','cabg_tv_repair','asc_aorta','cabg_asc_aorta','avr_asc_aorta','avr_root_asc_aorta','other'];
+  var want = ['cabg','avr','avr_are','tavr_explant','av_repair','mvr','mv_repair','tv_repair','tvr','avr_mvr','avr_mv_repair','avr_mvr_tvr','avr_mv_repair_tv_repair','cabg_avr','cabg_avr_mv_repair','cabg_avr_mvr','cabg_avr_mv_repair_tv_repair','cabg_avr_mvr_tv_repair','cabg_mvr','cabg_mv_repair','cabg_tv_repair','asc_aorta','cabg_asc_aorta','avr_asc_aorta','avr_root_asc_aorta','other'];
   return opts.join(',') === want.join(',');
 })());
 check('CABG plus tricuspid repair scores exactly as isolated CABG',
@@ -802,7 +804,7 @@ console.log('\n7i. v2.1 baseline — log-odds form, continuity, and the removed 
 
   // Risk fans out on the odds scale: each increment is a constant log-odds step, so its
   // effect in percentage points grows with the patient's underlying risk.
-  // v3.0: anaemia and albumin carry NO Layer 1 weight — both are counted once, in the mEFT
+  // v3.0: anaemia and albumin carry NO Layer 1 weight — both are counted once, in the FT
   // at Layer 2b. Using `anemia` here would test a term that no longer exists and pass
   // vacuously at zero. Chronic pulmonary disease is a real Layer 1 increment, so it is
   // what the scale behaviour is demonstrated on.

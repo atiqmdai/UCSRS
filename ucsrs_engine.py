@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Optional
 
-SPEC_VERSION = "3.1.0"
+SPEC_VERSION = "3.2.0"
 
 SPEC: Dict[str, Any] = {
     # v3.0: Layer 1 is the physiology-derived baseline alone.
@@ -44,8 +44,8 @@ SPEC: Dict[str, Any] = {
                      # TWO-SEGMENT (investigator, 15 Sep): the published cardiac
                      # gradient is steep to MELD 20 and flattens above it. A single
                      # slope fits neither end.
-                     "per_point": 0.18,          # MELD 9 -> 20
-                     "per_point_hi": 0.08,       # above MELD 20
+                     "per_point": 0.086,         # MELD 9 -> 20 (v3.2: ln(1.09), Pathare 2023 adjusted OR)
+                     "per_point_hi": 0.038,      # above MELD 20 (v3.2: 0.08 x 0.086/0.18)
                      "breakpoint": 20},
     # v3.0 final: slope raised 0.0862 -> 0.18 per MELD point, extrapolated from a
     # 10,882-patient cardiac-surgery series on CPB (MELD <10 4.6%, 10-19 17.5%,
@@ -158,6 +158,7 @@ PROC_VALVES = {
     "av_repair": ["aortic"], "mvr": ["mitral"], "mv_repair": ["mitral"],
     "tv_repair": ["tricuspid"], "tvr": ["tricuspid"],
     "avr_mvr": ["aortic", "mitral"],
+    "cabg_avr_mvr": ["aortic", "mitral"],
     "avr_mv_repair": ["aortic", "mitral"],
     "avr_mvr_tvr": ["aortic", "mitral", "tricuspid"],
     "avr_mv_repair_tv_repair": ["aortic", "mitral", "tricuspid"],
@@ -177,7 +178,7 @@ PROC_WEIGHT = {
     "cabg_asc_aorta": "two", "avr_mvr": "two", "avr_mv_repair": "two", "avr_mv_repair_tv_repair": "two",
     "cabg_avr": "two", "cabg_mvr": "two", "cabg_mv_repair": "two",
     "avr_asc_aorta": "two", "avr_root_asc_aorta": "two",
-    "avr_mvr_tvr": "three", "cabg_avr_mv_repair": "three",
+    "avr_mvr_tvr": "three", "cabg_avr_mv_repair": "three", "cabg_avr_mvr": "three",
     "cabg_avr_mv_repair_tv_repair": "three", "cabg_avr_mvr_tv_repair": "three",
 }
 
@@ -188,7 +189,7 @@ PROC_INCREMENT = {
     "mvr": 1.5, "mv_repair": -0.5, "tv_repair": 2.0, "tvr": 3.0,
     "avr_mvr": 2.5, "avr_mv_repair": 1.5, "avr_mvr_tvr": 4.0, "avr_mv_repair_tv_repair": 1.5,
     "cabg_avr": 1.2, "cabg_avr_mv_repair": 2.0, "cabg_avr_mv_repair_tv_repair": 2.0,
-    "cabg_avr_mvr_tv_repair": 3.0, "cabg_mvr": 2.0, "cabg_mv_repair": 1.0,
+    "cabg_avr_mvr_tv_repair": 3.0, "cabg_avr_mvr": 3.0, "cabg_mvr": 2.0, "cabg_mv_repair": 1.0,
     "cabg_tv_repair": 0.0, "asc_aorta": 2.5, "cabg_asc_aorta": 3.0,
     "avr_asc_aorta": 3.2, "avr_root_asc_aorta": 4.2, "other": 1.5,
 }
@@ -430,7 +431,7 @@ BASELINE_A2 = {
     # withdrawn target and is superseded on this point.
     "reference_risk": 0.03,
     "intercept": -6.0777,
-    "calibration_shift": 0.433039,
+    "calibration_shift": 0.581,
     "sternotomy_scale": 1.118599,
 }
 
@@ -496,7 +497,7 @@ L1 = {
     "aortic_arch": 1.012,
     "bmi_30_40": 0.30, "bmi_40_50": 0.80, "bmi_gt_50": 1.20,
     "iddm": 0.25, "endocarditis": 0.58, "arteriopathy": 0.35,
-    "aortic_atheroma": 0.30, "neuro": 0.28, "valve_burden_per_04": 0.25,
+    "aortic_atheroma": 0.00, "neuro": 0.28, "valve_burden_per_04": 0.25,
     "immuno": 0.40, "radiation": 0.40,
 }
 
@@ -531,6 +532,7 @@ _PROC_W = {
     "cabg_avr": 0.552148,
     "cabg_avr_mv_repair": 0.972453,
     "cabg_avr_mv_repair_tv_repair": 0.972453,
+    "cabg_avr_mvr": 1.068905,
     "cabg_avr_mvr_tv_repair": 1.068905,
     "cabg_mv_repair": 0.52671,
     "cabg_mvr": 0.643517,
@@ -720,8 +722,11 @@ def ucsrs(baseline_pct: float, eft: int, meld: Optional[float],
     meld_corr = meld_correction(meld)
     pre_cfs = min(shift_log_odds(br, meld_corr), S["layer2a_meld"]["cap_pre_cfs"])
 
+    # v3.2: the Frailty Test ladder is an ODDS multiplier (equivalent to adding
+    # ln(mult) log-odds), no longer a multiplier on the percentage. The two agree
+    # at low risk and diverge as risk rises, which removes the stacking at the top.
     mult = S["layer2b_eft"]["mult"][eft]
-    base = min(pre_cfs * mult, S["layer2b_eft"]["cap"])
+    base = min(shift_log_odds(pre_cfs, math.log(mult)), S["layer2b_eft"]["cap"])
 
     lv, lv_source = 0.0, None
     v_lvesvi, v_lvedd = _num(lvesvi), _num(lvedd)
