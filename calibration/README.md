@@ -62,3 +62,21 @@ alone.
 ratio rises across the risk range, and cutting patients into quartiles by one score biases
 the comparison against the other. The review reports the profile cut three ways, including
 on the rank mean of both scores, which is the unbiased one.
+
+## v3.2 (24 October 2026)
+
+`SPEC_VERSION` 3.2.0, `calibration_shift` 0.581. v3.2 counted aortic disease once, lowered the
+MELD slopes (0.086 to MELD 20, 0.038 above), applied the frailty ladder to the odds and added
+the CABG + AVR + MVR operation; the shift was re-solved for these changes.
+
+| File | What it is |
+|---|---|
+| `run_lock_v32.py` | The v3.2 calibration script. Scores each simulated patient at a list of shifts and reports median O/E per shift. |
+| `results/lock_v32_30M.json`, `logs/30M_locking_run_v32_24Oct.log` | 30,000,000 patients (29,999,996 scored) at shifts 0.50 to 0.66. Median O/E 1.0011 at 0.581; interpolated root 0.5824 (0.0014 from the adopted value). Mean absolute log O/E 0.2499, 7 of 13 in band (0.80-1.25). |
+| `results/holdout_v32_1.json`, `holdout_v32_2.json` | Two hold-outs of 2,600,000 patients on unused seeds: median O/E 0.9968 and 0.9936. |
+| `run_highrisk_1M_v32.py`, `results/highrisk_1M_v32.json` | The 1,000,000-patient high-risk validation re-run on v3.2, same profile and seed as v3.1. Mean 52.3% to 20.8%; at the 70% cap 40.1% to 0.003%; ratio to EuroSCORE II 23.5x to 10.1x. EuroSCORE II here is a standalone implementation of the published formula. |
+| `results/provenance_v32.json` | Engine hash and run list. |
+
+The initial solve (325,000 patients, shift 0.581146) used the same method at smaller scale and
+is described in the Specification of Record v3.2, Section 3. No simulated patient is assigned an
+outcome and no performance claim follows.
