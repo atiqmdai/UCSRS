@@ -82,8 +82,8 @@
     <div class="row">
       <div><label>Age (years)</label><input type="number" id="age" min="18" max="110" oninput="calc()"></div>
       <div><label>Sex</label><select id="sex" onchange="calc()"><option value="M">Male</option><option value="F">Female</option></select></div>
-      <div><label>Weight (kg) <span class="req">*</span></label><input type="number" id="wt" min="25" max="250" oninput="calc()"></div>
-      <div><label>Height (cm) <span class="req">*</span></label><input type="number" id="ht" min="100" max="220" oninput="calc()"></div>
+      <div><label>Weight <select id="wtU" style="width:auto;padding:1px 3px;font-size:11.5px;margin-left:4px" onchange="setBody('wt')"><option value="kg">kg</option><option value="lb">lb</option></select> <span class="req">*</span></label><input type="number" id="wt" min="25" max="250" oninput="calc()"></div>
+      <div><label>Height <select id="htU" style="width:auto;padding:1px 3px;font-size:11.5px;margin-left:4px" onchange="setBody('ht')"><option value="cm">cm</option><option value="in">in</option></select> <span class="req">*</span></label><input type="number" id="ht" min="100" max="220" oninput="calc()"></div>
       <div><label id="crLbl">Creatinine (mg/dL)</label><input type="number" id="cr" step="0.01" min="0.2" max="20" oninput="calc()"></div>
       <div><label>LVEF (%)</label><input type="number" id="lvef" min="5" max="80" oninput="calc()"></div>
       <div><label>PASP / RV systolic pressure (mmHg)</label><input type="number" id="pasp" min="10" max="140" oninput="calc()"></div>
@@ -970,6 +970,29 @@ function convertField(id, factor, dp){
   var el = document.getElementById(id), v = parseFloat(el.value);
   if (!isNaN(v)) el.value = (v * factor).toFixed(dp);
 }
+// Weight and height: each has its own unit selector (kg/lb, cm/in). The engine always
+// works in kg and cm; the typed value is converted on read, and switching the selector
+// converts any value already typed, so the score never changes with the display unit.
+var KG_PER_LB = 0.45359237, CM_PER_IN = 2.54;
+function bodyNum(id){
+  var v = num(id);
+  if (v === null) return null;
+  var u = document.getElementById(id + 'U').value;
+  if (u === 'lb') return v * KG_PER_LB;
+  if (u === 'in') return v * CM_PER_IN;
+  return v;
+}
+function setBody(id){
+  var u = document.getElementById(id + 'U').value, el = document.getElementById(id);
+  var v = parseFloat(el.value);
+  var f = (id === 'wt') ? (u === 'lb' ? 1/KG_PER_LB : KG_PER_LB) : (u === 'in' ? 1/CM_PER_IN : CM_PER_IN);
+  if (!isNaN(v)) el.value = (v * f).toFixed(1);
+  if (u === 'lb') setLimits('wt', [55, 550, 0.1]);
+  else if (u === 'kg') setLimits('wt', [25, 250, 0.1]);
+  else if (u === 'in') setLimits('ht', [39, 87, 0.1]);
+  else setLimits('ht', [100, 220, 0.1]);
+  calc();
+}
 function setLimits(id, mmS){
   var el = document.getElementById(id);
   el.min = mmS[0]; el.max = mmS[1]; el.step = mmS[2];
@@ -1109,7 +1132,7 @@ function calc(){
   var valveEtiology = { aortic: sel('av_etio'), mitral: sel('mv_etio'), tricuspid: sel('tv_etio') };
 
   var patient = {
-    age: age, weight: num('wt'), height: num('ht'), creatinine: labNum('cr'),
+    age: age, weight: bodyNum('wt'), height: bodyNum('ht'), creatinine: labNum('cr'),
     female: document.getElementById('sex').value === 'F',
     dialysis: renalVal === 'dialysis',
     lvef: num('lvef'), pasp: num('pasp'),
@@ -1169,7 +1192,7 @@ function calc(){
     thoracicAorta: onThoracicAorta(),
     valves: valves, valveEtiology: valveEtiology
   };
-  var bsa = bsaMosteller(num('ht'), num('wt'));
+  var bsa = bsaMosteller(bodyNum('ht'), bodyNum('wt'));
   var lvesviValue = num('lvesvi');
   if (lvesviValue === null && num('lvesv') !== null && bsa !== null)
     lvesviValue = num('lvesv') / bsa;
@@ -1196,7 +1219,7 @@ function calc(){
 
   // Weight and height are required: weight drives creatinine clearance and both drive
   // body surface area, without which an entered ventricular volume cannot be indexed.
-  var required = (num('wt') === null || num('ht') === null ||
+  var required = (bodyNum('wt') === null || bodyNum('ht') === null ||
                   labNum('hgb') === null || labNum('alb') === null);
   if (baseline === null || required){
     scoreEl.textContent = '—';
