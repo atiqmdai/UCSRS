@@ -68,9 +68,7 @@
 
 <div class="wrap">
 <div class="tiers">
-  <div class="tier on" data-tier="0" onclick="setTier(0)">Tier 1 — Clinic</div>
-  <div class="tier" data-tier="1" onclick="setTier(1)">Tier 2 — Enhanced pre-op</div>
-  <div class="tier" data-tier="2" onclick="setTier(2)">Tier 3 — Full cath lab</div>
+  <div style="font-size:12px;color:var(--muted);align-self:center">All inputs on one page — fill what you have; optional fields are marked.</div>
   <div style="flex:1"></div>
   <div class="tier unit on" data-unit="us" onclick="setUnits('us')">Conventional (mg/dL, g/dL)</div>
   <div class="tier unit" data-unit="si" onclick="setUnits('si')">SI (µmol/L, g/L)</div>
@@ -96,7 +94,7 @@
         <option value="3">NYHA III</option>
         <option value="4">NYHA IV</option>
         <option value="acute">Acute decompensation</option></select></div>
-      <div id="ccsWrap" style="display:none"><label>CCS angina class</label><select id="ccs" onchange="calc()">
+      <div id="ccsWrap"><label>CCS angina class (optional)</label><select id="ccs" onchange="calc()">
         <option value="0">None / I–III</option><option value="4">IV</option></select></div>
       <div><label>Renal function</label><select id="renal" onchange="calc()">
         <option value="normal">Normal</option>
@@ -250,8 +248,8 @@
     <p class="note">Enter 0 for SYNTAX if the coronaries are angiographically normal or non-obstructive.</p>
   </div>
 
-  <div class="card" id="rhcCard" style="display:none">
-    <h2>Layer 3 — RHC hemodynamics (Tier 3 only)</h2>
+  <div class="card" id="rhcCard">
+    <h2>Layer 3 — RHC hemodynamics (optional)</h2>
     <div class="row">
       <div><label>MAP (mmHg)</label><input type="number" id="map" min="30" max="150" oninput="calc()"></div>
       <div><label>Cardiac output (L/min)</label><input type="number" id="co" step="0.1" min="1" max="12" oninput="calc()"></div>
@@ -936,7 +934,7 @@ function selfTest(){
 }
 // ===== UCSRS ENGINE END =====
 
-var tier = 0;
+var tier = 2; // all inputs always active; tiers retired
 
 // Unit system for creatinine and bilirubin. Internally the engine always works in
 // mg/dL; SI entries are converted on read. Switching units converts any value
