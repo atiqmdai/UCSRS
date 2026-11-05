@@ -173,6 +173,7 @@
         <option value="cabg_mv_repair">CABG + MV repair</option>
         <option value="cabg_tv_repair">CABG + TV repair</option>
         <option value="asc_aorta">Ascending aortic aneurysm repair</option>
+        <option value="aortic_dissection">Aortic dissection repair</option>
         <option value="cabg_asc_aorta">Ascending aortic aneurysm repair + CABG</option>
         <option value="avr_asc_aorta">AVR with ascending aortic aneurysm repair</option>
         <option value="avr_root_asc_aorta">AVR, aortic root replacement with coronary reimplantation and ascending aortic aneurysm repair</option>
@@ -656,17 +657,20 @@ var PROC_INCREMENT = {
   avr_mvr: 2.5, avr_mv_repair: 1.5, avr_mvr_tvr: 4.0, avr_mv_repair_tv_repair: 1.5,
   cabg_avr: 1.2, cabg_avr_mv_repair: 2.0, cabg_avr_mv_repair_tv_repair: 2.0,
   cabg_avr_mvr_tv_repair: 3.0, cabg_avr_mvr: 3.0, cabg_mvr: 2.0, cabg_mv_repair: 1.0,
-  cabg_tv_repair: 0.0, asc_aorta: 2.5, cabg_asc_aorta: 3.0,
+  cabg_tv_repair: 0.0, asc_aorta: 2.5, aortic_dissection: 2.5, cabg_asc_aorta: 3.0,
   avr_asc_aorta: 3.2, avr_root_asc_aorta: 4.2, other: 1.5
 };
 
 // Procedure categories that already price aortic work. The graded asc/arch term is
 // suppressed for these so one operation is never charged for the aorta twice.
-var AORTA_PRICED = { asc_aorta:1, cabg_asc_aorta:1, avr_asc_aorta:1, avr_root_asc_aorta:1 };
+var AORTA_PRICED = { aortic_dissection:1, asc_aorta:1, cabg_asc_aorta:1, avr_asc_aorta:1, avr_root_asc_aorta:1 };
 
 // v3.0: the procedure table is re-expressed in log-odds with no k scaling.
 var PW = {
   "asc_aorta": 0.658932,
+  // v3.3 (pre-enrolment): dissection = ascending repair x2 in odds (0.658932 + ln 2). Investigator
+  // judgment; NO published anchor. Acuity is NOT priced here; it comes from the Urgency field.
+  "aortic_dissection": 1.352079,
   "av_repair": -0.029315,
   "avr": 0.006212,
   "avr_are": 0.055416,
@@ -1051,7 +1055,7 @@ var PROC_WEIGHT = {
   cabg:'cabg', cabg_tv_repair:'cabg',
   avr:'single', avr_are:'single', tavr_explant:'single', av_repair:'single',
   mvr:'single', mv_repair:'single', tv_repair:'single', tvr:'single',
-  asc_aorta:'single', other:'single',
+  asc_aorta:'single', aortic_dissection:'single', other:'single',
   cabg_asc_aorta:'two',
   avr_mvr:'two', avr_mv_repair:'two', avr_mv_repair_tv_repair:'two', cabg_avr:'two',
   cabg_mvr:'two', cabg_mv_repair:'two',
@@ -1077,7 +1081,7 @@ var PROC_VALVES = {
   avr_asc_aorta:['aortic'], avr_root_asc_aorta:['aortic'] };
 function valvesTreated(pr){ return PROC_VALVES[pr] || []; }
 
-var AORTA_PROCS = ['asc_aorta', 'cabg_asc_aorta', 'avr_asc_aorta', 'avr_root_asc_aorta'];
+var AORTA_PROCS = ['aortic_dissection', 'asc_aorta', 'cabg_asc_aorta', 'avr_asc_aorta', 'avr_root_asc_aorta'];
 function onThoracicAorta(){
   return AORTA_PROCS.indexOf(document.getElementById('proc').value) >= 0;
 }
