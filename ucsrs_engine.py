@@ -174,7 +174,7 @@ PROC_WEIGHT = {
     "cabg": "cabg", "cabg_tv_repair": "cabg",
     "avr": "single", "avr_are": "single", "tavr_explant": "single", "av_repair": "single",
     "mvr": "single", "mv_repair": "single", "tv_repair": "single", "tvr": "single",
-    "asc_aorta": "single", "other": "single",
+    "asc_aorta": "single", "aortic_dissection": "single", "other": "single",
     "cabg_asc_aorta": "two", "avr_mvr": "two", "avr_mv_repair": "two", "avr_mv_repair_tv_repair": "two",
     "cabg_avr": "two", "cabg_mvr": "two", "cabg_mv_repair": "two",
     "avr_asc_aorta": "two", "avr_root_asc_aorta": "two",
@@ -182,7 +182,7 @@ PROC_WEIGHT = {
     "cabg_avr_mv_repair_tv_repair": "three", "cabg_avr_mvr_tv_repair": "three",
 }
 
-AORTA_PROCS = {"asc_aorta", "cabg_asc_aorta", "avr_asc_aorta", "avr_root_asc_aorta"}
+AORTA_PROCS = {"aortic_dissection", "asc_aorta", "cabg_asc_aorta", "avr_asc_aorta", "avr_root_asc_aorta"}
 
 PROC_INCREMENT = {
     "cabg": 0.0, "avr": 0.0, "avr_are": 0.3, "tavr_explant": 5.0, "av_repair": -0.2,
@@ -190,7 +190,7 @@ PROC_INCREMENT = {
     "avr_mvr": 2.5, "avr_mv_repair": 1.5, "avr_mvr_tvr": 4.0, "avr_mv_repair_tv_repair": 1.5,
     "cabg_avr": 1.2, "cabg_avr_mv_repair": 2.0, "cabg_avr_mv_repair_tv_repair": 2.0,
     "cabg_avr_mvr_tv_repair": 3.0, "cabg_avr_mvr": 3.0, "cabg_mvr": 2.0, "cabg_mv_repair": 1.0,
-    "cabg_tv_repair": 0.0, "asc_aorta": 2.5, "cabg_asc_aorta": 3.0,
+    "cabg_tv_repair": 0.0, "asc_aorta": 2.5, "aortic_dissection": 2.5, "cabg_asc_aorta": 3.0,
     "avr_asc_aorta": 3.2, "avr_root_asc_aorta": 4.2, "other": 1.5,
 }
 
@@ -503,7 +503,7 @@ L1 = {
 
 # Procedure categories that already price aortic work. The graded asc/arch term is
 # suppressed for these so one operation is never charged for the aorta twice.
-AORTA_PRICED = {"asc_aorta", "cabg_asc_aorta", "avr_asc_aorta", "avr_root_asc_aorta"}
+AORTA_PRICED = {"aortic_dissection", "asc_aorta", "cabg_asc_aorta", "avr_asc_aorta", "avr_root_asc_aorta"}
 
 # v3.0: the procedure table is re-expressed in log-odds with no k scaling.
 # v3.0 final: procedure increments REPLACED, not scaled. Each takes EuroSCORE II's
@@ -518,6 +518,9 @@ AORTA_PRICED = {"asc_aorta", "cabg_asc_aorta", "avr_asc_aorta", "avr_root_asc_ao
 # explant, TVR and the aortic codes. Aortic codes take EuroSCORE II's value directly.
 _PROC_W = {
     "asc_aorta": 0.658932,
+    # v3.3 (pre-enrolment): ascending repair x2 in odds (0.658932 + ln 2); no published anchor.
+    # Acuity is not priced here; it comes from the Urgency field.
+    "aortic_dissection": 1.352079,
     "av_repair": -0.029315,
     "avr": 0.006212,
     "avr_are": 0.055416,
