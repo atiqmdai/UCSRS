@@ -423,18 +423,11 @@ function meldCorrection(m){
   return S.per_point * (Math.min(v, bp) - S.threshold) + (v > bp ? S.per_point_hi * (v - bp) : 0);
 }
 
-// v3.0 final: banded age. Bands are EuroSCORE II's own log-odds delta at the band
-// midpoint, plus a deliberate acceleration above 80.
+// v3.2: hinged age. No age effect up to 70, then 0.028 log-odds per year above 70
+// (EuroSCORE II's own slope is 0.0285). Replaces the eight-band term.
 function ageBand(age){
   var a = (age == null || isNaN(age)) ? 0 : age;
-  if (a < 60) return L1.age_lt_60;
-  if (a < 65) return L1.age_60_64;
-  if (a < 70) return L1.age_65_69;
-  if (a < 75) return L1.age_70_74;
-  if (a < 80) return L1.age_75_79;
-  if (a < 85) return L1.age_80_84;
-  if (a < 90) return L1.age_85_89;
-  return L1.age_ge_90;
+  return L1.age_slope * Math.max(0, a - L1.age_knee);
 }
 
 // Apply a log-odds increment to a percentage.
@@ -551,7 +544,7 @@ var BASELINE = {
   // across these registries being 0.85) and the comment survived v3.1 by oversight.
   intercept: -6.0777,
   reference_risk: 0.03,
-  calibration_shift: 0.581,   // v3.1: registry-anchored, 30M patients
+  calibration_shift: 0.581,   // v3.1: registry-anchored, 30M patients; re-checked with the v3.2 age hinge (re-solved 0.580, kept at 0.581)
   sternotomy_scale: 1.118599
 };
 
@@ -562,14 +555,10 @@ var BASELINE = {
 // EuroSCORE II is no longer a component of this layer. It is computed separately and
 // reported as an external comparator only.
 var L1 = {
-  // v3.0 final: age BANDED. Serum creatinine carries no age signal, so this term is
-  // complete.
-  // v3.1: steepened from 65 up. The 19 Sep decomposition found the 70-74 band at +0.06
-  // against EuroSCORE II's +0.314 at age 70 - a 0.254 log-odds deficit on every patient
-  // of that age. Acceleration above 80 follows the KROK on-pump octogenarian arm
-  // (n=2,729, O/E 1.62). Bands below 65 unchanged.
-  age_lt_60:  -0.59,   age_60_64: -0.53,   age_65_69: 0.05,   age_70_74: 0.30,
-  age_75_79:  0.55,   age_80_84: 0.85,    age_85_89: 1.10,   age_ge_90: 1.40,
+  // v3.2: age is a hinge. No age effect up to 70, then 0.028 log-odds per year above 70
+  // (EuroSCORE II's own slope is 0.0285). Serum creatinine carries no age signal, so
+  // this term is complete. Replaces the v3.0/v3.1 eight-band term.
+  age_knee:   70,      age_slope:  0.028,
   female:                 0.2,
 
   // Renal: SERUM CREATININE only. Cockcroft-Gault is deleted from the scored path - it
