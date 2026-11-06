@@ -447,15 +447,12 @@ BASELINE_A2 = {
 # Anaemia, albumin and mobility carry NO Layer 1 weight: each is counted once, in the
 # Essential Frailty Toolset at Layer 2b.
 L1 = {
-    # v3.0 final: age is BANDED (creatinine carries no age signal, so the age term is
-    # complete). Each band is EuroSCORE II's own log-odds delta at the band midpoint,
-    # plus a deliberate acceleration above 80.
-    # v3.1 (committed 20 Sep 2026): steepened from 65 upward. The 19 Sep decomposition found the
-    # 70-74 band charging +0.06 against EuroSCORE II's +0.314 at age 70 -- a deficit of
-    # 0.254 log-odds applying to every patient of that age regardless of physiology.
-    # Bands below 65 are untouched, so the healthy end does not move.
-    "age_lt_60": -0.59, "age_60_64": -0.53, "age_65_69": 0.05, "age_70_74": 0.30,
-    "age_75_79": 0.55, "age_80_84": 0.85, "age_85_89": 1.10, "age_ge_90": 1.40,
+    # v3.2 (pre-enrolment, Nov 2026): age is a hinge. No age effect up to 70, then a
+    # linear slope of 0.028 log-odds per year above 70 (EuroSCORE II's own slope is 0.0285
+    # per year). Replaces the v3.0/v3.1 eight-band term, which was ~3x steeper than
+    # EuroSCORE II between 60 and 70, jumped +0.58 at age 65, and implied odds x4 from 60
+    # to 80. Creatinine carries no age signal, so the age term is complete.
+    "age_knee": 70.0, "age_slope": 0.028,
     "female": 0.20,
     # Renal: serum creatinine only. Cockcroft-Gault is DELETED from the scored path
     # (it feeds only the "cc" input of the COMPANION renal-failure estimate, which is
@@ -551,20 +548,10 @@ _PROC_W = {
 
 
 def age_band(age):
-    """Banded age. Below 65 the bands are EuroSCORE II's own log-odds delta at the band
-    midpoint. From 65 up they are NOT: v3.1 steepened them (see the note on L1) after a
-    decomposition found the 70-74 band charging +0.06 where EuroSCORE II charges +0.314
-    at age 70, and the bands above 80 carry a deliberate acceleration on top of that,
-    justified by the KROK on-pump octogenarian arm."""
+    """Hinged age: 0 up to age 70, then 0.028 log-odds per year above 70 (v3.2).
+    Continuous, no band edges. The level below 70 is absorbed by the calibration shift."""
     a = _num(age) or 0.0
-    if a < 60:  return L1["age_lt_60"]
-    if a < 65:  return L1["age_60_64"]
-    if a < 70:  return L1["age_65_69"]
-    if a < 75:  return L1["age_70_74"]
-    if a < 80:  return L1["age_75_79"]
-    if a < 85:  return L1["age_80_84"]
-    if a < 90:  return L1["age_85_89"]
-    return L1["age_ge_90"]
+    return L1["age_slope"] * max(0.0, a - L1["age_knee"])
 
 
 def physiology_baseline(p):
@@ -573,7 +560,7 @@ def physiology_baseline(p):
 
     z += BASELINE_A2["calibration_shift"]
 
-    # Age: banded. Creatinine carries no age signal, so this term is complete.
+    # Age: hinged at 70 (v3.2). Creatinine carries no age signal, so this term is complete.
     z += age_band(age)
     if p.get("female"):
         z += L1["female"]
