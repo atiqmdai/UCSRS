@@ -431,7 +431,7 @@ BASELINE_A2 = {
     # withdrawn target and is superseded on this point.
     "reference_risk": 0.03,
     "intercept": -6.0777,
-    "calibration_shift": 0.581,
+    "calibration_shift": 0.563,  # re-solved 6 Nov 2026 after the age-term revision (was 0.581)
     "sternotomy_scale": 1.118599,
 }
 
