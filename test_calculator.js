@@ -296,9 +296,9 @@ check('MELD takes no dialysis argument — creatinine entered is creatinine used
 check('no self-test banner is rendered on the page',
   !/id="selftest"/.test(HTML) && !/Self-test passed/.test(HTML));
 check('weight and height are marked and gated as required fields',
-  /Weight \(kg\) <span class="req">\*<\/span>/.test(HTML) &&
-  /Height \(cm\) <span class="req">\*<\/span>/.test(HTML) &&
-  /num\('wt'\) === null \|\| num\('ht'\) === null/.test(HTML));
+  /<label>Weight <select id="wtU"[\s\S]*?<span class="req">\*<\/span>/.test(HTML) &&
+  /<label>Height <select id="htU"[\s\S]*?<span class="req">\*<\/span>/.test(HTML) &&
+  /bodyNum\('wt'\) === null \|\| bodyNum\('ht'\) === null/.test(HTML));
 check('Layer 2c fields are named in words, not abbreviations',
   /LV end-systolic volume \(mL\)/.test(HTML) &&
   /or LV end-systolic volume index \(mL\/m²\)/.test(HTML) &&
@@ -338,7 +338,7 @@ check('MELD creatinine is its own field and is not taken from the Layer 1 creati
 check('BSA is computed by the Mosteller formula',
   /function bsaMosteller/.test(HTML) && /Math\.sqrt\(\(heightCm \* weightKg\) \/ 3600\)/.test(HTML));
 check('height is collected',
-  /id="ht"/.test(HTML) && /Height \(cm\)/.test(HTML));
+  /id="ht"/.test(HTML) && /id="htU"/.test(HTML) && /value="cm"/.test(HTML));
 check('LVESV is indexed to BSA when LVESVI is not entered directly',
   /lvesviValue = num\('lvesv'\) \/ bsa/.test(HTML));
 check('aortic and mitral valve procedures are separated from each other',
@@ -364,7 +364,7 @@ check('aortic work compounds: root plus ascending outscores ascending alone',
   ctx.physiologyBaseline(PROC('avr_root_asc_aorta')) > ctx.physiologyBaseline(PROC('avr_asc_aorta')) &&
   ctx.physiologyBaseline(PROC('avr_asc_aorta')) > ctx.physiologyBaseline(PROC('asc_aorta')));
 check('all four aortic procedures carry the published thoracic-aorta term',
-  /AORTA_PROCS = \['asc_aorta', 'cabg_asc_aorta', 'avr_asc_aorta', 'avr_root_asc_aorta'\]/.test(HTML));
+  /AORTA_PROCS = \['aortic_dissection', 'asc_aorta', 'cabg_asc_aorta', 'avr_asc_aorta', 'avr_root_asc_aorta'\]/.test(HTML));
 check('operation field is first time / redo / second redo',
   /<option value="1">First time<\/option>/.test(HTML) &&
   /<option value="2">Redo<\/option>/.test(HTML) &&
@@ -617,7 +617,7 @@ check('CABG plus tricuspid repair is a procedure, not a comorbidity checkbox',
 check('the procedure list is in the specified order', (function(){
   var opts = HTML.match(/<select id="proc"[\s\S]*?<\/select>/)[0].match(/value="([a-z_]+)"/g)
                .map(function(x){ return x.slice(7, -1); });
-  var want = ['cabg','avr','avr_are','tavr_explant','av_repair','mvr','mv_repair','tv_repair','tvr','avr_mvr','avr_mv_repair','avr_mvr_tvr','avr_mv_repair_tv_repair','cabg_avr','cabg_avr_mv_repair','cabg_avr_mvr','cabg_avr_mv_repair_tv_repair','cabg_avr_mvr_tv_repair','cabg_mvr','cabg_mv_repair','cabg_tv_repair','asc_aorta','cabg_asc_aorta','avr_asc_aorta','avr_root_asc_aorta','other'];
+  var want = ['cabg','avr','avr_are','tavr_explant','av_repair','mvr','mv_repair','tv_repair','tvr','avr_mvr','avr_mv_repair','avr_mvr_tvr','avr_mv_repair_tv_repair','cabg_avr','cabg_avr_mv_repair','cabg_avr_mvr','cabg_avr_mv_repair_tv_repair','cabg_avr_mvr_tv_repair','cabg_mvr','cabg_mv_repair','cabg_tv_repair','asc_aorta','aortic_dissection','cabg_asc_aorta','avr_asc_aorta','avr_root_asc_aorta','other'];
   return opts.join(',') === want.join(',');
 })());
 check('CABG plus tricuspid repair scores exactly as isolated CABG',
@@ -721,21 +721,20 @@ console.log('\n7i. v2.1 baseline — log-odds form, continuity, and the removed 
   // STS manner with acceleration above 80, EF in four bands inclusive of the upper edge.
   // Creatinine stays continuous: it replaced Cockcroft-Gault clearance and is scored as
   // 1.10 x ln(cr), so there is no band edge to jump at.
-  var jumpAge = Math.abs(ctx.physiologyBaseline(P({ age:70.001 })) - ctx.physiologyBaseline(P({ age:69.999 })));
-  check('age is BANDED in v3.0 — a step exists at the 70-year band edge', jumpAge > 5e-4,
-    `step ${jumpAge.toFixed(4)} pp`);
-  // v3.1: NON-DECREASING, not strictly increasing. The 0.40 floor flattens the ladder
-  // below 70 for a normal-risk patient, so 59->60 and 64->65 return the same value. The
-  // ladder itself is still strictly increasing in log-odds - assert that on a patient
-  // sick enough to sit off the floor, and assert non-decreasing on the reference one.
+  // v3.2: age is a HINGE -- no effect up to 70, then 0.028 log-odds per year above 70.
+  var sickAge = { creatinine:2.0, lvef:30 };
+  var flatBelow = [50,55,60,65,70].every(function(a){
+    return Math.abs(ctx.physiologyBaseline(P(Object.assign({ age:a }, sickAge))) -
+                    ctx.physiologyBaseline(P(Object.assign({ age:70 }, sickAge)))) < 1e-9; });
+  check('age is a HINGE in v3.2 — flat from 50 to 70, no step at 65', flatBelow);
+  // v3.1: NON-DECREASING on the reference patient (the 0.40 floor flattens the low end).
   check('the age ladder never decreases across a band edge',
     [59,64,69,74,79,84,89].every(function(e){
       return ctx.physiologyBaseline(P({ age:e + 1 })) >= ctx.physiologyBaseline(P({ age:e })); }));
-  check('off the floor, the age ladder is STRICTLY increasing at every band edge',
-    [59,64,69,74,79,84,89].every(function(e){
-      var sick = { creatinine:2.0, lvef:30 };
-      return ctx.physiologyBaseline(P(Object.assign({ age:e + 1 }, sick))) >
-             ctx.physiologyBaseline(P(Object.assign({ age:e },     sick))); }));
+  check('off the floor, the age term is STRICTLY increasing at every year above 70',
+    [70,74,79,84,89].every(function(e){
+      return ctx.physiologyBaseline(P(Object.assign({ age:e + 1 }, sickAge))) >
+             ctx.physiologyBaseline(P(Object.assign({ age:e },     sickAge))); }));
   // STS-style acceleration above 80, measured against the seventh decade rather than
   // against any single band edge.
   //
